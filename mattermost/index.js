@@ -18,6 +18,11 @@ const initializeMattermost = () => {
     wsClient.setEventCallback(function (event) {
         if (event.event === 'posted') {
             const data = JSON.parse(event.data.post);
+
+            if (!data.message.startsWith('!')) {
+                return;
+            }
+            
             const messageParts = data.message.split(';').map(part => part.trim());
             const command = messageParts[0];
             const args = messageParts.slice(1);
