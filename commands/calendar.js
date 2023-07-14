@@ -4,15 +4,12 @@ const readline = require('readline');
 const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 
-// Если вам нужно изменить scopes, удалите файл token.json.
 const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
 const TOKEN_PATH = 'token.json';
 
 module.exports = async ({ channel_id, user_id }) => {
-    // Загрузка клиентских секретов из файла.
     fs.readFile('credentials.json', (err, content) => {
         if (err) return console.log('Error loading client secret file:', err);
-        // Авторизуйте клиента с помощью credentials, а затем вызовите Google Calendar API.
         authorize(JSON.parse(content), listEvents);
     });
 
@@ -20,7 +17,6 @@ module.exports = async ({ channel_id, user_id }) => {
         const { client_secret, client_id, redirect_uris } = credentials.installed;
         const oAuth2Client = new OAuth2Client(client_id, client_secret, redirect_uris[0]);
 
-        // Проверьте, есть ли у нас уже токен доступа.
         fs.readFile(TOKEN_PATH, (err, token) => {
             if (err) return getAccessToken(oAuth2Client, callback);
             oAuth2Client.setCredentials(JSON.parse(token));
@@ -29,7 +25,6 @@ module.exports = async ({ channel_id, user_id }) => {
     }
 
     function getAccessToken(oAuth2Client, callback) {
-        // Здесь вы должны ввести код, полученный после перехода по URL из консоли
         const authUrl = oAuth2Client.generateAuthUrl({
             access_type: 'offline',
             scope: SCOPES,
