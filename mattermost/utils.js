@@ -12,6 +12,12 @@ const postMessage = async (channel_id, message) => {
     }
 };
 
+const getUser = async (user_id) => {
+    const user = await Client4.getUser(user_id);
+    return user;
+}
+
 module.exports = {
     postMessage,
+    getUser,
 };

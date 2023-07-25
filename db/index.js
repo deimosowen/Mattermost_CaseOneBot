@@ -5,6 +5,7 @@ const dbPath = path.resolve(__dirname, 'database.db');
 
 const db = new sqlite3.Database(dbPath);
 db.all = util.promisify(db.all);
+db.get = util.promisify(db.get);
 
 db.run(`
     CREATE TABLE IF NOT EXISTS reminders (
@@ -15,6 +16,27 @@ db.run(`
         user_name TEXT NOT NULL,
         schedule TEXT NOT NULL,
         message TEXT NOT NULL
+    )
+`);
+
+db.run(`
+    CREATE TABLE IF NOT EXISTS calendars (
+        id INTEGER PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        access_token TEXT,
+        refresh_token TEXT,
+        scope TEXT,
+        token_type TEXT,
+        expiry_date INTEGER
+    )
+`);
+
+db.run(`
+    CREATE TABLE IF NOT EXISTS notified_events (
+        user_id TEXT NOT NULL,
+        event_id TEXT NOT NULL,
+        PRIMARY KEY (user_id, event_id)
     )
 `);
 

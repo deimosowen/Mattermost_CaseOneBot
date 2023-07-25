@@ -49,5 +49,6 @@ const loadCronJobsFromDb = async () => {
 module.exports = {
     loadCronJobsFromDb,
     setCronJob,
-    cancelCronJob
+    cancelCronJob,
+    CronJob,
 };
