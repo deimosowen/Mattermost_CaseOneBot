@@ -47,6 +47,11 @@ async function listEventsForUser(user, mattermostUser) {
         if (events.length) {
             for (const event of events) {
                 const eventStartTime = moment(event.start.dateTime);
+                const attendanceStatus = event.attendees.find(att => att.email === user.email)?.responseStatus;
+                // Исключение событий, на которые ответили "не приду"
+                if (attendanceStatus === 'declined') {
+                    continue;
+                }
                 if (eventStartTime.isAfter(now) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
                     const message = createEventMessage(event, timezone);
                     postMessage(user.channel_id, message);
