@@ -7,8 +7,9 @@ const { loadCronJobsFromDb } = require('./cron');
 const { initializeServer } = require('./server');
 const { initGoogleCalendarNotifications } = require('./calendar');
 
+moment.locale('ru');
+
 initializeMattermost();
 loadCronJobsFromDb();
 initializeServer();
 initGoogleCalendarNotifications();
-moment.locale('ru');

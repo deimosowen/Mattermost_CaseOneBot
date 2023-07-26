@@ -33,7 +33,7 @@ const notifyUsersAboutUpcomingEvents = async () => {
 async function listEventsForUser(user, mattermostUser) {
     const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true' ? mattermostUser.timezone.automaticTimezone : mattermostUser.timezone.manualTimezone;
     const now = moment().tz(timezone);
-    const tenMinutesFromNow = now.clone().add(11, 'minutes');
+    const tenMinutesFromNow = now.clone().add(user.notification_interval + 1, 'minutes');
     calendar.events.list({
         calendarId: 'primary',
         timeMin: now.toISOString(),
@@ -58,7 +58,6 @@ async function listEventsForUser(user, mattermostUser) {
                     const message = createEventMessage(event, timezone);
                     postMessage(user.channel_id, message);
                     await markEventAsNotified(user.user_id, event.id);
-                    console.log(event);
                 }
             }
         }

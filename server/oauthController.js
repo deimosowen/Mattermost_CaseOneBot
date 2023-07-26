@@ -4,6 +4,10 @@ const { oAuth2Client } = require('./googleAuth');
 
 const router = express.Router();
 
+router.get('/', (req, res) => {
+    res.redirect('https://github.com/deimosowen/Mattermost_EchoBot');
+});
+
 router.get('/googleAuthCallback', async (req, res) => {
     const { code, state } = req.query;
 

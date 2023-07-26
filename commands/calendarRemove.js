@@ -1,4 +1,4 @@
-const { getUser, removeUser } = require('../db/calendars');
+const { getUser, removeUser, removeUserSettings } = require('../db/calendars');
 const { postMessage } = require('../mattermost/utils');
 
 module.exports = async ({ channel_id, user_id }) => {
@@ -10,5 +10,6 @@ module.exports = async ({ channel_id, user_id }) => {
     }
 
     await removeUser(user_id);
+    await removeUserSettings(user_id);
     postMessage(channel_id, `Вы успешно отключили свой Google Календарь`);
 }

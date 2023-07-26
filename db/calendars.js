@@ -1,33 +1,62 @@
 const db = require('./index.js');
 
 const getAllUsers = async () => {
-    return db.all('SELECT * FROM calendars');
+    return db.all(`
+    SELECT c.*, s.notification_interval
+    FROM calendars c
+    LEFT JOIN user_settings s ON c.user_id = s.user_id
+    `);
 }
 
 const getUser = async (user_id) => {
-    return db.get('SELECT * FROM calendars WHERE user_id = ?', user_id);
+    return db.get(`
+        SELECT c.*, s.notification_interval
+        FROM calendars c
+        LEFT JOIN user_settings s ON c.user_id = s.user_id
+        WHERE c.user_id = ?
+    `, user_id);
 }
 
 const updateUser = async (user_id, channel_id, tokens) => {
     const user = await getUser(user_id);
     if (user) {
-        return db.run(`
+        await db.run(`
             UPDATE calendars 
             SET access_token = ?, refresh_token = ?, scope = ?, token_type = ?, expiry_date = ? 
             WHERE user_id = ?`,
             tokens.access_token, tokens.refresh_token, tokens.scope, tokens.token_type, tokens.expiry_date, user_id
         );
     } else {
-        return db.run(`
+        await db.run(`
             INSERT INTO calendars (user_id, channel_id, access_token, refresh_token, scope, token_type, expiry_date) 
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
             user_id, channel_id, tokens.access_token, tokens.refresh_token, tokens.scope, tokens.token_type, tokens.expiry_date
         );
+
+        const userSettings = await getUserSettings(user_id);
+        if (!userSettings) {
+            await createUserSettings(user_id);
+        }
     }
 }
 
 const removeUser = async (user_id) => {
     return db.run('DELETE FROM calendars WHERE user_id = ?', user_id);
+}
+
+const getUserSettings = async (user_id) => {
+    return db.get('SELECT * FROM user_settings WHERE user_id = ?', user_id);
+}
+
+const createUserSettings = async (user_id) => {
+    return await db.run(`
+    INSERT INTO user_settings (user_id, timezone, language, notification_interval) 
+    VALUES (?, 'UTC', 'ru', 10)`,
+        user_id);
+}
+
+const removeUserSettings = async (user_id) => {
+    return db.run('DELETE FROM user_settings WHERE user_id = ?', user_id);
 }
 
 const markEventAsNotified = async (user_id, event_id) => {
@@ -48,6 +77,7 @@ module.exports = {
     getUser,
     updateUser,
     removeUser,
+    removeUserSettings,
     markEventAsNotified,
     checkIfEventWasNotified,
     removeNotifiedEvents,

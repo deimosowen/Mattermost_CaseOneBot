@@ -40,4 +40,14 @@ db.run(`
     )
 `);
 
+db.run(`
+    CREATE TABLE IF NOT EXISTS user_settings (
+        id INTEGER PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        timezone TEXT DEFAULT 'UTC',
+        language TEXT DEFAULT 'ru',
+        notification_interval INTEGER DEFAULT 10
+    )
+`);
+
 module.exports = db;
