@@ -5,6 +5,8 @@ const { oAuth2Client } = require('../server/googleAuth');
 const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
 const { CronJob } = require('../cron');
 const { getAllUsers, markEventAsNotified, checkIfEventWasNotified, removeNotifiedEvents } = require('../db/calendars');
+const TurndownService = require('turndown');
+const turndownService = new TurndownService();
 
 const initGoogleCalendarNotifications = async () => {
     const notificationsCronJob = new CronJob('* * * * *', async () => {
@@ -47,7 +49,7 @@ async function listEventsForUser(user, mattermostUser) {
         if (events.length) {
             for (const event of events) {
                 const eventStartTime = moment(event.start.dateTime);
-                const attendanceStatus = event.attendees.find(att => att.email === user.email)?.responseStatus;
+                const attendanceStatus = event.attendees ? event.attendees.find(att => att.email === user.email)?.responseStatus : null;
                 // Исключение событий, на которые ответили "не приду"
                 if (attendanceStatus === 'declined') {
                     continue;
@@ -65,10 +67,10 @@ async function listEventsForUser(user, mattermostUser) {
 
 function createEventMessage(event, userTimeZone) {
     const eventDate = moment(event.start.dateTime || event.start.date).tz(userTimeZone);
-    const description = event.description ? `${event.description}\n` : '';
+    const description = event.description ? `${turndownService.turndown(event.description)}\n` : '';
     const hangoutLink = event.hangoutLink ? `[Присоединиться к Google Meet](${event.hangoutLink})` : '';
     return `
-**Событие: ${event.summary}**
+**${event.summary}**
 *${eventDate.format('LLL')}*\n
 ${description}
 ${hangoutLink}`;

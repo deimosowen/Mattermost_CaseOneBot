@@ -23,6 +23,7 @@
     "moment-timezone": "^0.5.43",
     "node-cron": "^3.0.2",
     "sqlite3": "^5.1.6",
-    "tslib": "^2.6.0"
+    "tslib": "^2.6.0",
+    "turndown": "^7.1.2"
   }
 }

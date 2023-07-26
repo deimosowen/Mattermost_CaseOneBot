@@ -4,7 +4,7 @@ const { oAuth2Client } = require('./googleAuth');
 
 const router = express.Router();
 
-router.get('/callback', async (req, res) => {
+router.get('/googleAuthCallback', async (req, res) => {
     const { code, state } = req.query;
 
     if (!code || !state) {
