@@ -1,16 +1,24 @@
 const express = require('express');
-const { updateUser } = require('../db/calendars');
+const { getUser, updateUser } = require('../db/calendars');
 const { oAuth2Client } = require('./googleAuth');
 
 const router = express.Router();
 
 router.get('/callback', async (req, res) => {
     const { code, state } = req.query;
+
+    if (!code || !state) {
+        return res.status(400).send('Bad Request: Missing required parameters.');
+    }
+
     const decodedState = decodeURIComponent(state);
     const { channel_id, user_id } = JSON.parse(decodedState);
-    const { tokens } = await oAuth2Client.getToken(code);
 
-    await updateUser(user_id, channel_id, tokens);
+    const user = await getUser(user_id);
+    if (!user) {
+        const { tokens } = await oAuth2Client.getToken(code);
+        await updateUser(user_id, channel_id, tokens);
+    }
 
     res.send(`
     <html>
