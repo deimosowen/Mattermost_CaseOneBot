@@ -1,8 +1,8 @@
 const moment = require('moment-timezone');
 const { postMessage, getUser } = require('../mattermost/utils');
 const { google } = require('googleapis');
-const { oAuth2Client } = require('../server/googleAuth');
-const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+const { OAuth2Client } = require('google-auth-library');
+const { client_id, client_secret, redirect_uris } = require('../credentials.json').web;
 const { CronJob } = require('../cron');
 const { getAllUsers, markEventAsNotified, checkIfEventWasNotified, removeNotifiedEvents } = require('../db/calendars');
 const TurndownService = require('turndown');
@@ -24,33 +24,32 @@ const initGoogleCalendarNotifications = async () => {
 const notifyUsersAboutUpcomingEvents = async () => {
     const users = await getAllUsers();
     for (const user of users) {
-        oAuth2Client.setCredentials(user);
-        const mattermostUser = await getUser(user.user_id);
-        await listEventsForUser(user, mattermostUser);
+        await listEventsForUser(user);
     }
-}
+};
 
-async function listEventsForUser(user, mattermostUser) {
+async function listEventsForUser(user) {
+    const oAuth2Client = new OAuth2Client(client_id, client_secret, redirect_uris[1]);
+    oAuth2Client.setCredentials(user);
+    const mattermostUser = await getUser(user.user_id);
     const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true' ? mattermostUser.timezone.automaticTimezone : mattermostUser.timezone.manualTimezone;
     const now = moment().tz(timezone);
     const tenMinutesFromNow = now.clone().add(user.notification_interval + 1, 'minutes');
-    calendar.events.list({
-        calendarId: 'primary',
-        timeMin: now.toISOString(),
-        timeMax: tenMinutesFromNow.toISOString(),
-        singleEvents: true,
-        orderBy: 'startTime',
-    }, async (err, res) => {
-        if (err) {
-            console.log('The API returned an error: ' + err);
-            return;
-        }
+    const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+
+    try {
+        const res = await calendar.events.list({
+            calendarId: 'primary',
+            timeMin: now.toISOString(),
+            timeMax: tenMinutesFromNow.toISOString(),
+            singleEvents: true,
+            orderBy: 'startTime',
+        });
         const events = res.data.items;
         if (events.length) {
             for (const event of events) {
                 const eventStartTime = moment(event.start.dateTime);
                 const attendanceStatus = event.attendees ? event.attendees.find(att => att.email === user.email)?.responseStatus : null;
-                // Исключение событий, на которые ответили "не приду"
                 if (attendanceStatus === 'declined') {
                     continue;
                 }
@@ -61,7 +60,9 @@ async function listEventsForUser(user, mattermostUser) {
                 }
             }
         }
-    });
+    } catch (err) {
+        console.log('The API returned an error: ' + err);
+    }
 }
 
 function createEventMessage(event, userTimeZone) {

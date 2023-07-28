@@ -17,6 +17,14 @@ const getUser = async (user_id) => {
     `, user_id);
 }
 
+const createUser = async (user_id, channel_id, tokens) => {
+    await db.run(`
+            INSERT INTO calendars (user_id, channel_id, access_token, refresh_token, scope, token_type, expiry_date) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        user_id, channel_id, tokens.access_token, tokens.refresh_token, tokens.scope, tokens.token_type, tokens.expiry_date
+    );
+}
+
 const updateUser = async (user_id, channel_id, tokens) => {
     const user = await getUser(user_id);
     if (user) {
@@ -75,6 +83,7 @@ const removeNotifiedEvents = async () => {
 module.exports = {
     getAllUsers,
     getUser,
+    createUser,
     updateUser,
     removeUser,
     removeUserSettings,
