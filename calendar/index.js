@@ -29,7 +29,7 @@ const notifyUsersAboutUpcomingEvents = async () => {
 };
 
 async function listEventsForUser(user) {
-    const oAuth2Client = new OAuth2Client(client_id, client_secret, redirect_uris[1]);
+    const oAuth2Client = new OAuth2Client(client_id, client_secret, redirect_uris[0]);
     oAuth2Client.setCredentials(user);
     const mattermostUser = await getUser(user.user_id);
     const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true' ? mattermostUser.timezone.automaticTimezone : mattermostUser.timezone.manualTimezone;
