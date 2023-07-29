@@ -63,6 +63,14 @@ const createUserSettings = async (user_id) => {
         user_id);
 }
 
+const updateUserSettings = async (user_id, settings) => {
+    return await db.run(`
+        UPDATE user_settings 
+        SET notification_interval = ?
+        WHERE user_id = ?`,
+        settings.notification_interval, user_id);
+}
+
 const removeUserSettings = async (user_id) => {
     return db.run('DELETE FROM user_settings WHERE user_id = ?', user_id);
 }
@@ -86,6 +94,8 @@ module.exports = {
     createUser,
     updateUser,
     removeUser,
+    getUserSettings,
+    updateUserSettings,
     removeUserSettings,
     markEventAsNotified,
     checkIfEventWasNotified,

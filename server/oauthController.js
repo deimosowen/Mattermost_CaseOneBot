@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUser, updateUser } = require('../db/calendars');
+const { getUser, updateUser, getUserSettings, updateUserSettings } = require('../db/calendars');
 const { oAuth2Client } = require('./googleAuth');
 
 const router = express.Router();
@@ -72,8 +72,9 @@ router.get('/googleAuthCallback', async (req, res) => {
                 <svg fill="#000000" width="50" height="50" viewBox="0 0 501 501" xmlns="http://www.w3.org/2000/svg" version="1"><path d="M236 .7C137.7 7.5 54 68.2 18.2 158.5c-32 81-19.6 172.8 33 242.5 39.8 53 97.2 87 164.3 97 16.5 2.7 48 3.2 63.5 1.2 48.7-6.3 92.2-24.6 129-54.2 13-10.5 33-31.2 42.2-43.7 26.4-35.5 42.8-75.8 49-120.3 1.6-12.3 1.6-48.7 0-61-4-28.3-12-54.8-24.2-79.5-12.8-26-26.5-45.3-46.8-65.8C417.8 64 400.2 49 398.4 49c-.6 0-.4 10.5.3 26l1.3 26 7 8.7c19 23.7 32.8 53.5 38.2 83 2.5 14 3 43 1 55.8-4.5 27.8-15.2 54-31 76.5-8.6 12.2-28 31.6-40.2 40.2-24 17-50 27.6-80 33-10 1.8-49 1.8-59 0-43-7.7-78.8-26-107.2-54.8-29.3-29.7-46.5-64-52.4-104.4-2-14-1.5-42 1-55C90 121.4 132 72 192 49.7c8-3 18.4-5.8 29.5-8.2 1.7-.4 34.4-38 35.3-40.6.3-1-10.2-1-20.8-.4z"/><path d="M322.2 24.6c-1.3.8-8.4 9.3-16 18.7-7.4 9.5-22.4 28-33.2 41.2-51 62.2-66 81.6-70.6 91-6 12-8.4 21-9 33-1.2 19.8 5 36 19 50C222 268 230 273 243 277.2c9 3 10.4 3.2 24 3.2 13.8 0 15 0 22.6-3 23.2-9 39-28.4 45-55.7 2-8.2 2-28.7.4-79.7l-2-72c-1-36.8-1.4-41.8-3-44-2-3-4.8-3.6-7.8-1.4z"/></svg>
             </div>
             <div id="message">
-                <h1>Authentication Successful!</h1>
-                <p>You can now close this window.</p>
+                <h1>Аутентификация успешно завершена!</h1>
+                <p>Вы можете закрыть это окно и вернуться в Mattermost.</p>
+                <p>Также, вы можете <a href="/calendar/settings/?user_id=${user_id}">перейти к настройкам уведомлений о событиях календаря</a>.</p>
             </div>
         </body>
     </html>
@@ -87,6 +88,108 @@ router.post('/notifications', (req, res) => {
     console.log(notification);
 
     res.sendStatus(200);
+});
+
+/* Settings */
+router.get('/calendar/settings/', async (req, res) => {
+    const { user_id, success } = req.query;
+
+    const settings = await getUserSettings(user_id);
+
+    if (!settings) {
+        return res.status(400).send('Bad Request: Not found user.');
+    }
+
+    const successMessage = success ? '<p style="color: green; font-size: 18px; text-align: center;">Настройки успешно сохранены!</p>' : '';
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    background-color: #f5f5f5;
+                    color: #333;
+                }
+                .container {
+                    max-width: 400px;
+                    background-color: #fff;
+                    padding: 20px;
+                    border-radius: 15px;
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+                }
+                h1 {
+                    font-size: 26px;
+                    margin-bottom: 20px;
+                    color: #333;
+                    text-align: center;
+                }
+                form {
+                    display: flex;
+                    flex-direction: column;
+                }
+                label {
+                    font-weight: 500;
+                    margin-bottom: 10px;
+                    color: #333;
+                }
+                select {
+                    margin-bottom: 30px;
+                    padding: 10px;
+                    border-radius: 8px;
+                    border: 1px solid #ccc;
+                    color: #333;
+                }
+                input[type="submit"] {
+                    background-color: #007AFF;
+                    color: white;
+                    padding: 15px;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 16px;
+                    transition: background-color 0.2s;
+                }
+                input[type="submit"]:hover {
+                    background-color: #0051cb;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Настройки Календаря</h1>
+                ${successMessage}
+                <form action="/calendar/settings/" method="post">
+                    <input type="hidden" id="user_id" name="user_id" value="${user_id}">
+                    <label for="notification_interval">Уведомлять меня:</label>
+                    <select id="notification_interval" name="notification_interval">
+                        <option value="10" ${settings.notification_interval === 10 ? 'selected' : ''}>За 10 минут до начала события</option>
+                        <option value="5" ${settings.notification_interval === 5 ? 'selected' : ''}>За 5 минут до начала события</option>
+                        <option value="1" ${settings.notification_interval === 1 ? 'selected' : ''}>За 1 минуту до начала события</option>
+                        <option value="0" ${settings.notification_interval === 0 ? 'selected' : ''}>В момент начала события</option>
+                    </select>
+                    <input type="submit" value="Сохранить">
+                </form>
+            </div>
+        </body>
+        </html>
+    `);
+});
+
+
+
+router.post('/calendar/settings/', async (req, res) => {
+    const { user_id, notification_interval } = req.body;
+    console.log(user_id);
+    console.log(notification_interval);
+    await updateUserSettings(user_id, { notification_interval });
+    res.redirect(`/calendar/settings/?user_id=${user_id}&success=true`);
 });
 
 module.exports = router;

@@ -3,6 +3,9 @@ const oauthController = require('./oauthController');
 
 const initializeServer = () => {
     const app = express();
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+
     app.use('/', oauthController);
 
     app.listen(process.env.PORT, () => {
