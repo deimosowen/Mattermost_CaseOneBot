@@ -12,6 +12,7 @@ module.exports = async ({ channel_id, user_id }) => {
 
     const authUrl = oAuth2Client.generateAuthUrl({
         access_type: 'offline',
+        prompt: 'consent',
         scope: ['https://www.googleapis.com/auth/calendar.readonly'],
         state: JSON.stringify({ channel_id: channel_id, user_id: user_id }),
     });

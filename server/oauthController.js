@@ -172,7 +172,6 @@ router.get('/calendar/settings/', async (req, res) => {
                         <option value="10" ${settings.notification_interval === 10 ? 'selected' : ''}>За 10 минут до начала события</option>
                         <option value="5" ${settings.notification_interval === 5 ? 'selected' : ''}>За 5 минут до начала события</option>
                         <option value="1" ${settings.notification_interval === 1 ? 'selected' : ''}>За 1 минуту до начала события</option>
-                        <option value="0" ${settings.notification_interval === 0 ? 'selected' : ''}>В момент начала события</option>
                     </select>
                     <input type="submit" value="Сохранить">
                 </form>
@@ -186,8 +185,6 @@ router.get('/calendar/settings/', async (req, res) => {
 
 router.post('/calendar/settings/', async (req, res) => {
     const { user_id, notification_interval } = req.body;
-    console.log(user_id);
-    console.log(notification_interval);
     await updateUserSettings(user_id, { notification_interval });
     res.redirect(`/calendar/settings/?user_id=${user_id}&success=true`);
 });
