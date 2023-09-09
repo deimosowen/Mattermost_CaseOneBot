@@ -1,6 +1,6 @@
 const CronJob = require('cron').CronJob;
 const { postMessage } = require('../mattermost/utils');
-const { getReminders } = require('../db/reminders');
+const { getReminders } = require('../db/models/reminders');
 
 let jobs = {};
 

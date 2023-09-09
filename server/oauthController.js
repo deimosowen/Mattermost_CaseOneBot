@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUser, updateUser, getUserSettings, updateUserSettings } = require('../db/calendars');
+const { getUser, updateUser, getUserSettings, updateUserSettings } = require('../db/models/calendars');
 const { oAuth2Client } = require('./googleAuth');
 
 const router = express.Router();
@@ -84,7 +84,6 @@ router.get('/googleAuthCallback', async (req, res) => {
 router.post('/notifications', (req, res) => {
     const notification = req.body;
 
-    // Здесь вы можете обработать уведомление об изменении.
     console.log(notification);
 
     res.sendStatus(200);
@@ -180,8 +179,6 @@ router.get('/calendar/settings/', async (req, res) => {
         </html>
     `);
 });
-
-
 
 router.post('/calendar/settings/', async (req, res) => {
     const { user_id, notification_interval } = req.body;

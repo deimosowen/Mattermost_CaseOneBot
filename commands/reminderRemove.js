@@ -1,4 +1,4 @@
-const { deleteReminder } = require('../db/reminders');
+const { deleteReminder } = require('../db/models/reminders');
 const { cancelCronJob } = require('../cron');
 const { postMessage } = require('../mattermost/utils');
 

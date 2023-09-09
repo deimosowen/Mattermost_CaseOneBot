@@ -4,7 +4,7 @@ const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 const { client_id, client_secret, redirect_uris } = require('../credentials.json').web;
 const { CronJob } = require('../cron');
-const { getAllUsers, markEventAsNotified, checkIfEventWasNotified, removeNotifiedEvents } = require('../db/calendars');
+const { getAllUsers, markEventAsNotified, checkIfEventWasNotified, removeNotifiedEvents } = require('../db/models/calendars');
 const TurndownService = require('turndown');
 const turndownService = new TurndownService();
 

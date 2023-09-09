@@ -1,4 +1,4 @@
-const db = require('./index.js');
+const db = require('../index.js');
 
 const getAllUsers = async () => {
     return db.all(`

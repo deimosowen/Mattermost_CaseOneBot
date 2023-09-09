@@ -1,4 +1,4 @@
-const { getReminders } = require('../db/reminders');
+const { getReminders } = require('../db/models/reminders');
 const { postMessage } = require('../mattermost/utils');
 
 module.exports = async ({ channel_id }) => {
