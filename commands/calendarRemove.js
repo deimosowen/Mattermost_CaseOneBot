@@ -1,4 +1,4 @@
-const { getUser, removeUser, removeUserSettings } = require('../db/calendars');
+const { getUser, removeUser, removeUserSettings } = require('../db/models/calendars');
 const { postMessage } = require('../mattermost/utils');
 
 module.exports = async ({ channel_id, user_id }) => {

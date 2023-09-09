@@ -1,4 +1,4 @@
-const { getUser } = require('../db/calendars');
+const { getUser } = require('../db/models/calendars');
 const { postMessage } = require('../mattermost/utils');
 const { oAuth2Client } = require('../server/googleAuth');
 

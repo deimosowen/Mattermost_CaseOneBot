@@ -1,5 +1,5 @@
 const cronValidator = require('cron-validator');
-const { addReminder } = require('../db/reminders');
+const { addReminder } = require('../db/models/reminders');
 const { setCronJob } = require('../cron');
 const { postMessage } = require('../mattermost/utils');
 

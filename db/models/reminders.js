@@ -1,4 +1,4 @@
-const db = require('./index.js');
+const db = require('../index.js');
 
 const getReminders = async (channel_id) => {
     let query = 'SELECT * FROM reminders';
