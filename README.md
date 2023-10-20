@@ -1,6 +1,6 @@
-# Mattermost EchoBot
+# Mattermost CaseOneBot
 
-Mattermost EchoBot is a handy tool designed to offer reminder functionality within your Mattermost team. This bot is equipped with features to set reminders via a cron schedule.
+Mattermost CaseOneBot is a handy tool designed to offer reminder functionality within your Mattermost team. This bot is equipped with features to set reminders via a cron schedule.
 
 ## Key Commands
 
@@ -12,7 +12,7 @@ Mattermost EchoBot is a handy tool designed to offer reminder functionality with
 ## Installation
 
 1. Clone the repository to your server:  
-   `git clone https://github.com/deimosowen/Mattermost_EchoBot.git`
+   `git clone https://github.com/deimosowen/Mattermost_CaseOneBot.git`
 
 2. Install all dependencies:  
    `npm install`
