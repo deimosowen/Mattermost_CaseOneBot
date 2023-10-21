@@ -1,6 +1,7 @@
 const { deleteReminder } = require('../db/models/reminders');
 const { cancelCronJob } = require('../cron');
 const { postMessage } = require('../mattermost/utils');
+const TaskType = require('../types/taskTypes');
 
 module.exports = async ({ channel_id, user_id, args }) => {
     const [id] = args;
@@ -14,7 +15,7 @@ module.exports = async ({ channel_id, user_id, args }) => {
         const changes = await deleteReminder(id, channel_id, user_id);
 
         if (changes > 0) {
-            cancelCronJob(id);
+            cancelCronJob(id, TaskType.REMINDER);
             postMessage(channel_id, `Напоминание \`${id}\` успешно удалено.`);
         } else {
             postMessage(channel_id, `Не удалось найти напоминание \`${id}\` для удаления.`);

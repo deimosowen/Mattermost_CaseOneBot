@@ -22,7 +22,8 @@ module.exports = async ({ channel_id, channel_name, user_id, user_name, args }) 
     }
 
     const id = await addReminder(channel_id, channel_name, user_id, user_name, schedule, message);
-    const task = setCronJob(id, schedule, channel_id, message);
+    const taskCallback = () => postMessage(channel_id, message);
+    const task = setCronJob(id, schedule, taskCallback, TaskType.REMINDER);
     const nextExecutionDate = task.nextDate().toFormat('yyyy-MM-dd HH:mm');
     postMessage(channel_id, `Успешно добавлено. Следующее напоминание будет в ${nextExecutionDate} (UTC)`);
 };
