@@ -14,6 +14,9 @@ const processForwarding = async (post, eventData) => {
         if (post.props.from_bot) {
             return;
         }
+        if (post.type !== '') {
+            return;
+        }
         const currentMapping = await getSourceChannelId(post.channel_id);
         if (!currentMapping) {
             return;
