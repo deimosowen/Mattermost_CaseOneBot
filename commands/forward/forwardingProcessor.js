@@ -1,7 +1,7 @@
 const { postMessage, getTeam } = require('../../mattermost/utils');
 const { getSourceChannelId, addProcessedMessage, isMessageProcessed } = require('../../db/models/forward');
 const { API_BASE_URL } = require('../../config');
-const resources = require('../../resources.json').forward;
+const logger = require('../../logger');
 
 const processForwarding = async (post, eventData) => {
     try {
@@ -34,7 +34,7 @@ const processForwarding = async (post, eventData) => {
             postMessage(post.channel_id, currentMapping.thread_message, post.id);
         }
     } catch (error) {
-        console.error('Error processing message forwarding:', error);
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 };
 

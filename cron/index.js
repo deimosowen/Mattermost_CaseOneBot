@@ -1,7 +1,7 @@
 const CronJob = require('cron').CronJob;
 const { postMessage } = require('../mattermost/utils');
 const { getReminders } = require('../db/models/reminders');
-const { getDutySchedules, getDutyUsers, getCurrentDuty, setCurrentDuty } = require('../db/models/duty');
+const logger = require('../logger');
 const TaskType = require('../types/taskTypes');
 
 let jobs = {};
@@ -20,8 +20,8 @@ const setCronJob = (id, schedule, taskCallback, type) => {
         jobs[uniqueId] = task;
 
         return task;
-    } catch (e) {
-        console.error(e);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 };
 
@@ -36,8 +36,8 @@ const cancelCronJob = (id, type) => {
         } else {
             return false;
         }
-    } catch (e) {
-        console.error(e);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
         return false;
     }
 };

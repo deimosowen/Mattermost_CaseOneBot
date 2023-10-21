@@ -1,5 +1,6 @@
 const { postMessage } = require('../../mattermost/utils');
 const { getChannelMapping, deleteChannelMapping } = require('../../db/models/forward');
+const logger = require('../../logger');
 const resources = require('../../resources.json').forward;
 
 module.exports = async ({ channel_id, args }) => {
@@ -18,7 +19,7 @@ module.exports = async ({ channel_id, args }) => {
         postMessage(channel_id, resources.mappingRemoved.replace('{mappingId}', mappingId));
 
     } catch (error) {
-        console.error('Error removing forward mapping:', error);
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
         postMessage(channel_id, resources.errorRemovingMapping);
     }
 };

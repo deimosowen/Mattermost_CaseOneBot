@@ -1,6 +1,7 @@
 const { deleteReminder } = require('../db/models/reminders');
 const { cancelCronJob } = require('../cron');
 const { postMessage } = require('../mattermost/utils');
+const logger = require('../logger');
 const TaskType = require('../types/taskTypes');
 
 module.exports = async ({ channel_id, user_id, args }) => {
@@ -20,7 +21,7 @@ module.exports = async ({ channel_id, user_id, args }) => {
         } else {
             postMessage(channel_id, `Не удалось найти напоминание \`${id}\` для удаления.`);
         }
-    } catch (err) {
-        console.error(err.message);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 };

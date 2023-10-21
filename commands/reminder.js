@@ -2,6 +2,7 @@ const cronValidator = require('cron-validator');
 const { addReminder } = require('../db/models/reminders');
 const { setCronJob } = require('../cron');
 const { postMessage } = require('../mattermost/utils');
+const TaskType = require('../types/taskTypes');
 
 module.exports = async ({ channel_id, channel_name, user_id, user_name, args }) => {
     const [schedule, message] = args;

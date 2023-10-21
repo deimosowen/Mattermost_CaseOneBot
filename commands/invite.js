@@ -1,4 +1,5 @@
 const { postMessage, getPost, getChannel, getChannelMembers, addToChannel } = require('../mattermost/utils');
+const logger = require('../logger');
 const { TEAM_CHANNEL_ID } = require('../config');
 
 module.exports = async ({ user_name, user_id, channel_id, team_id, args }) => {
@@ -22,7 +23,7 @@ module.exports = async ({ user_name, user_id, channel_id, team_id, args }) => {
             postMessage(channel_id, `${user_name} You shall not pass! 🧙`);
         }
     } catch (error) {
-        console.error('Error processing command:', error);
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
         postMessage(channel_id, `${user_name} Канал не найден.`);
     }
 };
