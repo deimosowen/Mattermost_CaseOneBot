@@ -76,4 +76,26 @@ db.run(`
     )
 `);
 
+db.run(`
+    CREATE TABLE IF NOT EXISTS forward_channel_mapping (
+        id INTEGER PRIMARY KEY,
+        source_channel_id TEXT NOT NULL,
+        target_channel_id TEXT NOT NULL,
+        message TEXT,
+        thread_message TEXT
+    )
+`);
+
+db.run(`
+    CREATE TABLE IF NOT EXISTS forward_processed_messages (
+        id INTEGER PRIMARY KEY,
+        channel_id TEXT NOT NULL,
+        channel_name TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        user_name TEXT NOT NULL,
+        message_id TEXT NOT NULL UNIQUE,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
 module.exports = db;
