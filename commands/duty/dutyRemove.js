@@ -2,6 +2,7 @@ const { getDutySchedule, deleteDutySchedule, deleteAllDutyUsers, deleteCurrentDu
 const { cancelCronJob } = require('../../cron');
 const { postMessage } = require('../../mattermost/utils');
 const TaskType = require('../../types/taskTypes');
+const logger = require('../../logger');
 const resources = require('../../resources.json').duty;
 
 module.exports = async ({ channel_id }) => {
@@ -18,7 +19,7 @@ module.exports = async ({ channel_id }) => {
         await deleteCurrentDuty(channel_id);
 
         postMessage(channel_id, resources.removed);
-    } catch (e) {
-        console.log(e);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 }

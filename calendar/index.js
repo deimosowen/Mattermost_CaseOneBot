@@ -5,6 +5,7 @@ const { OAuth2Client } = require('google-auth-library');
 const { client_id, client_secret, redirect_uris } = require('../credentials.json').web;
 const { CronJob } = require('../cron');
 const { getAllUsers, markEventAsNotified, checkIfEventWasNotified, removeNotifiedEvents } = require('../db/models/calendars');
+const logger = require('../logger');
 const TurndownService = require('turndown');
 const turndownService = new TurndownService();
 
@@ -60,8 +61,8 @@ async function listEventsForUser(user) {
                 }
             }
         }
-    } catch (err) {
-        console.log('The API returned an error: ' + err);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 }
 
@@ -75,8 +76,8 @@ function createEventMessage(event, userTimeZone) {
 *${eventDate.format('LLL')}*\n
 ${description}
 ${hangoutLink}`;
-    } catch (err) {
-        console.log(err);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 }
 

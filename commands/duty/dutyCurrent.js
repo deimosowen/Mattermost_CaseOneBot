@@ -1,5 +1,6 @@
 const { getCurrentDuty } = require('../../db/models/duty');
 const { postMessage } = require('../../mattermost/utils');
+const logger = require('../../logger');
 const resources = require('../../resources.json').duty;
 
 module.exports = async ({ channel_id }) => {
@@ -10,7 +11,7 @@ module.exports = async ({ channel_id }) => {
             return;
         }
         postMessage(channel_id, resources.currentNotification.replace('{user}', currentDuty.user_id));
-    } catch (e) {
-        console.log(e);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 }

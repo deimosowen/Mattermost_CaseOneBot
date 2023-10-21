@@ -1,4 +1,5 @@
 const { Client4 } = require('mattermost-redux/client');
+const logger = require('../logger');
 
 const postMessage = async (channel_id, message, root_id = null) => {
     try {
@@ -9,7 +10,7 @@ const postMessage = async (channel_id, message, root_id = null) => {
         };
         await Client4.createPost(post);
     } catch (error) {
-        console.error('Error posting message', error);
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 };
 
