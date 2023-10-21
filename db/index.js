@@ -50,4 +50,30 @@ db.run(`
     )
 `);
 
+db.run(`
+    CREATE TABLE IF NOT EXISTS duty_list (
+        id INTEGER PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        user_name TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        order_number INTEGER NOT NULL
+    )
+`);
+
+db.run(`
+    CREATE TABLE IF NOT EXISTS duty_current (
+        id INTEGER PRIMARY KEY,
+        channel_id TEXT NOT NULL UNIQUE,
+        user_id TEXT NOT NULL
+    )
+`);
+
+db.run(`
+    CREATE TABLE IF NOT EXISTS duty_schedule (
+        id INTEGER PRIMARY KEY,
+        channel_id TEXT NOT NULL,
+        cron_schedule TEXT NOT NULL
+    )
+`);
+
 module.exports = db;

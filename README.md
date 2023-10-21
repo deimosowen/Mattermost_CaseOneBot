@@ -4,10 +4,28 @@ Mattermost CaseOneBot is a handy tool designed to offer reminder functionality w
 
 ## Key Commands
 
+### Reminders
 * `!reminder; [cron-schedule]; [message]` - Sets a reminder with the specified message based on the cron schedule.
 * `!reminder-remove; [id]` - Removes the reminder with the specified ID.
 * `!reminder-list` - Displays a list of all set reminders.
-* `!reminder-help` - Shows all available commands for the bot.
+* `!reminder-help` - Shows all available commands for the bot's reminder functionality.
+
+### Duty Scheduling
+* `!duty-set; [cron-schedule]; [user-list]` - Sets a duty schedule. The user-list should be comma-separated.
+* `!duty-remove` - Removes the duty schedule for the current channel.
+* `!duty-current` - Displays the current duty user for the channel.
+* `!duty-next` - Transitions to the next user in the duty list for the current channel.
+* `!duty-help` - Displays all available commands for the bot's duty scheduling functionality.
+
+### Invite to Channel
+* `!invite; [channel-link/channel-name]` - Invites the user to the specified channel. You can use either a channel link or a channel name.
+   Examples:
+   - Using the channel name: `!invite; general`
+   - Using the channel link: `!invite; https://your-mattermost-server.com/teamname/channels/general`
+
+### Google Calendar Integration
+* `!calendar` - Initiates the Google Calendar integration process. Upon invocation, the user will receive a link to grant the bot access to their Google Calendar data (read-only).
+* `!calendar-remove` - Removes the Google Calendar integration for the current user. This action will revoke the bot's permission to access the user's Google Calendar.
 
 ## Installation
 

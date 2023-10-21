@@ -66,14 +66,18 @@ async function listEventsForUser(user) {
 }
 
 function createEventMessage(event, userTimeZone) {
-    const eventDate = moment(event.start.dateTime || event.start.date).tz(userTimeZone);
-    const description = event.description ? `${turndownService.turndown(event.description)}\n` : '';
-    const hangoutLink = event.hangoutLink ? `[Присоединиться к Google Meet](${event.hangoutLink})` : '';
-    return `
+    try {
+        const eventDate = moment(event.start.dateTime || event.start.date).tz(userTimeZone);
+        const description = event.description ? `${turndownService.turndown(event.description)}\n` : '';
+        const hangoutLink = event.hangoutLink ? `[Присоединиться к Google Meet](${event.hangoutLink})` : '';
+        return `
 **${event.summary}**
 *${eventDate.format('LLL')}*\n
 ${description}
 ${hangoutLink}`;
+    } catch (err) {
+        console.log(err);
+    }
 }
 
 module.exports = {

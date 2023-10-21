@@ -1,6 +1,6 @@
 {
-  "name": "mattermost_echobot",
-  "version": "1.0.0",
+  "name": "mattermost_caseonebot",
+  "version": "1.2.0",
   "description": "",
   "type": "commonjs",
   "main": "index.js",
