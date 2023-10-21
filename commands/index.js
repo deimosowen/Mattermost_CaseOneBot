@@ -10,6 +10,10 @@ const dutyRemove = require('./duty/dutyRemove');
 const dutyCurrent = require('./duty/dutyCurrent');
 const dutyNext = require('./duty/dutyNext');
 const dutyHelp = require('./duty/dutyHelp');
+const forward = require('./forward/forward');
+const forwardList = require('./forward/forwardList');
+const forwardRemove = require('./forward/forwardRemove');
+const forwardHelp = require('./forward/forwardHelp');
 
 const commands = {
     '!invite': invite,
@@ -24,6 +28,10 @@ const commands = {
     '!duty-current': dutyCurrent,
     '!duty-next': dutyNext,
     '!duty-help': dutyHelp,
+    '!forward': forward,
+    '!forward-list': forwardList,
+    '!forward-remove': forwardRemove,
+    '!forward-help': forwardHelp
 };
 
 module.exports = commands;

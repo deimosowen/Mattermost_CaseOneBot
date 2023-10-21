@@ -9,6 +9,7 @@ const { Client4 } = require('mattermost-redux/client');
 const wsClient = require('mattermost-redux/client/websocket_client').default;
 const { API_BASE_URL, BOT_TOKEN } = require('../config');
 const commands = require('../commands');
+const { processForwarding } = require('../commands/forward/forwardingProcessor');
 
 const initializeMattermost = () => {
     Client4.setUrl(`https://${API_BASE_URL}`);
@@ -18,8 +19,8 @@ const initializeMattermost = () => {
     wsClient.setEventCallback(function (event) {
         if (event.event === 'posted') {
             const post = JSON.parse(event.data.post);
-
             if (!post.message.startsWith('!')) {
+                processForwarding(post, event.data);
                 return;
             }
 

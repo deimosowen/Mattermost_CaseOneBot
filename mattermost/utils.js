@@ -1,9 +1,10 @@
 const { Client4 } = require('mattermost-redux/client');
 
-const postMessage = async (channel_id, message) => {
+const postMessage = async (channel_id, message, root_id = null) => {
     try {
         const post = {
             channel_id,
+            root_id,
             message
         };
         await Client4.createPost(post);
@@ -52,5 +53,6 @@ module.exports = {
     getPost,
     getChannel,
     getChannelMembers,
+    getTeam,
     addToChannel,
 };
