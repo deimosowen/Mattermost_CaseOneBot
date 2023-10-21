@@ -1,6 +1,6 @@
 # Mattermost CaseOneBot
 
-Mattermost CaseOneBot is a handy tool designed to offer reminder functionality within your Mattermost team. This bot is equipped with features to set reminders via a cron schedule.
+More than just reminders. This robust bot was designed initially for cron-based reminders within your Mattermost team. As it grew, features like duty scheduling, channel invitations, and calendar integrations were incorporated. Enhance your team's productivity and streamline your Mattermost experience with CaseOneBot
 
 ## Key Commands
 
