@@ -11,7 +11,7 @@ More than just reminders. This robust bot was designed initially for cron-based 
 * `!reminder-help` - Shows all available commands for the bot's reminder functionality.
 
 ### Duty Scheduling
-* `!duty-set; [cron-schedule]; [user-list]` - Sets a duty schedule. The user-list should be comma-separated.
+* `!duty; [cron-schedule]; [user-list]` - Sets a duty schedule. The user-list should be comma-separated.
 * `!duty-remove` - Removes the duty schedule for the current channel.
 * `!duty-current` - Displays the current duty user for the channel.
 * `!duty-next` - Transitions to the next user in the duty list for the current channel.
