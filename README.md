@@ -64,4 +64,4 @@ Suggestions and pull requests are welcomed!
 
 ## License
 
-Mattermost EchoBot is distributed under the MIT License. See `LICENSE` for more information.
+Mattermost CaseOneBot is distributed under the MIT License. See `LICENSE` for more information.
