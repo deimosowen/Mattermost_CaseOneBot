@@ -14,6 +14,7 @@ const forward = require('./forward/forward');
 const forwardList = require('./forward/forwardList');
 const forwardRemove = require('./forward/forwardRemove');
 const forwardHelp = require('./forward/forwardHelp');
+const release = require('./release');
 
 const commands = {
     '!invite': invite,
@@ -31,7 +32,8 @@ const commands = {
     '!forward': forward,
     '!forward-list': forwardList,
     '!forward-remove': forwardRemove,
-    '!forward-help': forwardHelp
+    '!forward-help': forwardHelp,
+    '!release': release,
 };
 
 module.exports = commands;
