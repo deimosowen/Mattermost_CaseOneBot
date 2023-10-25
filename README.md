@@ -28,7 +28,7 @@ More than just reminders. This robust bot was designed initially for cron-based 
 * `!calendar-remove` - Removes the Google Calendar integration for the current user. This action will revoke the bot's permission to access the user's Google Calendar.
 
 ### Message Forwarding
-- `!forward ; [id source channel] ; [id target channel] ; [message] ; [thread-message]` - Sets up message forwarding from source to target channel with an optional message and an optional thread message.
+- `!forward ; [id source channel] ; [id target channel] ; [message] ; [thread-message]` - Sets up message forwarding from source to target channel with an optional message and an optional thread message. For more details on tags used in `[message]`, see the [wiki](https://github.com/deimosowen/Mattermost_CaseOneBot/wiki/Tags)
 - `!forward-list` - Displays a list of all forwarding configurations.
 - `!forward-remove ; [id]` - Removes a specific forwarding configuration based on its ID.
 - `!forward-help` - Shows all available commands for the bot's forwarding functionality.
