@@ -1,20 +1,12 @@
 const { postMessage, getTeam } = require('../../mattermost/utils');
 const { getSourceChannelId, addProcessedMessage, isMessageProcessed } = require('../../db/models/forward');
+const { getCurrentDuty } = require('../../db/models/duty');
 const { API_BASE_URL } = require('../../config');
 const logger = require('../../logger');
 
 const processForwarding = async (post, eventData) => {
     try {
-        if (post.props.from_bot) {
-            return;
-        }
-        if (post.root_id) {
-            return;
-        }
-        if (post.props.from_bot) {
-            return;
-        }
-        if (post.type !== '') {
+        if (post.props.from_bot || post.root_id || post.type !== '') {
             return;
         }
         const currentMapping = await getSourceChannelId(post.channel_id);
@@ -25,14 +17,10 @@ const processForwarding = async (post, eventData) => {
             return;
         }
 
-        const team = await getTeam();
-        const filledMessage = fillTemplate(currentMapping.message, post, eventData);
-        const message = (filledMessage ? `${filledMessage}\n` : "") + `https://${API_BASE_URL}/${team.name}/pl/${post.id}`
-        //Пересылка сообщения в канал
+        const filledMessage = await fillTemplate(currentMapping, post, eventData);
+        const message = filledMessage || '';
         postMessage(currentMapping.target_channel_id, message);
-        //Помечаем сообщение как обработанное
         await addProcessedMessage(post.channel_id, eventData.channel_name, post.user_id, eventData.sender_name, post.id);
-        //Отвечаем автору в тред, что сообщение обработано, если сообщение есть
         if (currentMapping.thread_message) {
             postMessage(post.channel_id, currentMapping.thread_message, post.id);
         }
@@ -41,20 +29,37 @@ const processForwarding = async (post, eventData) => {
     }
 };
 
-function fillTemplate(template, post, eventData) {
-    if (template === null) {
-        return null;
+async function fillTemplate(currentMapping, post, eventData) {
+    let template = currentMapping.message;
+    const matches = Array.from(template.matchAll(/\{(.*?)\}/g));
+    for (let match of matches) {
+        const paramName = match[1];
+        let replacement = match[0];
+        if (tagHandlers[paramName]) {
+            replacement = await tagHandlers[paramName](currentMapping, post);
+        } else if (post[paramName]) {
+            replacement = post[paramName];
+        } else if (eventData[paramName]) {
+            replacement = eventData[paramName];
+        }
+        template = template.replace(match[0], replacement);
     }
-    return template.replace(/\{(.*?)\}/g, (match, paramName) => {
-        if (post[paramName]) {
-            return post[paramName];
-        }
-        if (eventData[paramName]) {
-            return eventData[paramName];
-        }
-        return match;
-    });
+    return template;
 }
+
+const tagHandlers = {
+    'current_duty': async (currentMapping, post) => {
+        const currentDuty = await getCurrentDuty(currentMapping.target_channel_id);
+        if (currentDuty && currentDuty.user_id) {
+            return `${currentDuty.user_id}`;
+        }
+        return '';
+    },
+    'post_link': async (currentMapping, post) => {
+        const team = await getTeam();
+        return `https://${API_BASE_URL}/${team.name}/pl/${post.id}`;
+    }
+};
 
 module.exports = {
     processForwarding
