@@ -7,7 +7,7 @@ module.exports = async ({ channel_id }) => {
     try {
         const currentDuty = await getCurrentDuty(channel_id);
         if (!currentDuty) {
-            postMessage(channel_id, resources.noCurrentDuty);
+            postMessage(channel_id, resources.noCurrent);
             return;
         }
         postMessage(channel_id, resources.currentNotification.replace('{user}', currentDuty.user_id));
