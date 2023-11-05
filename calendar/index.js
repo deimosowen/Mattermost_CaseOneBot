@@ -4,7 +4,8 @@ const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 const { client_id, client_secret, redirect_uris } = require('../credentials.json').web;
 const { CronJob } = require('../cron');
-const { getAllUsers, markEventAsNotified, checkIfEventWasNotified, removeNotifiedEvents } = require('../db/models/calendars');
+const { getAllUsers, markEventAsNotified, checkIfEventWasNotified,
+    removeNotifiedEvents, removeUser, removeUserSettings } = require('../db/models/calendars');
 const logger = require('../logger');
 const TurndownService = require('turndown');
 const turndownService = new TurndownService();
@@ -63,6 +64,8 @@ async function listEventsForUser(user) {
         }
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        await removeUser(user.user_id);
+        await removeUserSettings(user.user_id);
     }
 }
 
