@@ -1,4 +1,4 @@
-const { Client4 } = require('mattermost-redux/client');
+const { client } = require('./client');
 const logger = require('../logger');
 
 const postMessage = async (channel_id, message, root_id = null) => {
@@ -8,19 +8,19 @@ const postMessage = async (channel_id, message, root_id = null) => {
             root_id,
             message
         };
-        await Client4.createPost(post);
+        await client.createPost(post);
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 };
 
 const getUser = async (user_id) => {
-    const user = await Client4.getUser(user_id);
+    const user = await client.getUser(user_id);
     return user;
 }
 
 const getPost = async (post_id) => {
-    const post = await Client4.getPost(post_id);
+    const post = await client.getPost(post_id);
     return post;
 }
 
@@ -29,22 +29,22 @@ const getChannel = async (team_id, channel_name) => {
         const team = await getTeam();
         team_id = team.id;
     }
-    const channel = await Client4.getChannelByName(team_id, channel_name);
+    const channel = await client.getChannelByName(team_id, channel_name);
     return channel;
 }
 
 const getChannelMembers = async (channel_id) => {
-    const members = await Client4.getChannelMembers(channel_id);
+    const members = await client.getChannelMembers(channel_id);
     return members;
 }
 
 const addToChannel = async (user_id, channel_id) => {
-    const result = await Client4.addToChannel(user_id, channel_id);
+    const result = await client.addToChannel(user_id, channel_id);
     return result;
 }
 
 const getTeam = async () => {
-    const teams = await Client4.getMyTeams();
+    const teams = await client.getMyTeams();
     return teams[0];
 }
 
