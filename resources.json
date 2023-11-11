@@ -1,4 +1,5 @@
 {
+    "onlyDirectMessagesCommand": "Команда доступа только в Личных сообщениях",
     "duty": {
         "noScheduleError": "Ошибка: параметр [cron-расписание] отсутствует.",
         "invalidScheduleError": "Ошибка: параметр [cron-расписание] \"{schedule}\" является недопустимым.",

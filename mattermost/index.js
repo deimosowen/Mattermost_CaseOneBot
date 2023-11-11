@@ -21,6 +21,7 @@ const initializeMattermost = () => {
                     args: args,
                     user_name: event.data.sender_name,
                     channel_name: event.data.channel_name,
+                    channel_type: event.data.channel_type,
                     team_id: event.data.team_id,
                     root_id: post.root_id,
                 };
