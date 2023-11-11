@@ -21,5 +21,5 @@ runMigrations()
     })
     .catch(err => {
         console.error('Migration error:', err);
-        process.exit(1); // Остановка приложения в случае ошибки миграции
+        process.exit(1);
     });

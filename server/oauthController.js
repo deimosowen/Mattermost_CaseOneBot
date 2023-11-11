@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUser, updateUser, getUserSettings, updateUserSettings } = require('../db/models/calendars');
+const { updateUser, getUserSettings, updateUserSettings } = require('../db/models/calendars');
 const { oAuth2Client } = require('./googleAuth');
 
 const router = express.Router();
@@ -17,12 +17,8 @@ router.get('/googleAuthCallback', async (req, res) => {
 
     const decodedState = decodeURIComponent(state);
     const { channel_id, user_id } = JSON.parse(decodedState);
-
-    const user = await getUser(user_id);
-    if (!user) {
-        const { tokens } = await oAuth2Client.getToken(code);
-        await updateUser(user_id, channel_id, tokens);
-    }
+    const { tokens } = await oAuth2Client.getToken(code);
+    await updateUser(user_id, channel_id, tokens);
 
     res.send(`
     <html>

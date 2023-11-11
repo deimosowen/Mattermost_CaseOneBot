@@ -14,8 +14,27 @@ const postMessage = async (channel_id, message, root_id = null) => {
     }
 };
 
+const postMessageInTreed = async (post_id, message) => {
+    try {
+        const originalPost = await client.getPost(post_id);
+        const post = {
+            channel_id: originalPost.channel_id,
+            root_id: originalPost.root_id || originalPost.id,
+            message: message
+        };
+        await client.createPost(post);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    }
+};
+
 const getUser = async (user_id) => {
     const user = await client.getUser(user_id);
+    return user;
+}
+
+const getUserByUsername = async (username) => {
+    const user = await client.getUserByUsername(username);
     return user;
 }
 
@@ -50,7 +69,9 @@ const getTeam = async () => {
 
 module.exports = {
     postMessage,
+    postMessageInTreed,
     getUser,
+    getUserByUsername,
     getPost,
     getChannel,
     getChannelMembers,

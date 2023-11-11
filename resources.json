@@ -15,7 +15,12 @@
         "alreadyConnected": "Вы уже подключили свой Google Календарь",
         "authRequest": "Пожалуйста, авторизуйте бота, перейдя по этой ссылке: {url}",
         "notConnected": "Вы еще не подключили свой Google Календарь",
-        "disconnected": "Вы успешно отключили свой Google Календарь"
+        "disconnected": "Вы успешно отключили свой Google Календарь",
+        "defaultMeetingSummary": "Рабочее обсуждение",
+        "meetingSummaryWithUsers": "Встреча с {users}",
+        "notAuthorized": "Вы не авторизованы в Google Календаре.\nПожалуйста, используйте команду `!calendar` для авторизации.",
+        "meetingCreated": "Ваша встреча создана! Присоединяйтесь: [{linkName}]({link})",
+        "errorCreatingMeeting": "Произошла ошибка при создании встречи."
     },
     "forward": {
         "forwardedQuestionAcknowledgement": "Привет! :wave:\nМы получили ваш вопрос и направили его на обработку.\nОжидайте ответа в ближайшее время.",
