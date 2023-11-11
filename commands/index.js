@@ -1,6 +1,7 @@
 const invite = require('./invite');
 const calendar = require('./calendar');
 const calendarRemove = require('./calendarRemove');
+const meet = require('./meet');
 const reminder = require('./reminder');
 const reminderList = require('./reminderList');
 const reminderRemove = require('./reminderRemove');
@@ -20,6 +21,7 @@ const commands = {
     '!invite': invite,
     '!calendar': calendar,
     '!calendar-remove': calendarRemove,
+    '!meet': meet,
     '!reminder': reminder,
     '!reminder-list': reminderList,
     '!reminder-remove': reminderRemove,

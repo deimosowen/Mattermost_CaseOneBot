@@ -15,6 +15,7 @@ const initializeMattermost = () => {
             const args = messageParts.slice(1);
             if (Object.hasOwnProperty.call(commands, command)) {
                 const params = {
+                    post_id: post.id,
                     channel_id: post.channel_id,
                     user_id: post.user_id,
                     args: args,
