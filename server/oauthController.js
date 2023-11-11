@@ -8,6 +8,10 @@ router.get('/', (req, res) => {
     res.redirect('https://github.com/deimosowen/Mattermost_EchoBot');
 });
 
+router.get('/PrivacyPolicy', (req, res) => {
+    res.redirect('https://github.com/deimosowen/Mattermost_CaseOneBot/blob/main/PrivacyPolicy.md');
+});
+
 router.get('/googleAuthCallback', async (req, res) => {
     const { code, state } = req.query;
 
