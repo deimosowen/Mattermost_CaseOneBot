@@ -26,7 +26,9 @@ const initGoogleCalendarNotifications = async () => {
 const notifyUsersAboutUpcomingEvents = async () => {
     const users = await getAllUsers();
     for (const user of users) {
-        await listEventsForUser(user);
+        if (user.is_notification) {
+            await listEventsForUser(user);
+        }
     }
 };
 
