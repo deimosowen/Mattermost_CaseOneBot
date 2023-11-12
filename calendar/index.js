@@ -1,8 +1,7 @@
 const moment = require('moment-timezone');
 const { postMessage, getUser } = require('../mattermost/utils');
 const { google } = require('googleapis');
-const { OAuth2Client } = require('google-auth-library');
-const { client_id, client_secret, redirect_uris } = require('../credentials.json').web;
+const { isLoad, oAuth2Client } = require('../server/googleAuth');
 const { CronJob } = require('../cron');
 const { getAllUsers, markEventAsNotified, checkIfEventWasNotified,
     removeNotifiedEvents, removeUser, removeUserSettings } = require('../db/models/calendars');
@@ -11,6 +10,10 @@ const TurndownService = require('turndown');
 const turndownService = new TurndownService();
 
 const initGoogleCalendarNotifications = async () => {
+    if (isLoad === false) {
+        return;
+    }
+
     const notificationsCronJob = new CronJob('* * * * *', async () => {
         await notifyUsersAboutUpcomingEvents();
     }, null, true, 'UTC');
@@ -33,7 +36,6 @@ const notifyUsersAboutUpcomingEvents = async () => {
 };
 
 async function listEventsForUser(user) {
-    const oAuth2Client = new OAuth2Client(client_id, client_secret, redirect_uris[0]);
     oAuth2Client.setCredentials(user);
     const mattermostUser = await getUser(user.user_id);
     const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true' ? mattermostUser.timezone.automaticTimezone : mattermostUser.timezone.manualTimezone;
