@@ -1,12 +1,12 @@
 name: Build and Release on Label
 
 on:
-  pull_request:
-    types: [labeled]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build-and-release:
-    if: contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
 
     steps:
@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: '18.x'
       - run: npm install
-      - run: npm run build
+      - run: npm run release
       - name: Archive production artifacts
         run: tar -czvf dist.tar.gz dist/
       - name: Create Release
