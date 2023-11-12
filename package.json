@@ -1,11 +1,12 @@
 {
   "name": "mattermost_caseonebot",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
+    "release": "gulp release",
     "test": "jest"
   },
   "author": "",
@@ -35,6 +36,10 @@
   },
   "devDependencies": {
     "chai": "^4.3.10",
+    "del": "^7.1.0",
+    "gulp": "^4.0.2",
+    "gulp-bump": "^3.2.0",
+    "gulp-if": "^3.0.0",
     "jest": "^29.7.0",
     "mocha": "^10.2.0",
     "sinon": "^17.0.0",
