@@ -5,7 +5,7 @@ const { addReminder } = require('../../db/models/reminders');
 const { setCronJob } = require('../../cron');
 const TaskType = require('../../types/taskTypes');
 
-// Мокаем функции и модули
+
 jest.mock('../../mattermost/utils', () => ({
     postMessage: jest.fn(),
 }));

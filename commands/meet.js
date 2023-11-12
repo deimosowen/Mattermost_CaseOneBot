@@ -27,37 +27,38 @@ function parseDuration(durationString = '15m') {
 }
 
 async function createMeetEvent(user, summary, users, duration) {
-    const oAuth2Client = new OAuth2Client(client_id, client_secret, redirect_uris[0]);
-    oAuth2Client.setCredentials(user);
+    try {
+        const oAuth2Client = new OAuth2Client(client_id, client_secret, redirect_uris[0]);
+        oAuth2Client.setCredentials(user);
 
-    const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+        const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
 
-    const durationInMilliseconds = parseDuration(duration);
-    const eventStart = new Date();
-    const eventEnd = new Date(eventStart.getTime() + durationInMilliseconds);
+        const durationInMilliseconds = parseDuration(duration);
+        const eventStart = new Date();
+        const eventEnd = new Date(eventStart.getTime() + durationInMilliseconds);
 
-    const event = {
-        summary: summary,
-        start: {
-            dateTime: eventStart.toISOString(),
-            timeZone: 'UTC',
-        },
-        end: {
-            dateTime: eventEnd.toISOString(),
-            timeZone: 'UTC',
-        },
-        attendees: users,
-        conferenceData: {
-            createRequest: {
-                requestId: `mattermost-meet-${Date.now()}`,
-                conferenceSolutionKey: {
-                    type: 'hangoutsMeet',
+        const event = {
+            summary: summary,
+            start: {
+                dateTime: eventStart.toISOString(),
+                timeZone: 'UTC',
+            },
+            end: {
+                dateTime: eventEnd.toISOString(),
+                timeZone: 'UTC',
+            },
+            attendees: users,
+            conferenceData: {
+                createRequest: {
+                    requestId: `mattermost-meet-${Date.now()}`,
+                    conferenceSolutionKey: {
+                        type: 'hangoutsMeet',
+                    },
                 },
             },
-        },
-    };
+        };
 
-    try {
+
         const { data } = await calendar.events.insert({
             calendarId: 'primary',
             resource: event,
@@ -117,15 +118,14 @@ module.exports = async ({ user_id, post_id, args }) => {
     try {
         const [userString, summary, duration] = args;
 
-        const users = await prepareAttendees(userString);
-        const preparedSummary = prepareSummary(summary, users);
-
         const user = await getUser(user_id);
         if (!user) {
             postMessageInTreed(post_id, resources.notAuthorized);
             return;
         }
 
+        const users = await prepareAttendees(userString);
+        const preparedSummary = prepareSummary(summary, users);
         const meetLink = await createMeetEvent(user, preparedSummary, users, duration);
         if (meetLink) {
             postMessageInTreed(post_id, resources.meetingCreated.replace('{linkName}', meetLink).replace('{link}', meetLink));

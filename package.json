@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nodemon index.js",
     "release": "gulp release",
-    "test": "jest"
+    "test": "jest --config tests/jest.config.js"
   },
   "author": "",
   "license": "ISC",

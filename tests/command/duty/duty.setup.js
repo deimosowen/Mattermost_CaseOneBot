@@ -1,13 +1,6 @@
 const logger = require('../../../logger');
 const resources = require('../../../resources.json').duty;
 const taskType = require('../../../types/taskTypes');
-
-jest.mock('cron-validator');
-jest.mock('../../../db/models/duty');
-jest.mock('../../../cron');
-jest.mock('../../../mattermost/utils');
-jest.mock('../../../logger');
-
 const {
     getDutySchedule,
     setDutySchedule,
@@ -22,6 +15,12 @@ const {
 const { isValidCron } = require('cron-validator');
 const { setCronJob, cancelCronJob } = require('../../../cron');
 const { postMessage } = require('../../../mattermost/utils');
+
+jest.mock('cron-validator');
+jest.mock('../../../db/models/duty');
+jest.mock('../../../cron');
+jest.mock('../../../mattermost/utils');
+jest.mock('../../../logger');
 
 beforeEach(() => {
     jest.clearAllMocks();
