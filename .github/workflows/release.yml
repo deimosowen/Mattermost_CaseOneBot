@@ -19,8 +19,8 @@ jobs:
 
       - run: npm install
 
-      # Run release script which includes version bump
-      - run: npm run release
+      # Run build script which includes version bump
+      - run: npm run build
 
       # Extract the updated version number from package.json
       - name: Set version as env
@@ -36,7 +36,9 @@ jobs:
 
       # Archive the production artifacts
       - name: Archive production artifacts
-        run: zip -r dist.zip dist/
+        run: |
+          cd dist
+          zip -r ../dist.zip .
 
       # Create a release with the new tag
       - name: Create Release

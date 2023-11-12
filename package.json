@@ -1,11 +1,12 @@
 {
   "name": "mattermost_caseonebot",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
+    "build": "gulp build",
     "release": "gulp release",
     "test": "jest --config tests/jest.config.js"
   },
