@@ -7,11 +7,19 @@ const { loadCronJobsFromDb } = require('./cron');
 const { initializeServer } = require('./server');
 const { initGoogleCalendarNotifications } = require('./calendar');
 const { loadDutyCronJobsFromDb } = require('./commands/duty/duty');
+const runMigrations = require('./db/migrations');
 
 moment.locale('ru');
 
-initializeMattermost();
-loadCronJobsFromDb();
-loadDutyCronJobsFromDb();
-initializeServer();
-initGoogleCalendarNotifications();
+runMigrations()
+    .then(() => {
+        initializeMattermost();
+        loadCronJobsFromDb();
+        loadDutyCronJobsFromDb();
+        initializeServer();
+        initGoogleCalendarNotifications();
+    })
+    .catch(err => {
+        console.error('Migration error:', err);
+        process.exit(1);
+    });

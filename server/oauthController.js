@@ -1,11 +1,15 @@
 const express = require('express');
-const { getUser, updateUser, getUserSettings, updateUserSettings } = require('../db/models/calendars');
+const { updateUser, getUserSettings, updateUserSettings } = require('../db/models/calendars');
 const { oAuth2Client } = require('./googleAuth');
 
 const router = express.Router();
 
 router.get('/', (req, res) => {
     res.redirect('https://github.com/deimosowen/Mattermost_EchoBot');
+});
+
+router.get('/PrivacyPolicy', (req, res) => {
+    res.redirect('https://github.com/deimosowen/Mattermost_CaseOneBot/blob/main/PrivacyPolicy.md');
 });
 
 router.get('/googleAuthCallback', async (req, res) => {
@@ -17,12 +21,8 @@ router.get('/googleAuthCallback', async (req, res) => {
 
     const decodedState = decodeURIComponent(state);
     const { channel_id, user_id } = JSON.parse(decodedState);
-
-    const user = await getUser(user_id);
-    if (!user) {
-        const { tokens } = await oAuth2Client.getToken(code);
-        await updateUser(user_id, channel_id, tokens);
-    }
+    const { tokens } = await oAuth2Client.getToken(code);
+    await updateUser(user_id, channel_id, tokens);
 
     res.send(`
     <html>
@@ -157,6 +157,14 @@ router.get('/calendar/settings/', async (req, res) => {
                 }
                 input[type="submit"]:hover {
                     background-color: #0051cb;
+                }               
+                .checkbox-label {
+                    display: flex;
+                    align-items: center;
+                }
+                .checkbox-label input[type="checkbox"] {
+                    margin-left: 10px;
+                    accent-color: #007AFF;
                 }
             </style>
         </head>
@@ -166,6 +174,10 @@ router.get('/calendar/settings/', async (req, res) => {
                 ${successMessage}
                 <form action="/calendar/settings/" method="post">
                     <input type="hidden" id="user_id" name="user_id" value="${user_id}">
+                    <label class="checkbox-label">
+                        Включить уведомления
+                        <input type="checkbox" id="is_notification" name="is_notification" value="1" ${settings.is_notification ? 'checked' : ''}>
+                    </label>
                     <label for="notification_interval">Уведомлять меня:</label>
                     <select id="notification_interval" name="notification_interval">
                         <option value="10" ${settings.notification_interval === 10 ? 'selected' : ''}>За 10 минут до начала события</option>
@@ -181,8 +193,9 @@ router.get('/calendar/settings/', async (req, res) => {
 });
 
 router.post('/calendar/settings/', async (req, res) => {
-    const { user_id, notification_interval } = req.body;
-    await updateUserSettings(user_id, { notification_interval });
+    let { user_id, notification_interval, is_notification } = req.body;
+    is_notification = parseInt(is_notification) || 0;
+    await updateUserSettings(user_id, { notification_interval, is_notification });
     res.redirect(`/calendar/settings/?user_id=${user_id}&success=true`);
 });
 

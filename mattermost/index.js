@@ -1,40 +1,29 @@
-require('babel-polyfill');
-require('isomorphic-fetch');
-
-if (!global.WebSocket) {
-    global.WebSocket = require('ws');
-}
-
-const { Client4 } = require('mattermost-redux/client');
-const wsClient = require('mattermost-redux/client/websocket_client').default;
-const { API_BASE_URL, BOT_TOKEN } = require('../config');
+const { wsClient } = require('./client');
 const commands = require('../commands');
 const { processForwarding } = require('../commands/forward/forwardingProcessor');
 
 const initializeMattermost = () => {
-    Client4.setUrl(`https://${API_BASE_URL}`);
-    Client4.setToken(BOT_TOKEN);
-    wsClient.initialize(BOT_TOKEN, { connectionUrl: `wss://${API_BASE_URL}/api/v4/websocket` });
-
-    wsClient.setEventCallback(function (event) {
+    wsClient.addMessageListener(function (event) {
         if (event.event === 'posted') {
             const post = JSON.parse(event.data.post);
             if (!post.message.startsWith('!')) {
                 processForwarding(post, event.data);
                 return;
             }
-
             const messageParts = post.message.split(';').map(part => part.trim());
             const command = messageParts[0];
             const args = messageParts.slice(1);
             if (Object.hasOwnProperty.call(commands, command)) {
                 const params = {
+                    post_id: post.id,
                     channel_id: post.channel_id,
                     user_id: post.user_id,
                     args: args,
                     user_name: event.data.sender_name,
                     channel_name: event.data.channel_name,
+                    channel_type: event.data.channel_type,
                     team_id: event.data.team_id,
+                    root_id: post.root_id,
                 };
                 commands[command](params);
             }
