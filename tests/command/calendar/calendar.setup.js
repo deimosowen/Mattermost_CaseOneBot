@@ -34,6 +34,20 @@ jest.mock('../../../logger', () => ({
     error: jest.fn()
 }));
 
+jest.mock('../../../server/googleAuth', () => ({
+    isLoad: true,
+    oAuth2Client: {
+        setCredentials: jest.fn(),
+        getToken: jest.fn().mockResolvedValue({
+            access_token: "mocked_access_token",
+            refresh_token: "mocked_refresh_token",
+            scope: "https://www.googleapis.com/auth/calendar",
+            token_type: "Bearer",
+            expiry_date: 123456789
+        }),
+    }
+}));
+
 beforeEach(() => {
     jest.useFakeTimers('modern');
     jest.setSystemTime(new Date('2023-11-11T12:00:00.000Z'));
