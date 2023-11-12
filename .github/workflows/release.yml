@@ -1,9 +1,9 @@
-name: Build and Release on Label
+name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 jobs:
   build-and-release:
@@ -11,30 +11,52 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
       - name: Use Node.js
         uses: actions/setup-node@v2
         with:
           node-version: '18.x'
+
       - run: npm install
+
+      # Run release script which includes version bump
       - run: npm run release
+
+      # Extract the updated version number from package.json
+      - name: Set version as env
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
+      # Tag the new version
+      - name: Create tag
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag v${{ env.VERSION }}
+          git push origin v${{ env.VERSION }}
+
+      # Archive the production artifacts
       - name: Archive production artifacts
-        run: tar -czvf dist.tar.gz dist/
+        run: zip -r dist.zip dist/
+
+      # Create a release with the new tag
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: v${{ env.VERSION }}
+          release_name: Release v${{ env.VERSION }}
           draft: false
           prerelease: false
+
+      # Upload the release asset
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist.tar.gz
-          asset_name: dist.tar.gz
-          asset_content_type: application/gzip
+          asset_path: ./dist.zip
+          asset_name: dist.zip
+          asset_content_type: application/zip
