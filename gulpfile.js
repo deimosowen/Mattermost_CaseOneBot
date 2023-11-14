@@ -12,6 +12,7 @@ gulp.task('build', function () {
         '**',
         '!.git/**',
         '!node_modules/**',
+        '!dist/**',
         '!tests/**',
         '!logs/**',
         '!.github/**',

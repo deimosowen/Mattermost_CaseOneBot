@@ -1,5 +1,6 @@
 const { wsClient } = require('./client');
 const commands = require('../commands');
+const { parseCommand } = require('../commands/parser');
 const { processForwarding } = require('../commands/forward/forwardingProcessor');
 
 const initializeMattermost = () => {
@@ -10,7 +11,7 @@ const initializeMattermost = () => {
                 processForwarding(post, event.data);
                 return;
             }
-            const messageParts = post.message.split(';').map(part => part.trim());
+            const messageParts = parseCommand(post.message);
             const command = messageParts[0];
             const args = messageParts.slice(1);
             if (Object.hasOwnProperty.call(commands, command)) {
