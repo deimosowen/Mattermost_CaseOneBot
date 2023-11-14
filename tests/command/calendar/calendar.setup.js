@@ -23,7 +23,12 @@ jest.mock('google-auth-library', () => ({
 
 jest.mock('../../../mattermost/utils', () => ({
     postMessageInTreed: jest.fn(),
-    getUserByUsername: jest.fn()
+    getUserByUsername: jest.fn(),
+    getUser: jest.fn().mockResolvedValue({
+        first_name: 'John',
+        last_name: 'Doe',
+        email: 'user@localhost'
+    })
 }));
 
 jest.mock('../../../db/models/calendars', () => ({

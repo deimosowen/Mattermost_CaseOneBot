@@ -1,6 +1,6 @@
 const { google } = require('googleapis');
 const { isLoad, oAuth2Client } = require('../server/googleAuth');
-const { postMessageInTreed, getUserByUsername } = require('../mattermost/utils');
+const { postMessageInTreed, getUserByUsername, getUser: getUserFromMattermost } = require('../mattermost/utils');
 const { getUser } = require('../db/models/calendars');
 const logger = require('../logger');
 const resources = require('../resources.json').calendar;
@@ -128,6 +128,13 @@ module.exports = async ({ user_id, post_id, args }) => {
 
         const users = await prepareAttendees(userString);
         const preparedSummary = prepareSummary(summary, users);
+
+        const author = await getUserFromMattermost(user_id);
+        users.unshift({
+            name: `${author.first_name} ${author.last_name}`,
+            email: author.email
+        });
+
         const meetLink = await createMeetEvent(user, preparedSummary, users, duration);
         if (meetLink) {
             postMessageInTreed(post_id, resources.meetingCreated.replace('{linkName}', meetLink).replace('{link}', meetLink));

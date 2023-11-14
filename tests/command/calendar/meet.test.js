@@ -7,11 +7,19 @@ const {
 } = require('./calendar.setup');
 
 const meetCommand = require('../../../commands/meet');
+const authorMock = {
+    name: 'John Doe',
+    email: 'user@localhost'
+}
 
 describe('!meet command', () => {
     it('should notify if user is not authorized', async () => {
         getUser.mockResolvedValueOnce(null);
-        const mockData = { user_id: 'testUserId', post_id: 'testPostId', args: [] };
+        const mockData = {
+            user_id: 'testUserId',
+            post_id: 'testPostId',
+            args: []
+        };
 
         await meetCommand(mockData);
 
@@ -53,7 +61,7 @@ describe('!meet command', () => {
         const insertCallArg = google.calendar().events.insert.mock.calls[0][0];
 
         expect(postMessageInTreed).toHaveBeenCalledWith('testPostId', expect.stringContaining('testLink'));
-        expect(insertCallArg.resource.attendees).toEqual([]);
+        expect(insertCallArg.resource.attendees).toEqual([authorMock]);
         expect(insertCallArg.resource.summary).toBe(resources.defaultMeetingSummary);
         expect(insertCallArg.resource.start.dateTime).toBe(expectedStart.toISOString());
         expect(insertCallArg.resource.end.dateTime).toBe(expectedEnd.toISOString());
@@ -62,7 +70,7 @@ describe('!meet command', () => {
     it('should create a meeting with default summary and duration when only users are provided', async () => {
         const mockUser1 = {
             email: 'user1@example.com',
-            first_name: 'John',
+            first_name: 'Jill',
             last_name: 'Doe'
         };
 
@@ -98,7 +106,7 @@ describe('!meet command', () => {
 
         expect(postMessageInTreed).toHaveBeenCalledWith('testPostId', expect.stringContaining('testLink'));
         expect(insertCallArg.resource.summary).toBe(resources.meetingSummaryWithUsers.replace('{users}', expectedAttendees.map(user => user.name).join(', ')));
-        expect(insertCallArg.resource.attendees).toEqual(expectedAttendees);
+        expect(insertCallArg.resource.attendees).toEqual([authorMock, ...expectedAttendees]);
         expect(insertCallArg.resource.start.dateTime).toBe(expectedStart.toISOString());
         expect(insertCallArg.resource.end.dateTime).toBe(expectedEnd.toISOString());
     });
@@ -124,7 +132,7 @@ describe('!meet command', () => {
 
         expect(postMessageInTreed).toHaveBeenCalledWith('testPostId', expect.stringContaining('testLink'));
         expect(insertCallArg.resource.summary).toBe(meetName);
-        expect(insertCallArg.resource.attendees).toEqual([]);
+        expect(insertCallArg.resource.attendees).toEqual([authorMock]);
         expect(insertCallArg.resource.start.dateTime).toBe(expectedStart.toISOString());
         expect(insertCallArg.resource.end.dateTime).toBe(expectedEnd.toISOString());
     });
@@ -149,7 +157,7 @@ describe('!meet command', () => {
 
         expect(postMessageInTreed).toHaveBeenCalledWith('testPostId', expect.stringContaining('testLink'));
         expect(insertCallArg.resource.summary).toBe(resources.defaultMeetingSummary);
-        expect(insertCallArg.resource.attendees).toEqual([]);
+        expect(insertCallArg.resource.attendees).toEqual([authorMock]);
         expect(insertCallArg.resource.start.dateTime).toBe(expectedStart.toISOString());
         expect(insertCallArg.resource.end.dateTime).toBe(expectedEnd.toISOString());
     });
