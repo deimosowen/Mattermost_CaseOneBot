@@ -5,13 +5,17 @@ const resources = require('../../resources.json').duty;
 
 module.exports = async ({ channel_id }) => {
     try {
-        const users = await getDutyUsers(channel_id);
+        let users = await getDutyUsers(channel_id);
+        users = users.filter(user => !user.is_disabled);
+        if (users.length === 0) {
+            postMessage(channel_id, resources.noExistingError);
+            return;
+        }
         const currentDuty = await getCurrentDuty(channel_id);
         if (!currentDuty) {
             postMessage(channel_id, resources.noExistingError);
             return;
         }
-
         let nextIndex = (users.findIndex(u => u.user_id === currentDuty.user_id) + 1) % users.length;
         await setCurrentDuty(channel_id, users[nextIndex].user_id);
         postMessage(channel_id, resources.nextNotification.replace('{user}', users[nextIndex].user_id));

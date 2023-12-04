@@ -11,6 +11,7 @@ const nextDutyCommand = require('../../../commands/duty/dutyNext');
 
 describe('next duty command', () => {
     it('should handle no existing duty', async () => {
+        getDutyUsers.mockResolvedValue([{ user_id: 'user1' }, { user_id: 'user2' }]);
         getCurrentDuty.mockResolvedValue(null);
 
         await nextDutyCommand({ channel_id: 'testChannel' });

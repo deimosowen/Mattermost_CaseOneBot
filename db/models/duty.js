@@ -51,6 +51,15 @@ const getCurrentDuty = async (channel_id) => {
     return db.get('SELECT * FROM duty_current WHERE channel_id = ?', channel_id);
 };
 
+const updateUserActivityStatus = async (userName, isDisabled) => {
+    return db.run(`
+        UPDATE duty_list 
+        SET is_disabled = ?
+        WHERE user_name = ?`,
+        isDisabled, userName
+    );
+};
+
 // Удаление дежурного расписания
 const deleteDutySchedule = async (channel_id) => {
     return db.run('DELETE FROM duty_schedule WHERE channel_id = ?', channel_id);
@@ -77,4 +86,5 @@ module.exports = {
     deleteDutySchedule,
     deleteAllDutyUsers,
     deleteCurrentDuty,
+    updateUserActivityStatus,
 };

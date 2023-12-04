@@ -1,0 +1,42 @@
+<% layout('layout') -%>
+    <% block('title', 'Настройки Календаря' ); -%>
+
+        <div class="container my-4">
+            <div class="card shadow-lg mx-auto rounded" style="max-width: 400px;">
+                <div class="card-body">
+                    <h2 class="card-title text-center mb-3">Настройки календаря</h1>
+                        <% if (success) { %>
+                            <div class="alert alert-success text-center" role="alert">
+                                Настройки успешно сохранены!
+                            </div>
+                            <% } %>
+                                <form action="/calendar/settings/" method="post">
+                                    <input type="hidden" id="user_id" name="user_id" value="<%= user_id %>">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="is_notification"
+                                            name="is_notification" value="1" <%=settings.is_notification ? 'checked'
+                                            : '' %>>
+                                        <label class="form-check-label" for="is_notification">
+                                            Включить уведомления
+                                        </label>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="notification_interval" class="form-label">Уведомлять меня:</label>
+                                        <select class="form-select" id="notification_interval"
+                                            name="notification_interval">
+                                            <option value="10" <%=settings.notification_interval===10 ? 'selected' : ''
+                                                %>
+                                                >За 10 минут до начала события</option>
+                                            <option value="5" <%=settings.notification_interval===5 ? 'selected' : '' %>
+                                                >За
+                                                5 минут до начала события</option>
+                                            <option value="1" <%=settings.notification_interval===1 ? 'selected' : '' %>
+                                                >За
+                                                1 минуту до начала события</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">Сохранить</button>
+                                </form>
+                </div>
+            </div>
+        </div>
