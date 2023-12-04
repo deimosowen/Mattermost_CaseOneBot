@@ -1,0 +1,62 @@
+<% layout('layout') -%>
+    <% block('title', 'Дежурства' ); -%>
+
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-12 col-md-8 mx-auto">
+                    <div class="card shadow">
+                        <div class="card-body">
+                            <h1 class="card-title text-center">Дежурства</h1>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Имя</th>
+                                        <th scope="col">Статус</th>
+                                        <th scope="col">Действие</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% employees.forEach(employee=> { %>
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <!-- Иконка пользователя (замените src на путь к вашему изображению)
+                                                    <img src=<%=employee.image %> alt="User" class="rounded-circle me-2" style="width: 32px; height: 32px;">  -->
+                                                    <!-- Имя сотрудника -->
+                                                    <div class="flex-grow-1">
+                                                        <%= employee.name %>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    class="badge <%= statusBadgeClasses[employee.status] || 'bg-secondary' %>">
+                                                    <%= employee.status %>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <form action="/duty/update-status" method="post">
+                                                    <input type="hidden" name="username"
+                                                        value="<%= employee.username %>">
+                                                    <input type="hidden" name="channel_id" value="<%= channel_id %>">
+                                                    <% if (employee.status==='Активный' ) { %>
+                                                        <input type="hidden" name="status" value="1">
+                                                        <button type="submit"
+                                                            class="btn btn-outline-secondary btn-sm">Отключить</button>
+                                                        <% } else if (employee.status==='Отключен' ) { %>
+                                                            <input type="hidden" name="status" value="0">
+                                                            <button type="submit"
+                                                                class="btn btn-outline-primary btn-sm">Включить</button>
+                                                            <% } %>
+                                                </form>
+
+                                            </td>
+                                        </tr>
+                                        <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>

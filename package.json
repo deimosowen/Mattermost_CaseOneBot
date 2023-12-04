@@ -1,6 +1,6 @@
 {
   "name": "mattermost_caseonebot",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "",
   "type": "commonjs",
   "main": "index.js",
@@ -22,6 +22,8 @@
     "db-migrate": "^0.11.14",
     "db-migrate-sqlite3": "^0.5.0",
     "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "ejs-locals": "^1.0.2",
     "express": "^4.18.2",
     "google-auth-library": "^8.9.0",
     "googleapis": "^120.0.0",

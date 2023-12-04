@@ -11,7 +11,8 @@ const resources = require('../../resources.json').duty;
 
 const createDutyCallback = (channel_id) => {
     return async () => {
-        const users = await getDutyUsers(channel_id);
+        let users = await getDutyUsers(channel_id);
+        users = users.filter(user => !user.is_disabled);
         const currentDuty = await getCurrentDuty(channel_id);
 
         let nextIndex = (users.findIndex(u => u.user_id === currentDuty.user_id) + 1) % users.length;

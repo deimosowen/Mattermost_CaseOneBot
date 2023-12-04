@@ -38,6 +38,11 @@ const getUserByUsername = async (username) => {
     return user;
 }
 
+const getProfilePictureUrl = async (user_id) => {
+    const url = await client.getProfilePictureUrl(user_id, 0);
+    return url;
+}
+
 const getPost = async (post_id) => {
     const post = await client.getPost(post_id);
     return post;
@@ -72,6 +77,7 @@ module.exports = {
     postMessageInTreed,
     getUser,
     getUserByUsername,
+    getProfilePictureUrl,
     getPost,
     getChannel,
     getChannelMembers,
