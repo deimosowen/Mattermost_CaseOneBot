@@ -33,5 +33,8 @@
         "forwardListHeader": "Список пересылок:\n",
         "mappingSetupSuccess": "Пересылка успешно настроена.",
         "forwardCommandError": "Произошла ошибка при обработке команды пересылки. Пожалуйста, попробуйте снова."
+    },
+    "question": {
+        "prompt": "Вопрос: {question}"
     }
 }

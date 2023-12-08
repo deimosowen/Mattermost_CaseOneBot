@@ -1,10 +1,10 @@
-const { postMessage, getTeam } = require('../../mattermost/utils');
-const { getSourceChannelId, addProcessedMessage, isMessageProcessed } = require('../../db/models/forward');
-const { getCurrentDuty } = require('../../db/models/duty');
-const { API_BASE_URL } = require('../../config');
-const logger = require('../../logger');
+const { postMessage, getTeam } = require('../mattermost/utils');
+const { getSourceChannelId, addProcessedMessage, isMessageProcessed } = require('../db/models/forward');
+const { getCurrentDuty } = require('../db/models/duty');
+const { API_BASE_URL } = require('../config');
+const logger = require('../logger');
 
-const processForwarding = async (post, eventData) => {
+module.exports = async (post, eventData) => {
     try {
         if (post.props.from_bot || post.root_id || post.type !== '') {
             return;
@@ -59,8 +59,4 @@ const tagHandlers = {
         const team = await getTeam();
         return `https://${API_BASE_URL}/${team.name}/pl/${post.id}`;
     }
-};
-
-module.exports = {
-    processForwarding
 };
