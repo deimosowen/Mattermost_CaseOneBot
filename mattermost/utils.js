@@ -1,5 +1,18 @@
-const { client } = require('./client');
+const { client, wsClient } = require('./client');
 const logger = require('../logger');
+
+const userTyping = async (post_id) => {
+    try {
+        const originalPost = await client.getPost(post_id);
+        const post = {
+            channel_id: originalPost.channel_id,
+            root_id: originalPost.root_id
+        };
+        wsClient.userTyping(post.channel_id, post.root_id);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    };
+}
 
 const postMessage = async (channel_id, message, root_id = null) => {
     try {
@@ -22,10 +35,15 @@ const postMessageInTreed = async (post_id, message) => {
             root_id: originalPost.root_id || originalPost.id,
             message: message
         };
-        await client.createPost(post);
+        return await client.createPost(post);
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
+};
+
+const getMe = async () => {
+    const me = await client.getMe();
+    return me;
 };
 
 const getUser = async (user_id) => {
@@ -73,6 +91,7 @@ const getTeam = async () => {
 }
 
 module.exports = {
+    getMe,
     postMessage,
     postMessageInTreed,
     getUser,
@@ -83,4 +102,5 @@ module.exports = {
     getChannelMembers,
     getTeam,
     addToChannel,
+    userTyping,
 };

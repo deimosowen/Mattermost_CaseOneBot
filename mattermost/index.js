@@ -1,14 +1,14 @@
 const { wsClient } = require('./client');
 const commands = require('../commands');
+const messageEventEmitter = require('../handlers/messageEventEmitter');
 const { parseCommand } = require('../commands/parser');
-const { processForwarding } = require('../commands/forward/forwardingProcessor');
 
 const initializeMattermost = () => {
     wsClient.addMessageListener(function (event) {
         if (event.event === 'posted') {
             const post = JSON.parse(event.data.post);
             if (!post.message.startsWith('!')) {
-                processForwarding(post, event.data);
+                messageEventEmitter.emit('nonCommandMessage', post, event.data);
                 return;
             }
             const messageParts = parseCommand(post.message);
