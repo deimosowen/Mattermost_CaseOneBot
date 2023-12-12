@@ -36,14 +36,14 @@ const notifyUsersAboutUpcomingEvents = async () => {
 };
 
 async function listEventsForUser(user) {
-    oAuth2Client.setCredentials(user);
-    const mattermostUser = await getUser(user.user_id);
-    const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true' ? mattermostUser.timezone.automaticTimezone : mattermostUser.timezone.manualTimezone;
-    const now = moment().tz(timezone);
-    const tenMinutesFromNow = now.clone().add(user.notification_interval + 1, 'minutes');
-    const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
-
     try {
+        oAuth2Client.setCredentials(user);
+        const mattermostUser = await getUser(user.user_id);
+        const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true' ? mattermostUser.timezone.automaticTimezone : mattermostUser.timezone.manualTimezone;
+        const now = moment().tz(timezone);
+        const tenMinutesFromNow = now.clone().add(user.notification_interval + 1, 'minutes');
+        const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+
         const res = await calendar.events.list({
             calendarId: 'primary',
             timeMin: now.toISOString(),
@@ -55,7 +55,7 @@ async function listEventsForUser(user) {
         if (events.length) {
             for (const event of events) {
                 const eventStartTime = moment(event.start.dateTime);
-                const attendanceStatus = event.attendees ? event.attendees.find(att => att.email === user.email)?.responseStatus : null;
+                const attendanceStatus = event.attendees ? event.attendees.find(att => att.email === mattermostUser.email)?.responseStatus : null;
                 if (attendanceStatus === 'declined') {
                     continue;
                 }
@@ -68,8 +68,8 @@ async function listEventsForUser(user) {
         }
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-        await removeUser(user.user_id);
-        await removeUserSettings(user.user_id);
+        //await removeUser(user.user_id);
+        //await removeUserSettings(user.user_id);
     }
 }
 

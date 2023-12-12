@@ -10,7 +10,7 @@
     "release": "gulp release",
     "test": "jest --config tests/jest.config.js"
   },
-  "author": "",
+  "author": "Denis Ushanev",
   "license": "ISC",
   "dependencies": {
     "@mattermost/client": "^9.1.0",
