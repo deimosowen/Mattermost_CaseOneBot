@@ -1,6 +1,6 @@
 {
   "name": "mattermost_caseonebot",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "",
   "type": "commonjs",
   "main": "index.js",
@@ -10,7 +10,7 @@
     "release": "gulp release",
     "test": "jest --config tests/jest.config.js"
   },
-  "author": "",
+  "author": "Denis Ushanev",
   "license": "ISC",
   "dependencies": {
     "@mattermost/client": "^9.1.0",

@@ -16,8 +16,12 @@ const forwardList = require('./forward/forwardList');
 const forwardRemove = require('./forward/forwardRemove');
 const forwardHelp = require('./forward/forwardHelp');
 const release = require('./release');
+const ping = require('./ping');
+const sendAs = require('./sendAs');
 
 const commands = {
+    '!ping': ping,
+    '!sendAs': sendAs,
     '!invite': invite,
     '!calendar': calendar,
     '!calendar-remove': calendarRemove,
