@@ -2,7 +2,7 @@ const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 const { postMessageInTreed, getUserByUsername } = require('../../../mattermost/utils');
 const { getUser } = require('../../../db/models/calendars');
-const resources = require('../../../resources.json').calendar;
+const resources = require('../../../resources/resources.json').calendar;
 const logger = require('../../../logger');
 
 jest.mock('googleapis', () => ({

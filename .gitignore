@@ -130,3 +130,4 @@ dist
 .pnp.*
 *.db
 credentials.json
+credentials_prod.json

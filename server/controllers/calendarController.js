@@ -20,7 +20,7 @@ router.post('/settings/', async (req, res) => {
     let { user_id, notification_interval, is_notification } = req.body;
     is_notification = parseInt(is_notification) || 0;
     await updateUserSettings(user_id, { notification_interval, is_notification });
-    res.redirect(`/calendar/settings/?user_id=${user_id}&success=true`);
+    res.redirect(`/calendar/settings?user_id=${user_id}&success=true`);
 });
 
 module.exports = router;

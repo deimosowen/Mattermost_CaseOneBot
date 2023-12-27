@@ -1,12 +1,25 @@
-const { postMessage, getPost, getChannel, getChannelMembers, addToChannel } = require('../mattermost/utils');
+const { postMessageInTreed, getPost, getChannel, getChannelMembers, addToChannel } = require('../mattermost/utils');
 const logger = require('../logger');
-const { TEAM_CHANNEL_ID } = require('../config');
+const resources = require('../resources');
+const { HOST, TEAM_CHANNEL_ID } = require('../config');
 
-module.exports = async ({ user_name, user_id, channel_id, team_id, args }) => {
+module.exports = async ({ post_id, user_name, user_id, team_id, channel_type, args }) => {
     const [arg] = args;
     let channelId;
-
     try {
+        if (!isMemberExist(user_id)) {
+            postMessageInTreed(post_id, `${user_name} You shall not pass! 🧙`);
+        }
+
+        if (!arg) {
+            let message = `Для присоединения к каналам перейдите по [этой ссылке](${HOST}/invite?user_id=${user_id})`;
+            if (channel_type !== 'D') {
+                message = resources.onlyDirectMessagesCommand;
+            }
+            postMessageInTreed(post_id, message);
+            return;
+        }
+
         if (arg.includes('/channels/')) {
             const channelName = arg.split('/channels/')[1].replace(/\/$/, "");
             channelId = (await getChannel(team_id, channelName)).id;
@@ -17,14 +30,14 @@ module.exports = async ({ user_name, user_id, channel_id, team_id, args }) => {
             channelId = (await getChannel(team_id, arg)).id;
         }
 
-        if (isMemberExist(user_id)) {
+        if (channelId) {
             await addToChannel(user_id, channelId);
         } else {
-            postMessage(channel_id, `${user_name} You shall not pass! 🧙`);
+            postMessageInTreed(post_id, `${user_name} Канал не найден.`);
         }
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-        postMessage(channel_id, `${user_name} Канал не найден.`);
+        postMessageInTreed(post_id, `${user_name} Канал не найден.`);
     }
 };
 

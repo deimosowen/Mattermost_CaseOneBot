@@ -1,5 +1,5 @@
 const logger = require('../../../logger');
-const resources = require('../../../resources.json').duty;
+const resources = require('../../../resources/resources.json').duty;
 const taskType = require('../../../types/taskTypes');
 const {
     getDutySchedule,

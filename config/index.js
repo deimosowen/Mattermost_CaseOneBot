@@ -5,4 +5,5 @@ module.exports = {
     ADMIN_ID: process.env.ADMIN_ID,
     TZ: process.env.TZ,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    HOST: process.env.HOST,
 };

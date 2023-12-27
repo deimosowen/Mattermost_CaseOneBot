@@ -1,0 +1,51 @@
+<% layout('layout') -%>
+    <% block('title', 'Invite to channel' ); -%>
+
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-12 col-md-8 mx-auto">
+                    <div class="card shadow">
+                        <div class="card-body">
+                            <h1 class="card-title text-center">Доступные каналы</h1>
+                            <% if (channels.length> 0) { %>
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Канал</th>
+                                            <th scope="col" class="text-end"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% channels.forEach(channel=> { %>
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="flex-grow-1">
+                                                            <%= channel.display_name %>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="text-end">
+                                                    <form action="/invite" method="post">
+                                                        <input type="hidden" name="user_id" value="<%= user_id %>">
+                                                        <input type="hidden" name="channel_id"
+                                                            value="<%= channel.id %>">
+                                                        <button type="submit"
+                                                            class="btn btn-outline-primary btn-sm">Войти в
+                                                            канал</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                            <% }) %>
+                                    </tbody>
+                                </table>
+                                <% } else { %>
+                                    <div class="alert alert-info text-center" role="alert">
+                                        Вы уже приглашены во все доступные каналы 😊
+                                    </div>
+                                    <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>

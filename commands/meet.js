@@ -3,7 +3,7 @@ const { isLoad, oAuth2Client } = require('../server/googleAuth');
 const { postMessageInTreed, getUserByUsername, getUser: getUserFromMattermost } = require('../mattermost/utils');
 const { getUser } = require('../db/models/calendars');
 const logger = require('../logger');
-const resources = require('../resources.json').calendar;
+const resources = require('../resources');
 
 function parseDuration(durationString = '15m') {
     const matches = durationString.match(/^(\d+)(m|h)$/);
@@ -106,10 +106,10 @@ function prepareSummary(summary, users) {
 
     if (users && users.length > 0) {
         const userNames = users.map(user => user.name).join(', ');
-        return resources.meetingSummaryWithUsers.replace('{users}', userNames);
+        return resources.calendar.meetingSummaryWithUsers.replace('{users}', userNames);
     }
 
-    return resources.defaultMeetingSummary;
+    return resources.calendar.defaultMeetingSummary;
 }
 
 module.exports = async ({ user_id, post_id, args }) => {
@@ -122,7 +122,7 @@ module.exports = async ({ user_id, post_id, args }) => {
 
         const user = await getUser(user_id);
         if (!user) {
-            postMessageInTreed(post_id, resources.notAuthorized);
+            postMessageInTreed(post_id, resources.calendar.notAuthorized);
             return;
         }
 
@@ -137,12 +137,12 @@ module.exports = async ({ user_id, post_id, args }) => {
 
         const meetLink = await createMeetEvent(user, preparedSummary, users, duration);
         if (meetLink) {
-            postMessageInTreed(post_id, resources.meetingCreated.replace('{linkName}', meetLink).replace('{link}', meetLink));
+            postMessageInTreed(post_id, resources.calendar.meetingCreated.replace('{linkName}', meetLink).replace('{link}', meetLink));
         } else {
-            postMessageInTreed(post_id, resources.errorCreatingMeeting);
+            postMessageInTreed(post_id, resources.calendar.errorCreatingMeeting);
         }
     } catch (error) {
-        postMessageInTreed(post_id, resources.errorCreatingMeeting);
+        postMessageInTreed(post_id, resources.calendar.errorCreatingMeeting);
         logger.error(`Error creating Meet event: ${error.message}`);
     }
 };
