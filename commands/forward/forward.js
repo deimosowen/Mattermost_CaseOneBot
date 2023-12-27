@@ -1,7 +1,7 @@
 const { postMessage } = require('../../mattermost/utils');
 const { addChannelMapping } = require('../../db/models/forward');
 const logger = require('../../logger');
-const resources = require('../../resources.json').forward;
+const resources = require('../../resources');
 
 module.exports = async ({ channel_id, args }) => {
     try {
@@ -9,9 +9,9 @@ module.exports = async ({ channel_id, args }) => {
 
         await addChannelMapping(sourceChannelId, targetChannelId, message || null, threadMessage || null);
 
-        postMessage(channel_id, resources.mappingSetupSuccess);
+        postMessage(channel_id, resources.forward.mappingSetupSuccess);
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-        postMessage(channel_id, resources.forwardCommandError);
+        postMessage(channel_id, resources.forward.forwardCommandError);
     }
 };

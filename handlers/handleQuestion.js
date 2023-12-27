@@ -2,7 +2,7 @@ const { getMe, postMessageInTreed, userTyping } = require('../mattermost/utils')
 const { sendMessage } = require('../chatgpt');
 const { getChatIdForPost, setChatIdForPost } = require('../chatgpt/chatMap');
 const logger = require('../logger');
-const resources = require('../resources.json').question;
+const resources = require('../resources');
 const { OPENAI_API_KEY } = require('../config');
 
 module.exports = async (post, eventData) => {
@@ -31,7 +31,7 @@ module.exports = async (post, eventData) => {
 
         const postId = post.root_id || post.id;
         const chatId = getChatIdForPost(postId);
-        const message = chatId ? question : resources.prompt.replace('{question}', question);
+        const message = chatId ? question : resources.question.prompt.replace('{question}', question);
 
         const res = await sendMessage(message, chatId);
 

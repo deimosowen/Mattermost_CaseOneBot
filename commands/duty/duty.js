@@ -7,7 +7,7 @@ const { setCronJob, cancelCronJob } = require('../../cron');
 const { postMessage } = require('../../mattermost/utils');
 const TaskType = require('../../types/taskTypes');
 const logger = require('../../logger');
-const resources = require('../../resources.json').duty;
+const resources = require('../../resources');
 
 const createDutyCallback = (channel_id) => {
     return async () => {
@@ -17,7 +17,7 @@ const createDutyCallback = (channel_id) => {
 
         let nextIndex = (users.findIndex(u => u.user_id === currentDuty.user_id) + 1) % users.length;
         await setCurrentDuty(channel_id, users[nextIndex].user_id);
-        postMessage(channel_id, resources.nextNotification.replace('{user}', users[nextIndex].user_id));
+        postMessage(channel_id, resources.duty.nextNotification.replace('{user}', users[nextIndex].user_id));
     };
 };
 
@@ -34,17 +34,17 @@ module.exports = async ({ channel_id, args }) => {
 
     try {
         if (!schedule) {
-            postMessage(channel_id, resources.noScheduleError);
+            postMessage(channel_id, resources.duty.noScheduleError);
             return;
         }
 
         if (!cronValidator.isValidCron(schedule)) {
-            postMessage(channel_id, resources.invalidScheduleError.replace('{schedule}', schedule));
+            postMessage(channel_id, resources.duty.invalidScheduleError.replace('{schedule}', schedule));
             return;
         }
 
         if (userString.length === 0) {
-            postMessage(channel_id, resources.noUsersError);
+            postMessage(channel_id, resources.duty.noUsersError);
             return;
         }
 
@@ -70,7 +70,7 @@ module.exports = async ({ channel_id, args }) => {
         const taskCallback = createDutyCallback(channel_id);
         setCronJob(id, schedule, taskCallback, TaskType.DUTY);
 
-        postMessage(channel_id, resources.setSuccess);
+        postMessage(channel_id, resources.duty.setSuccess);
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }

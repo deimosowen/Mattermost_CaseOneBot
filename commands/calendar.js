@@ -1,7 +1,7 @@
 const { postMessageInTreed } = require('../mattermost/utils');
 const { isLoad, oAuth2Client } = require('../server/googleAuth');
 const logger = require('../logger');
-const resources = require('../resources.json');
+const resources = require('../resources');
 
 module.exports = async ({ post_id, channel_id, channel_type, user_id }) => {
     try {
