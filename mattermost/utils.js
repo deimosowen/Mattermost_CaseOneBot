@@ -56,6 +56,15 @@ const getUserByUsername = async (username) => {
     return user;
 }
 
+const getMyChannels = async (team_id) => {
+    if (!team_id) {
+        const team = await getTeam();
+        team_id = team.id;
+    }
+    const channels = await client.getMyChannels(team_id, false);
+    return channels;
+}
+
 const getProfilePictureUrl = async (user_id) => {
     const url = await client.getProfilePictureUrl(user_id, 0);
     return url;
@@ -80,6 +89,15 @@ const getChannelMembers = async (channel_id) => {
     return members;
 }
 
+const getChannelMember = async (channel_id, user_id) => {
+    try {
+        const member = await client.getChannelMember(channel_id, user_id);
+        return member;
+    } catch (error) {
+        return null;
+    }
+}
+
 const addToChannel = async (user_id, channel_id) => {
     const result = await client.addToChannel(user_id, channel_id);
     return result;
@@ -99,7 +117,9 @@ module.exports = {
     getProfilePictureUrl,
     getPost,
     getChannel,
+    getChannelMember,
     getChannelMembers,
+    getMyChannels,
     getTeam,
     addToChannel,
     userTyping,

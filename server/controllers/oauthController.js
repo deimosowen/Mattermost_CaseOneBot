@@ -5,7 +5,7 @@ const { oAuth2Client } = require('../googleAuth');
 const router = express.Router();
 
 router.get('/', (req, res) => {
-    res.redirect('https://github.com/deimosowen/Mattermost_EchoBot');
+    res.redirect('https://github.com/deimosowen/Mattermost_CaseOneBot');
 });
 
 router.get('/PrivacyPolicy', (req, res) => {
