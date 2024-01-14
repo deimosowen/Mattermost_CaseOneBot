@@ -1,6 +1,7 @@
 const CronJob = require('cron').CronJob;
 const { postMessage } = require('../mattermost/utils');
 const { getReminders } = require('../db/models/reminders');
+const { sendMessage, isApiKeyExist } = require('../chatgpt');
 const logger = require('../logger');
 const TaskType = require('../types/taskTypes');
 
@@ -45,7 +46,29 @@ const cancelCronJob = (id, type) => {
 const loadCronJobsFromDb = async () => {
     const reminders = await getReminders();
     for (const reminder of reminders) {
-        const taskCallback = () => postMessage(reminder.channel_id, reminder.message);
+        const taskCallback = async () => {
+            let channel_id = reminder.channel_id;
+            let message = reminder.message;
+            try {
+                if (reminder.use_open_ai && isApiKeyExist) {
+                    const messageFromAI = await sendMessage(reminder.prompt, null);
+                    let messageFromAIText = messageFromAI.text;
+                    console.log(messageFromAI);
+                    if (messageFromAIText.startsWith('\"') && messageFromAIText.endsWith('\"')) {
+                        messageFromAIText = messageFromAIText.slice(1, -1);
+                    }
+                    if (reminder.template) {
+                        message = reminder.template.replace('{messageFromAI}', messageFromAIText);
+                    } else {
+                        message = messageFromAIText;
+                    }
+                }
+            } catch (error) {
+                logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+            } finally {
+                postMessage(channel_id, message);
+            }
+        };
         setCronJob(reminder.id, reminder.schedule, taskCallback, TaskType.REMINDER);
     }
 };

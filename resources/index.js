@@ -1,11 +1,12 @@
 const fs = require('fs');
+const path = require('path');
 
 function loadResources() {
     const defaultResources = require('./resources.json');
     let mergedResources = { ...defaultResources };
 
     try {
-        const productionResourcesPath = './resources.prod.json';
+        const productionResourcesPath = path.join(__dirname, './resources.prod.json');
         if (fs.existsSync(productionResourcesPath)) {
             const productionResources = require(productionResourcesPath);
             for (let key in productionResources) {
