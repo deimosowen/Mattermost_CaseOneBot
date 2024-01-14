@@ -1,12 +1,11 @@
 const { getMe, postMessageInTreed, userTyping } = require('../mattermost/utils');
-const { sendMessage } = require('../chatgpt');
+const { sendMessage, isApiKeyExist } = require('../chatgpt');
 const { getChatIdForPost, setChatIdForPost } = require('../chatgpt/chatMap');
 const logger = require('../logger');
 const resources = require('../resources');
-const { OPENAI_API_KEY } = require('../config');
 
 module.exports = async (post, eventData) => {
-    if (!OPENAI_API_KEY) {
+    if (!isApiKeyExist) {
         logger.error('OpenAI API key is not set.');
         return;
     }
