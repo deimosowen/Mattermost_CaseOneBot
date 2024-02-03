@@ -31,6 +31,9 @@ More than just reminders. This robust bot was designed initially for cron-based 
    - `!meet; [user-list]` - Creates a meeting with specified users.
    - `!meet; [user-list]; [meeting title]` - Creates a meeting with a title and specified users.
    - `!meet; [user-list]; [meeting title]; [60m|1h]` - Additionally, set the duration of the meeting using 'm' for minutes or 'h' for hours. Defaults to 15 minutes if no duration is specified.
+   -  The `!meet` command also supports alternative syntax to provide flexibility in how meeting details are specified:
+      + `!meet Meeting @username1 @username2 @username3`: Creates a meeting titled "Meeting" with specified users and sets the duration. This format allows you to place the meeting title directly after the `!meet` command.
+      + `!meet @username1 @username2 @username3 Meeting 15m`: Similar functionality as above, but the meeting title "Meeting" is placed after the user list. This format is useful when you want to list all participants first before specifying the meeting title.
 
 ### Message Forwarding
 - `!forward; [id source channel]; [id target channel]; [message]; [thread-message]` - Sets up message forwarding from source to target channel with an optional message and an optional thread message. For more details on tags used in `[message]`, see the [wiki](https://github.com/deimosowen/Mattermost_CaseOneBot/wiki/Tags).
@@ -51,12 +54,26 @@ More than just reminders. This robust bot was designed initially for cron-based 
 ```
 API_BASE_URL=your_mattermost_url
 BOT_TOKEN=your_bot_token
+ADMIN_ID=your_admin_id
 TZ=your_time_zone
+HOST=your_host
+PORT=your_port
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_API_MODEL=your_openai_api_model
+OPENAI_API_TEMPERATURE=your_openai_api_temperature
+OPENAI_API_TOP_P=your_openai_api_top_p
 ```
 
 - `API_BASE_URL`: Your Mattermost server URL (e.g., "my-mattermost-server.com")
 - `BOT_TOKEN`: Your bot token in Mattermost.
 - `TZ`: Your timezone. Defaults to "UTC".
+- `ADMIN_ID`: Mattermost user ID of the bot administrator.
+- `HOST`: Hostname for the bot server (e.g., "localhost").
+- `PORT`: Port number for the bot server (e.g., 3000).
+- `OPENAI_API_KEY`: API key for OpenAI, used for generating responses.
+- `OPENAI_API_MODEL`: The model of OpenAI API to use (e.g., "text-davinci-003").
+- `OPENAI_API_TEMPERATURE`: Controls randomness in OpenAI's response. Range from 0 to 1.
+- `OPENAI_API_TOP_P`: Nucleus sampling parameter for OpenAI's response generation.
 
 4. Launch the bot:  
    `node index.js`
