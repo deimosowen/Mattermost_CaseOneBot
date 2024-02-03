@@ -1,5 +1,5 @@
 const logger = require('../logger');
-const { OPENAI_API_KEY, OPENAI_API_MODEL } = require('../config');
+const { OPENAI_API_KEY, OPENAI_API_MODEL, OPENAI_API_TEMPERATURE, OPENAI_API_TOP_P } = require('../config');
 
 let api = null;
 
@@ -10,7 +10,9 @@ async function initializeChatGPTAPI() {
             api = new ChatGPTAPI({
                 apiKey: OPENAI_API_KEY,
                 completionParams: {
-                    model: OPENAI_API_MODEL ?? 'gpt-3.5-turbo'
+                    model: OPENAI_API_MODEL ?? 'gpt-3.5-turbo',
+                    temperature: OPENAI_API_TEMPERATURE ?? 1,
+                    top_p: OPENAI_API_TOP_P ?? 1,
                 }
             });
         } catch (error) {

@@ -6,5 +6,7 @@ module.exports = {
     TZ: process.env.TZ,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     OPENAI_API_MODEL: process.env.OPENAI_API_MODEL,
+    OPENAI_API_TEMPERATURE: process.env.OPENAI_API_TEMPERATURE,
+    OPENAI_API_TOP_P: process.env.OPENAI_API_TOP_P,
     HOST: process.env.HOST,
 };
