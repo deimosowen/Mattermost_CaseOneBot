@@ -11,8 +11,8 @@ function parseMeetCommand(message) {
     const userParts = parts.filter(p => p.startsWith('@'));
     const userString = userParts.join(', ');
 
-    const summaryIndex = userParts.length > 0 ? parts.indexOf(userParts[0]) : parts.length;
-    const summary = parts.slice(0, summaryIndex).join(' ');
+    const remainingParts = parts.filter(p => !p.startsWith('@'));
+    const summary = remainingParts.join(' ');
 
     return [command, userString, summary, duration];
 }

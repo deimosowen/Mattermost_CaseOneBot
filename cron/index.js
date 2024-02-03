@@ -53,7 +53,7 @@ const loadCronJobsFromDb = async () => {
                 if (reminder.use_open_ai && isApiKeyExist) {
                     const messageFromAI = await sendMessage(reminder.prompt, null);
                     let messageFromAIText = messageFromAI.text;
-                    console.log(messageFromAI);
+
                     if (messageFromAIText.startsWith('\"') && messageFromAIText.endsWith('\"')) {
                         messageFromAIText = messageFromAIText.slice(1, -1);
                     }
