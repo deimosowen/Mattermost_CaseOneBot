@@ -5,6 +5,8 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
+    "start-bot": "node index.js",
+    "start-jira-proxy": "node jira/proxy/index.js",
     "dev": "nodemon index.js",
     "build": "gulp build",
     "release": "gulp release",

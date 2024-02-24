@@ -18,7 +18,7 @@ const initGoogleCalendarNotifications = async () => {
         await notifyUsersAboutUpcomingEvents();
     }, null, true, 'UTC');
 
-    const cleanupCronJob = new CronJob('0 0 * * *', async () => {
+    const cleanupCronJob = new CronJob('0 22 * * 0', async () => {
         await removeNotifiedEvents();
     }, null, true, 'UTC');
 
@@ -62,7 +62,7 @@ async function listEventsForUser(user) {
                 if (eventStartTime.isAfter(now) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
                     const message = createEventMessage(event, timezone);
                     postMessage(user.channel_id, message);
-                    await markEventAsNotified(user.user_id, event.id);
+                    await markEventAsNotified(user.user_id, event);
                 }
             }
         }

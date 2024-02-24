@@ -1,0 +1,253 @@
+<% layout('layout') -%>
+    <% block('title', 'Jira Worklog' ); -%>
+
+        <div class="container my-5">
+            <div id="loginForm">
+                <div class="row">
+                    <div class="col-12 col-md-8 mx-auto">
+                        <div class="card shadow">
+                            <div class="card-body">
+                                <h1 class="card-title text-center">Авторизация</h1>
+                                <form id="authForm">
+                                    <div class="mb-3">
+                                        <label for="username" class="form-label">Логин</label>
+                                        <input type="text" class="form-control" id="username" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">Пароль</label>
+                                        <input type="password" class="form-control" id="password" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="timeLoggingForm" style="display: none;">
+                <div class="row">
+                    <div class="col-12 mx-auto">
+                        <div class="card shadow">
+                            <div class="card-body">
+                                <h1 class="card-title text-center">Логирование времени</h1>
+                                <% if (events.length> 0) { %>
+                                    <table class="table table-sm small">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">Событие</th>
+                                                <th scope="col" style="width: 15%;">Дата</th>
+                                                <th scope="col" style="width: 7%;">Прод-сть</th>
+                                                <th scope="col" style="width: 43%;">Задача</th>
+                                                <th scope="col" style="width: 9%;" class="text-end">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="align-middle">
+                                            <% events.forEach((event, index)=> { %>
+                                                <tr>
+                                                    <td>
+                                                        <%= event.summary %>
+                                                    </td>
+                                                    <td>
+                                                        <%= event.start %>
+                                                    </td>
+                                                    <td>
+                                                        <%= event.duration %> мин.
+                                                    </td>
+                                                    <td>
+                                                        <select name="taskId"
+                                                            class="form-select form-select-sm tasksSelect">
+                                                            <option>...</option>
+                                                        </select>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <form id="form<%= index %>" class="event-form" action=""
+                                                            method="post">
+                                                            <input type="hidden" name="id" value="<%= event.id %>">
+                                                            <input type="hidden" name="started"
+                                                                value="<%= event.start_date %>">
+                                                            <input type="hidden" name="userId" value="<%= user_id %>">
+                                                            <input type="hidden" name="comment"
+                                                                value="<%= event.summary %>">
+                                                            <input type="hidden" name="duration"
+                                                                value="<%= event.duration %>">
+                                                            <button type="submit" class="btn btn-sm btn-primary"
+                                                                formaction="jira/log" title="Залогировать">
+                                                                <i class="bi bi-check-lg"></i>
+                                                            </button>
+                                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                                formaction="jira/remove" title="Удалить">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                                <% }) %>
+                                        </tbody>
+                                    </table>
+                                    <% } else { %>
+                                        <div class="alert alert-info text-center" role="alert">
+                                            Вы залогировали все события из календаря 😊
+                                        </div>
+                                        <% } %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const urlParams = new URLSearchParams(window.location.search);
+                const loginForm = document.getElementById('loginForm');
+                const timeLoggingForm = document.getElementById('timeLoggingForm');
+                const authData = {
+                    username: localStorage.getItem('username'),
+                    password: localStorage.getItem('password')
+                };
+                const encodedCredentials = btoa(`${authData.username}:${authData.password}`);
+
+                toggleForms(authData.username, authData.password);
+
+                if (authData.username && authData.password) {
+                    fetchTasks(encodedCredentials);
+                }
+
+                document.getElementById('authForm').addEventListener('submit', handleAuthFormSubmit);
+
+                document.querySelectorAll('.event-form').forEach(form => {
+                    const boundHandleEventFormSubmit = handleEventFormSubmit.bind(null, encodedCredentials);
+                    form.addEventListener('submit', boundHandleEventFormSubmit);
+                });
+            });
+
+            function toggleForms(username, password) {
+                loginForm.style.display = username && password ? 'none' : 'block';
+                timeLoggingForm.style.display = username && password ? 'block' : 'none';
+            }
+
+            function handleAuthFormSubmit(e) {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                localStorage.setItem('username', username);
+                localStorage.setItem('password', password);
+                window.location.reload();
+            }
+
+            function fetchTasks(encodedCredentials) {
+                fetch('jira/api/tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Basic ${encodedCredentials}`
+                    }
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok.');
+                        }
+                        return response.json();
+                    })
+                    .then(updateTasksSelects)
+                    .catch(handleFetchError);
+            }
+
+            function updateTasksSelects(tasks) {
+                const tasksSelects = document.querySelectorAll('.tasksSelect');
+                tasksSelects.forEach(select => {
+                    clearSelectOptions(select);
+                    tasks.forEach(task => {
+                        const option = document.createElement('option');
+                        option.value = task.key;
+                        option.textContent = task.summary;
+                        select.appendChild(option);
+                    });
+                });
+            }
+
+            function clearSelectOptions(select) {
+                while (select.firstChild) {
+                    select.removeChild(select.firstChild);
+                }
+            }
+
+            function handleEventFormSubmit(encodedCredentials, e) {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const select = form.closest('tr').querySelector('.tasksSelect');
+                let hiddenInput = form.querySelector('input[name="taskId"]');
+
+                if (!hiddenInput) {
+                    hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'taskId';
+                    form.appendChild(hiddenInput);
+                }
+
+                hiddenInput.value = select.value;
+                const formData = new FormData(form);
+                const object = {};
+                formData.forEach((value, key) => { object[key] = value; });
+                const json = JSON.stringify(object);
+                const formAction = document.activeElement.getAttribute('formaction');
+
+                disableFormButtons(form);
+                submitFormAction(formAction, json, encodedCredentials, form);
+            }
+
+            function disableFormButtons(form) {
+                form.querySelectorAll('button, input[type=submit]').forEach(button => {
+                    button.disabled = true;
+                });
+            }
+
+            function submitFormAction(formAction, json, encodedCredentials, form) {
+                fetch(formAction, {
+                    method: 'POST',
+                    body: json,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Basic ${encodedCredentials}`
+                    }
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Ошибка подключения к Jira');
+                        }
+                        return response.json();
+                    })
+                    .then(data => handleFormActionSuccess(data, formAction, form))
+                    .catch(handleFetchError);
+            }
+
+            function handleFormActionSuccess(data, formAction, form) {
+                form.closest('tr').remove();
+                const config = {
+                    text: formAction === 'jira/log' ? 'Время залогировано' : 'Событие удалено',
+                    duration: 3000,
+                    newWindow: true,
+                    gravity: "top",
+                    position: "right",
+                    style: {
+                        background: formAction === 'jira/log' ? 'linear-gradient(to right, #20c997, #198754)' : 'linear-gradient(to right, #dc3545, #bd2130)',
+                    }
+                };
+                Toastify(config).showToast();
+            }
+
+            function handleFetchError(error) {
+                Toastify({
+                    text: 'Ошибка подключения к Jira',
+                    duration: 10000,
+                    newWindow: true,
+                    gravity: "top",
+                    position: "right",
+                    style: {
+                        background: 'linear-gradient(to right, #dc3545, #bd2130)',
+                    }
+                }).showToast();
+            }
+
+        </script>

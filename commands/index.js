@@ -17,9 +17,11 @@ const forwardRemove = require('./forward/forwardRemove');
 const forwardHelp = require('./forward/forwardHelp');
 const ping = require('./ping');
 const sendAs = require('./sendAs');
+const jira = require('./jira');
 
 const commands = {
     '!ping': ping,
+    '!jira': jira,
     '!sendAs': sendAs,
     '!invite': invite,
     '!calendar': calendar,
