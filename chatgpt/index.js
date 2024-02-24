@@ -10,9 +10,9 @@ async function initializeChatGPTAPI() {
             api = new ChatGPTAPI({
                 apiKey: OPENAI_API_KEY,
                 completionParams: {
-                    model: OPENAI_API_MODEL ?? 'gpt-3.5-turbo',
-                    temperature: OPENAI_API_TEMPERATURE ?? 1,
-                    top_p: OPENAI_API_TOP_P ?? 1,
+                    model: OPENAI_API_MODEL ?? 'gpt-4-turbo-preview',
+                    temperature: OPENAI_API_TEMPERATURE ?? null,
+                    top_p: OPENAI_API_TOP_P ?? null
                 }
             });
         } catch (error) {
