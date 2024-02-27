@@ -3,7 +3,6 @@ const moment = require('moment');
 const { getEventById } = require('../../calendar');
 const { getSubtasks, logTime } = require('../../jira/index');
 const { getUserNotifiedEvents, setNotifiedEventAsLogged } = require('../../db/models/calendars');
-const { getChannelMembers } = require('../../mattermost/utils');
 const { JIRA_ROOT_TASK_ID } = require('../../config');
 const logger = require('../../logger');
 
