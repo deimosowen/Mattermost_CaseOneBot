@@ -1,7 +1,7 @@
 const { google } = require('googleapis');
 const { isLoad, oAuth2Client } = require('../server/googleAuth');
 const { postMessageInTreed, getUserByUsername, getUser: getUserFromMattermost } = require('../mattermost/utils');
-const { getUser } = require('../db/models/calendars');
+const { getUser, markEventAsNotified } = require('../db/models/calendars');
 const logger = require('../logger');
 const resources = require('../resources');
 
@@ -62,6 +62,8 @@ async function createMeetEvent(user, summary, users, duration) {
             resource: event,
             conferenceDataVersion: 1,
         });
+
+        markEventAsNotified(user_id, data);
 
         return data.hangoutLink;
     } catch (error) {

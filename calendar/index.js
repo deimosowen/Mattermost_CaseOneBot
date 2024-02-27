@@ -3,7 +3,8 @@ const { postMessage, getUser } = require('../mattermost/utils');
 const { google } = require('googleapis');
 const { isLoad, oAuth2Client } = require('../server/googleAuth');
 const { CronJob } = require('../cron');
-const { getAllUsers, markEventAsNotified, checkIfEventWasNotified,
+const { getAllUsers, getUser: getUserFromCalendar,
+    markEventAsNotified, checkIfEventWasNotified,
     removeNotifiedEvents, removeUser, removeUserSettings } = require('../db/models/calendars');
 const logger = require('../logger');
 const TurndownService = require('turndown');
@@ -24,6 +25,21 @@ const initGoogleCalendarNotifications = async () => {
 
     notificationsCronJob.start();
     cleanupCronJob.start();
+};
+
+const getEventById = async (user_id, event_id) => {
+    try {
+        const user = await getUserFromCalendar(user_id);
+        oAuth2Client.setCredentials(user);
+        const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+        const res = await calendar.events.get({
+            calendarId: 'primary',
+            eventId: event_id,
+        });
+        return res.data;
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    }
 };
 
 const notifyUsersAboutUpcomingEvents = async () => {
@@ -90,4 +106,5 @@ ${hangoutLink}`;
 
 module.exports = {
     initGoogleCalendarNotifications,
+    getEventById,
 };
