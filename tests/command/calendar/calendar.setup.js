@@ -1,7 +1,7 @@
 const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 const { postMessageInTreed, getUserByUsername } = require('../../../mattermost/utils');
-const { getUser } = require('../../../db/models/calendars');
+const { getUser, markEventAsNotified } = require('../../../db/models/calendars');
 const resources = require('../../../resources/resources.json').calendar;
 const logger = require('../../../logger');
 
@@ -25,6 +25,7 @@ jest.mock('../../../mattermost/utils', () => ({
     postMessageInTreed: jest.fn(),
     getUserByUsername: jest.fn(),
     getUser: jest.fn().mockResolvedValue({
+        id: 'user_1',
         first_name: 'John',
         last_name: 'Doe',
         email: 'user@localhost'
@@ -32,7 +33,8 @@ jest.mock('../../../mattermost/utils', () => ({
 }));
 
 jest.mock('../../../db/models/calendars', () => ({
-    getUser: jest.fn()
+    getUser: jest.fn(),
+    markEventAsNotified: jest.fn(),
 }));
 
 jest.mock('../../../logger', () => ({
@@ -69,6 +71,7 @@ module.exports = {
     postMessageInTreed,
     getUserByUsername,
     getUser,
+    markEventAsNotified,
     resources,
     logger,
 };

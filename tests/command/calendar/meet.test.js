@@ -69,12 +69,14 @@ describe('!meet command', () => {
 
     it('should create a meeting with default summary and duration when only users are provided', async () => {
         const mockUser1 = {
+            id: 'user_01',
             email: 'user1@example.com',
             first_name: 'Jill',
             last_name: 'Doe'
         };
 
         const mockUser2 = {
+            id: 'user_02',
             email: 'user2@example.com',
             first_name: 'Jane',
             last_name: 'Smith'
