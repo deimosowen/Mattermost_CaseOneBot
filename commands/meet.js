@@ -1,7 +1,7 @@
 const { google } = require('googleapis');
 const { isLoad, oAuth2Client } = require('../server/googleAuth');
 const { postMessageInTreed, getUserByUsername, getUser: getUserFromMattermost } = require('../mattermost/utils');
-const { getUser } = require('../db/models/calendars');
+const { getUser, markEventAsNotified } = require('../db/models/calendars');
 const logger = require('../logger');
 const resources = require('../resources');
 
@@ -45,7 +45,10 @@ async function createMeetEvent(user, summary, users, duration) {
                 dateTime: eventEnd.toISOString(),
                 timeZone: 'UTC',
             },
-            attendees: users,
+            attendees: users.map(u => ({
+                name: u.name,
+                email: u.email
+            })),
             conferenceData: {
                 createRequest: {
                     requestId: `mattermost-meet-${Date.now()}`,
@@ -56,11 +59,14 @@ async function createMeetEvent(user, summary, users, duration) {
             },
         };
 
-
         const { data } = await calendar.events.insert({
             calendarId: 'primary',
             resource: event,
             conferenceDataVersion: 1,
+        });
+
+        users.forEach(user => {
+            markEventAsNotified(user.id, data);
         });
 
         return data.hangoutLink;
@@ -87,6 +93,7 @@ async function prepareAttendees(userString) {
             const mattermostUser = await getUserByUsername(mattermostUsername);
             if (mattermostUser && mattermostUser.email) {
                 attendees.push({
+                    id: mattermostUser.id,
                     name: `${mattermostUser.first_name} ${mattermostUser.last_name}`,
                     email: mattermostUser.email
                 });
@@ -131,11 +138,19 @@ module.exports = async ({ user_id, post_id, args }) => {
 
         const author = await getUserFromMattermost(user_id);
         users.unshift({
+            id: author.id,
             name: `${author.first_name} ${author.last_name}`,
             email: author.email
         });
 
-        const meetLink = await createMeetEvent(user, preparedSummary, users, duration);
+        const uniqueUsers = users.reduce((acc, currentUser) => {
+            if (!acc.find(user => user.id === currentUser.id)) {
+                acc.push(currentUser);
+            }
+            return acc;
+        }, []);
+
+        const meetLink = await createMeetEvent(user, preparedSummary, uniqueUsers, duration);
         if (meetLink) {
             postMessageInTreed(post_id, resources.calendar.meetingCreated.replace('{linkName}', meetLink).replace('{link}', meetLink));
         } else {

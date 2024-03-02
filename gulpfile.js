@@ -17,6 +17,7 @@ gulp.task('build', function () {
         '!logs/**',
         '!.github/**',
         '!db/**/*.db',
+        '!jira/proxy/node_modules/**',
         '!credentials**',
         '!gulpfile.js',
         '!.env',

@@ -84,6 +84,15 @@ const getChannel = async (team_id, channel_name) => {
     return channel;
 }
 
+const getChannelById = async (channel_id) => {
+    try {
+        const channel = await client.getChannel(channel_id);
+        return channel;
+    } catch (error) {
+        return null;
+    }
+}
+
 const getChannelMembers = async (channel_id) => {
     const members = await client.getChannelMembers(channel_id);
     return members;
@@ -117,6 +126,7 @@ module.exports = {
     getProfilePictureUrl,
     getPost,
     getChannel,
+    getChannelById,
     getChannelMember,
     getChannelMembers,
     getMyChannels,

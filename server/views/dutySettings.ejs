@@ -12,37 +12,55 @@
                                     <tr>
                                         <th scope="col">Имя</th>
                                         <th scope="col">Статус</th>
-                                        <th scope="col">Действие</th>
+                                        <th scope="col" class="text-end">Действие</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <% employees.forEach(employee=> { %>
                                         <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <img src=<%=employee.image %> alt="User" class="rounded-circle me-2"
-                                                    style="width: 32px; height: 32px;"> -->
-                                                    <!-- Имя сотрудника -->
-                                                    <div class="flex-grow-1">
-                                                        <%= employee.name %>
-                                                    </div>
-                                                </div>
+                                            <td class="align-middle">
+                                                <%= employee.name %>
                                             </td>
-                                            <td>
+                                            <td class="align-middle">
                                                 <span
                                                     class="badge <%= statusBadgeClasses[employee.status] || 'bg-secondary' %>">
                                                     <%= employee.status %>
                                                 </span>
+                                                <% if(employee.return_date) { %>
+                                                    </br>
+                                                    <span class="badge bg-warning text-dark">
+                                                        до <%= employee.return_date %>
+                                                    </span>
+                                                    <% } %>
                                             </td>
-                                            <td>
+                                            <td class="text-end align-middle">
                                                 <form action="/duty/update-status" method="post">
+                                                    <input type="hidden" name="id" value="<%= employee.id %>">
                                                     <input type="hidden" name="username"
                                                         value="<%= employee.username %>">
                                                     <input type="hidden" name="channel_id" value="<%= channel_id %>">
                                                     <% if (employee.status==='Активный' ) { %>
                                                         <input type="hidden" name="status" value="1">
-                                                        <button type="submit"
-                                                            class="btn btn-outline-secondary btn-sm">Отключить</button>
+                                                        <input type="hidden" name="return_date" value="">
+                                                        <div class="btn-group">
+                                                            <button type="submit"
+                                                                class="btn btn-outline-danger btn-sm">Отключить</button>
+                                                            <button type="button"
+                                                                class="btn btn-outline-danger dropdown-toggle dropdown-toggle-split btn-sm"
+                                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                                data-bs-reference="parent">
+                                                                <span class="visually-hidden">Отключить</span>
+                                                            </button>
+                                                            <ul class="dropdown-menu">
+                                                                <li><a class="dropdown-item" href="#"
+                                                                        data-bs-toggle="modal"
+                                                                        data-bs-username="<%= employee.name %>"
+                                                                        data-bs-target="#disableUntilDateModal">Отключить
+                                                                        до
+                                                                        даты</a>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
                                                         <% } else if (employee.status==='Отключен' ) { %>
                                                             <input type="hidden" name="status" value="0">
                                                             <button type="submit"
@@ -60,3 +78,46 @@
                 </div>
             </div>
         </div>
+
+        <div class="modal fade" id="disableUntilDateModal" data-bs-backdrop="static" data-bs-keyboard="false"
+            tabindex="-1" aria-labelledby="disableUntilDateModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="disableUntilDateModalLabel"></h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="returnDate">Дата</label>
+                        <input id="returnDate" class="form-control" type="date" />
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="button" class="btn btn-danger" id="disableUntilDateButton">Отключить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                let relatedTarget = null;
+                const modal = document.getElementById('disableUntilDateModal');
+                modal.addEventListener('show.bs.modal', event => {
+                    relatedTarget = event.relatedTarget;
+                    const username = relatedTarget.getAttribute('data-bs-username');
+                    const modalTitle = modal.querySelector('.modal-title');
+                    const modalBodyInput = modal.querySelector('.modal-body input');
+
+                    modalTitle.textContent = `Отключить до даты: ${username}`;
+                });
+
+                const disableUntilDateButton = document.getElementById('disableUntilDateButton');
+                disableUntilDateButton.addEventListener('click', () => {
+                    const returnDate = document.getElementById('returnDate').value;
+                    const form = relatedTarget.closest('form');
+                    form.querySelector('input[name="return_date"]').value = returnDate;
+                    form.submit();
+                });
+            });
+        </script>

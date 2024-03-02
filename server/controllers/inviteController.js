@@ -30,7 +30,6 @@ router.get('/', async (req, res) => {
             .map(async (channel) => {
                 const member = await getChannelMember(channel.id, user_id);
                 if (!member) {
-                    console.log(channel);
                     return {
                         id: channel.id,
                         display_name: channel.display_name,

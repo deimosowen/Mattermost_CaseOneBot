@@ -1,4 +1,5 @@
 const express = require('express');
+const moment = require('moment');
 const { getDutyUsers, getCurrentDuty, updateUserActivityStatus } = require('../../db/models/duty');
 const { getUserByUsername } = require('../../mattermost/utils');
 const logger = require('../../logger');
@@ -30,6 +31,7 @@ router.get('/', async (req, res) => {
                 username: userDetails.username,
                 name: `${userDetails.first_name} ${userDetails.last_name}`,
                 status: status,
+                return_date: user.return_date ? moment(user.return_date).format('DD-MM-YYYY') : null,
             };
         });
 
@@ -48,8 +50,9 @@ router.get('/', async (req, res) => {
 
 router.post('/update-status', async (req, res) => {
     try {
-        const { username, status, channel_id } = req.body;
-        await updateUserActivityStatus(`@${username}`, status);
+        const { id, status, channel_id, return_date } = req.body;
+        const returnDate = return_date ? moment(return_date).format('YYYY-MM-DD') : null;
+        await updateUserActivityStatus(id, status, returnDate);
 
         res.redirect(`/duty?channel_id=${channel_id}`);
     } catch (error) {

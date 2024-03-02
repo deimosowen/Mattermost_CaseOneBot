@@ -9,4 +9,7 @@ module.exports = {
     OPENAI_API_TEMPERATURE: process.env.OPENAI_API_TEMPERATURE,
     OPENAI_API_TOP_P: process.env.OPENAI_API_TOP_P,
     HOST: process.env.HOST,
+    PORT: process.env.PORT,
+    JIRA_API_URL: process.env.JIRA_API_URL,
+    JIRA_ROOT_TASK_ID: process.env.JIRA_ROOT_TASK_ID,
 };

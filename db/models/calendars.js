@@ -74,8 +74,13 @@ const removeUserSettings = async (user_id) => {
     return db.run('DELETE FROM user_settings WHERE user_id = ?', user_id);
 }
 
-const markEventAsNotified = async (user_id, event_id) => {
-    return db.run('INSERT INTO notified_events (user_id, event_id) VALUES (?, ?)', user_id, event_id);
+const markEventAsNotified = async (user_id, event) => {
+    return db.run('INSERT INTO notified_events (user_id, event_id, summary, start_date, end_date, date_time_zone) VALUES (?, ?, ?, ?, ?, ?)',
+        user_id, event.id, event.summary, event.start.dateTime, event.end.dateTime, event.start.timeZone);
+}
+
+const getUserNotifiedEvents = async (user_id) => {
+    return db.all('SELECT * FROM notified_events WHERE user_id = ? AND is_logged = 0', user_id);
 }
 
 const checkIfEventWasNotified = async (user_id, event_id) => {
@@ -87,6 +92,10 @@ const removeNotifiedEvents = async () => {
     return db.run('DELETE FROM notified_events');
 }
 
+const setNotifiedEventAsLogged = async (id) => {
+    return db.run('UPDATE notified_events SET is_logged = 1 WHERE id = ?', id);
+}
+
 module.exports = {
     getAllUsers,
     getUser,
@@ -96,7 +105,9 @@ module.exports = {
     getUserSettings,
     updateUserSettings,
     removeUserSettings,
+    getUserNotifiedEvents,
     markEventAsNotified,
     checkIfEventWasNotified,
     removeNotifiedEvents,
+    setNotifiedEventAsLogged,
 };

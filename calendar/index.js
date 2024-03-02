@@ -3,7 +3,8 @@ const { postMessage, getUser } = require('../mattermost/utils');
 const { google } = require('googleapis');
 const { isLoad, oAuth2Client } = require('../server/googleAuth');
 const { CronJob } = require('../cron');
-const { getAllUsers, markEventAsNotified, checkIfEventWasNotified,
+const { getAllUsers, getUser: getUserFromCalendar,
+    markEventAsNotified, checkIfEventWasNotified,
     removeNotifiedEvents, removeUser, removeUserSettings } = require('../db/models/calendars');
 const logger = require('../logger');
 const TurndownService = require('turndown');
@@ -18,12 +19,27 @@ const initGoogleCalendarNotifications = async () => {
         await notifyUsersAboutUpcomingEvents();
     }, null, true, 'UTC');
 
-    const cleanupCronJob = new CronJob('0 0 * * *', async () => {
+    const cleanupCronJob = new CronJob('0 22 * * 0', async () => {
         await removeNotifiedEvents();
     }, null, true, 'UTC');
 
     notificationsCronJob.start();
     cleanupCronJob.start();
+};
+
+const getEventById = async (user_id, event_id) => {
+    try {
+        const user = await getUserFromCalendar(user_id);
+        oAuth2Client.setCredentials(user);
+        const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+        const res = await calendar.events.get({
+            calendarId: 'primary',
+            eventId: event_id,
+        });
+        return res.data;
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    }
 };
 
 const notifyUsersAboutUpcomingEvents = async () => {
@@ -62,7 +78,7 @@ async function listEventsForUser(user) {
                 if (eventStartTime.isAfter(now) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
                     const message = createEventMessage(event, timezone);
                     postMessage(user.channel_id, message);
-                    await markEventAsNotified(user.user_id, event.id);
+                    await markEventAsNotified(user.user_id, event);
                 }
             }
         }
@@ -90,4 +106,5 @@ ${hangoutLink}`;
 
 module.exports = {
     initGoogleCalendarNotifications,
+    getEventById,
 };
