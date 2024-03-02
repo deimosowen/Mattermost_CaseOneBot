@@ -1,8 +1,9 @@
+const moment = require('moment');
 const cronValidator = require('cron-validator');
 const { setDutySchedule, addDutyUser, getDutySchedule,
     getDutySchedules, getDutyUsers, setCurrentDuty,
     getCurrentDuty, deleteDutySchedule, deleteAllDutyUsers,
-    deleteCurrentDuty } = require('../../db/models/duty');
+    deleteCurrentDuty, updateUserActivityStatus } = require('../../db/models/duty');
 const { setCronJob, cancelCronJob } = require('../../cron');
 const { postMessage } = require('../../mattermost/utils');
 const TaskType = require('../../types/taskTypes');
@@ -11,8 +12,7 @@ const resources = require('../../resources');
 
 const createDutyCallback = (channel_id) => {
     return async () => {
-        let users = await getDutyUsers(channel_id);
-        users = users.filter(user => !user.is_disabled);
+        const users = await getActualDutyList(channel_id);
         const currentDuty = await getCurrentDuty(channel_id);
 
         let nextIndex = (users.findIndex(u => u.user_id === currentDuty.user_id) + 1) % users.length;
@@ -27,6 +27,20 @@ const loadDutyCronJobsFromDb = async () => {
         const taskCallback = createDutyCallback(duty.channel_id);
         setCronJob(duty.id, duty.cron_schedule, taskCallback, TaskType.DUTY);
     }
+};
+
+const getActualDutyList = async (channel_id) => {
+    const currentDate = moment().format('YYYY-MM-DD');
+    let users = await getDutyUsers(channel_id);
+    users.map(async user => {
+        if (user.return_date && moment(user.return_date, 'YYYY-MM-DD').isBefore(currentDate)) {
+            user.is_disabled = false;
+            user.return_date = null;
+            await updateUserActivityStatus(user.id, user.is_disabled, user.return_date);
+        }
+    });
+    users = users.filter(user => !user.is_disabled);
+    return users;
 };
 
 module.exports = async ({ channel_id, args }) => {

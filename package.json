@@ -1,6 +1,6 @@
 {
   "name": "mattermost_caseonebot",
-  "version": "1.14.0",
+  "version": "1.15.4",
   "description": "",
   "type": "commonjs",
   "main": "index.js",
@@ -10,6 +10,7 @@
     "dev": "nodemon index.js",
     "build": "gulp build",
     "release": "gulp release",
+    "create-migration": "cd db && db-migrate create %npm_config_name% --migrations-dir=./migrations",
     "test": "jest --config tests/jest.config.js"
   },
   "author": "Denis Ushanev",

@@ -51,12 +51,11 @@ const getCurrentDuty = async (channel_id) => {
     return db.get('SELECT * FROM duty_current WHERE channel_id = ?', channel_id);
 };
 
-const updateUserActivityStatus = async (userName, isDisabled) => {
+const updateUserActivityStatus = async (id, isDisabled, returnDate) => {
     return db.run(`
         UPDATE duty_list 
-        SET is_disabled = ?
-        WHERE user_name = ?`,
-        isDisabled, userName
+        SET is_disabled = ?, return_date = ? WHERE id = ?`,
+        isDisabled, returnDate, id
     );
 };
 
