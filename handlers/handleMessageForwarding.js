@@ -19,8 +19,8 @@ module.exports = async (post, eventData) => {
 
         const filledMessage = await fillTemplate(currentMapping, post, eventData);
         const message = filledMessage || '';
-        postMessage(currentMapping.target_channel_id, message);
-        await addProcessedMessage(post.channel_id, eventData.channel_name, post.user_id, eventData.sender_name, post.id);
+        const sendMessage = await postMessage(currentMapping.target_channel_id, message);
+        await addProcessedMessage(post.channel_id, eventData.channel_name, post.user_id, eventData.sender_name, post.id, sendMessage.id);
         if (currentMapping.thread_message) {
             postMessage(post.channel_id, currentMapping.thread_message, post.id);
         }

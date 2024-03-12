@@ -52,7 +52,13 @@
                                             <% events.forEach((event, index)=> { %>
                                                 <tr>
                                                     <td>
-                                                        <%= event.summary %>
+                                                        <div class="d-flex">
+                                                            <i class="bi bi-pencil-square pe-1"></i>
+                                                            <div class="w-100" contentEditable="true"
+                                                                data-event-id="<%= event.id %>">
+                                                                <%= event.summary %>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td>
                                                         <%= event.start %>
@@ -125,6 +131,13 @@
                 document.querySelectorAll('.event-form').forEach(form => {
                     const boundHandleEventFormSubmit = handleEventFormSubmit.bind(null, encodedCredentials);
                     form.addEventListener('submit', boundHandleEventFormSubmit);
+                });
+
+                document.querySelectorAll('div[contenteditable]').forEach(div => {
+                    div.addEventListener('input', function (event) {
+                        const commentInput = this.closest('tr').querySelector('input[name="comment"]');
+                        commentInput.value = event.target.innerText;
+                    });
                 });
 
                 document.getElementById('logout').addEventListener('click', handleLogoutClick);
