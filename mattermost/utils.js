@@ -21,7 +21,7 @@ const postMessage = async (channel_id, message, root_id = null) => {
             root_id,
             message
         };
-        await client.createPost(post);
+        return await client.createPost(post);
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
@@ -75,6 +75,11 @@ const getPost = async (post_id) => {
     return post;
 }
 
+const deletePost = async (post_id) => {
+    const result = await client.deletePost(post_id);
+    return result;
+};
+
 const getChannel = async (team_id, channel_name) => {
     if (!team_id) {
         const team = await getTeam();
@@ -125,6 +130,7 @@ module.exports = {
     getUserByUsername,
     getProfilePictureUrl,
     getPost,
+    deletePost,
     getChannel,
     getChannelById,
     getChannelMember,

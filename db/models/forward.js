@@ -30,12 +30,12 @@ const getSourceChannelId = async (channel_id) => {
 };
 
 // Добавление обработанного сообщения
-const addProcessedMessage = async (channel_id, channel_name, user_id, user_name, message_id) => {
+const addProcessedMessage = async (channel_id, channel_name, user_id, user_name, message_id, send_message_id) => {
     return new Promise((resolve, reject) => {
         db.run(
-            `INSERT INTO forward_processed_messages (channel_id, channel_name, user_id, user_name, message_id)
-             VALUES (?, ?, ?, ?, ?)`,
-            [channel_id, channel_name, user_id, user_name, message_id],
+            `INSERT INTO forward_processed_messages (channel_id, channel_name, user_id, user_name, message_id, send_message_id)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [channel_id, channel_name, user_id, user_name, message_id, send_message_id],
             function (err) {
                 if (err) reject(err);
                 else resolve(this.lastID);
@@ -68,6 +68,15 @@ const deleteChannelMapping = async (id) => {
     return db.run('DELETE FROM forward_channel_mapping WHERE id = ?', id);
 };
 
+const getForwardMessageByMessageId = async (id) => {
+    try {
+        const row = await db.get(`SELECT * FROM forward_processed_messages WHERE message_id = ?`, [id]);
+        return row || null;
+    } catch (err) {
+        throw err;
+    }
+};
+
 module.exports = {
     getChannelMapping,
     addChannelMapping,
@@ -76,4 +85,5 @@ module.exports = {
     addProcessedMessage,
     isMessageProcessed,
     deleteChannelMapping,
+    getForwardMessageByMessageId,
 };
