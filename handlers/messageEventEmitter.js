@@ -10,4 +10,8 @@ messageEventEmitter.on('nonCommandMessage', (post, eventData) => {
     messageHandlers.handleQuestion(post, eventData);
 });
 
+messageEventEmitter.on('postDeleted', (post, eventData) => {
+    messageHandlers.handlePostDeleted(post, eventData);
+});
+
 module.exports = messageEventEmitter;
