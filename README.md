@@ -35,6 +35,9 @@ More than just reminders. This robust bot was designed initially for cron-based 
       + `!meet Meeting @username1 @username2 @username3`: Creates a meeting titled "Meeting" with specified users and sets the duration. This format allows you to place the meeting title directly after the `!meet` command.
       + `!meet @username1 @username2 @username3 Meeting 15m`: Similar functionality as above, but the meeting title "Meeting" is placed after the user list. This format is useful when you want to list all participants first before specifying the meeting title.
 
+### Jira Time Logging
+* `!jira` - Initiates the process for logging work time in Jira using calendar data. Upon using this command, you'll receive a link to a page where you can easily log your hours based on calendar events you've attended. Authentication with Jira is required, but rest assured, your credentials are not stored or logged on our server—they remain secure on your end.
+
 ### Message Forwarding
 - `!forward; [id source channel]; [id target channel]; [message]; [thread-message]` - Sets up message forwarding from source to target channel with an optional message and an optional thread message. For more details on tags used in `[message]`, see the [wiki](https://github.com/deimosowen/Mattermost_CaseOneBot/wiki/Tags).
 - `!forward-list` - Displays a list of all forwarding configurations.
