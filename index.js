@@ -15,9 +15,9 @@ runMigrations()
     .then(() => {
         initializeMattermost();
         loadCronJobsFromDb();
-        loadDutyCronJobsFromDb();
+        //loadDutyCronJobsFromDb();
         initializeServer();
-        initGoogleCalendarNotifications();
+        //initGoogleCalendarNotifications();
     })
     .catch(err => {
         console.error('Migration error:', err);

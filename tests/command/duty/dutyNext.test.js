@@ -1,49 +1,28 @@
-const {
-    getCurrentDuty,
-    getDutyUsers,
-    setCurrentDuty,
-    postMessage,
-    logger,
-    resources
-} = require('./duty.setup');
-
+const { postMessage, logger } = require('./duty.setup');
+const resources = require('../../../resources');
+const dutyService = require('../../../services/dutyService');
 const nextDutyCommand = require('../../../commands/duty/dutyNext');
 
+jest.mock('../../../services/dutyService');
+jest.mock('../../../resources', () => ({
+    duty: {
+        noExistingError: "No existing duty.",
+        nextNotification: "Next duty: {user}."
+    }
+}));
+
 describe('next duty command', () => {
-    it('should handle no existing duty', async () => {
-        getDutyUsers.mockResolvedValue([{ user_id: 'user1' }, { user_id: 'user2' }]);
-        getCurrentDuty.mockResolvedValue(null);
-
+    it('should notify with next duty information', async () => {
+        const nextDutyMessage = "Next duty: user2.";
+        dutyService.changeNextDuty.mockResolvedValue(nextDutyMessage);
         await nextDutyCommand({ channel_id: 'testChannel' });
-
-        expect(postMessage).toHaveBeenCalledWith('testChannel', resources.noExistingError);
-    });
-
-    it('should switch to the next duty user and notify', async () => {
-        getDutyUsers.mockResolvedValue([{ user_id: 'user1' }, { user_id: 'user2' }]);
-        getCurrentDuty.mockResolvedValue({ user_id: 'user1' });
-
-        await nextDutyCommand({ channel_id: 'testChannel' });
-
-        expect(setCurrentDuty).toHaveBeenCalledWith('testChannel', 'user2');
-        expect(postMessage).toHaveBeenCalledWith('testChannel', resources.nextNotification.replace('{user}', 'user2'));
-    });
-
-    it('should loop back to the first user after the last', async () => {
-        getDutyUsers.mockResolvedValue([{ user_id: 'user1' }, { user_id: 'user2' }]);
-        getCurrentDuty.mockResolvedValue({ user_id: 'user2' });
-
-        await nextDutyCommand({ channel_id: 'testChannel' });
-
-        expect(setCurrentDuty).toHaveBeenCalledWith('testChannel', 'user1');
-        expect(postMessage).toHaveBeenCalledWith('testChannel', resources.nextNotification.replace('{user}', 'user1'));
+        expect(postMessage).toHaveBeenCalledWith('testChannel', nextDutyMessage);
     });
 
     it('should handle errors gracefully', async () => {
-        getCurrentDuty.mockRejectedValue(new Error('Test error'));
-
+        const error = new Error('Test error');
+        dutyService.changeNextDuty.mockRejectedValue(error);
         await nextDutyCommand({ channel_id: 'testChannel' });
-
         expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Test error'));
     });
 });
