@@ -1,4 +1,5 @@
 const db = require('../index.js');
+const DutyType = require('../../types/dutyTypes.js');
 
 const getDutySchedules = async () => {
     return db.all('SELECT * FROM duty_schedule');
@@ -48,7 +49,7 @@ const setCurrentDuty = async (channel_id, user_id) => {
 
 // Получение текущего дежурного
 const getCurrentDuty = async (channel_id) => {
-    return db.get('SELECT * FROM duty_current WHERE channel_id = ?', channel_id);
+    return db.get('SELECT * FROM duty_current WHERE channel_id = ? AND duty_type = ?', channel_id, DutyType.REGULAR);
 };
 
 const updateUserActivityStatus = async (id, isDisabled, returnDate) => {
