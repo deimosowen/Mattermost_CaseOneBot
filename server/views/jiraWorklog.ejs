@@ -52,13 +52,27 @@
                                             <% events.forEach((event, index)=> { %>
                                                 <tr>
                                                     <td>
-                                                        <%= event.summary %>
+                                                        <div class="d-flex">
+                                                            <i class="bi bi-pencil-square pe-1"></i>
+                                                            <div class="w-100" contentEditable="true" data-type="text"
+                                                                data-input-name="comment"
+                                                                data-event-id="<%= event.id %>">
+                                                                <%= event.summary %>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td>
                                                         <%= event.start %>
                                                     </td>
                                                     <td>
-                                                        <%= event.duration %> мин.
+                                                        <div class="d-flex">
+                                                            <i class="bi bi-pencil-square pe-1"></i>
+                                                            <div class="w-100" contentEditable="true" data-type="number"
+                                                                data-input-name="duration"
+                                                                data-event-id="<%= event.id %>">
+                                                                <%= event.duration %>
+                                                            </div>мин.
+                                                        </div>
                                                     </td>
                                                     <td>
                                                         <select name="taskId"
@@ -125,6 +139,27 @@
                 document.querySelectorAll('.event-form').forEach(form => {
                     const boundHandleEventFormSubmit = handleEventFormSubmit.bind(null, encodedCredentials);
                     form.addEventListener('submit', boundHandleEventFormSubmit);
+                });
+
+                document.querySelectorAll('div[contenteditable]').forEach(div => {
+                    div.addEventListener('input', function (event) {
+                        const inputName = this.getAttribute('data-input-name');
+                        const relatedInput = this.closest('tr').querySelector(`input[name="${inputName}"]`);
+
+                        if (this.getAttribute('data-type') === 'number') {
+                            this.innerText = this.innerText.replace(/[^0-9]/g, '');
+                            const range = document.createRange();
+                            const sel = window.getSelection();
+                            range.selectNodeContents(this);
+                            range.collapse(false);
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }
+
+                        if (relatedInput) {
+                            relatedInput.value = this.innerText;
+                        }
+                    });
                 });
 
                 document.getElementById('logout').addEventListener('click', handleLogoutClick);

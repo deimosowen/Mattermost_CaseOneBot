@@ -62,6 +62,7 @@ async function listEventsForUser(user) {
 
         const res = await calendar.events.list({
             calendarId: 'primary',
+            eventTypes: ['default', 'focusTime'],
             timeMin: now.toISOString(),
             timeMax: tenMinutesFromNow.toISOString(),
             singleEvents: true,

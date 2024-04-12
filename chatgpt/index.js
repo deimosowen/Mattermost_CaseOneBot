@@ -1,36 +1,77 @@
+const OpenAIClientFactory = require('./openAIClientFactory');
+const { v4: uuidv4 } = require('uuid');
+const { functions } = require('./functions');
 const logger = require('../logger');
-const { OPENAI_API_KEY, OPENAI_API_MODEL, OPENAI_API_TEMPERATURE, OPENAI_API_TOP_P } = require('../config');
+const resources = require('../resources');
+const { OPENAI_API_KEY, OPENAI_API_MODEL } = require('../config');
 
-let api = null;
+const messageHistory = {};
 
-async function initializeChatGPTAPI() {
-    if (!api) {
-        try {
-            const ChatGPTAPI = (await import('chatgpt')).ChatGPTAPI;
-            api = new ChatGPTAPI({
-                apiKey: OPENAI_API_KEY,
-                completionParams: {
-                    model: OPENAI_API_MODEL ?? 'gpt-4-turbo-preview',
-                    temperature: OPENAI_API_TEMPERATURE ?? null,
-                    top_p: OPENAI_API_TOP_P ?? null
-                }
-            });
-        } catch (error) {
-            logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-            throw error;
-        }
+async function callFunction(functionCall, additionalParams = {}) {
+    const { name, arguments: argsString } = functionCall;
+    const args = JSON.parse(argsString);
+    const foundFunction = functions.find(func => func.name === name);
+    if (!foundFunction) {
+        throw new Error('Function not found');
     }
-    return api;
+    const finalArgs = { ...args, ...additionalParams };
+    return foundFunction.function(finalArgs);
 }
 
-async function sendMessage(message, parentMessageId) {
+async function sendMessage(content, parentMessageId, channel_id, usePersonality = true) {
     try {
-        const api = await initializeChatGPTAPI();
-        const response = await api.sendMessage(message, { parentMessageId: parentMessageId });
-        return response;
+        const client = OpenAIClientFactory.getClient();
+
+        const dialogId = parentMessageId || uuidv4();
+
+        if (!messageHistory[dialogId]) {
+            messageHistory[dialogId] = [];
+        }
+
+        if (!parentMessageId && usePersonality) {
+            const systemMessage = { role: 'system', content: resources.question.personality };
+            messageHistory[dialogId].push(systemMessage);
+        }
+
+        const userMessage = { role: 'user', content: content };
+
+        messageHistory[dialogId].push(userMessage);
+
+        const params = {
+            model: OPENAI_API_MODEL ?? 'gpt-4-turbo-preview',
+            messages: messageHistory[dialogId],
+            functions: functions
+        };
+
+        let completion = await client.chat.completions.create(params);
+        let message = completion.choices[0]?.message;
+        let assistantMessage;
+        if (message.function_call) {
+            const additionalParams = { channel_id };
+            const result = await callFunction(message.function_call, additionalParams);
+
+            const functionResultMessage = {
+                role: 'function',
+                name: message.function_call.name,
+                content: `Результат: ${JSON.stringify(result)}`,
+            };
+            messageHistory[dialogId].push(functionResultMessage);
+            completion = await client.chat.completions.create(params);
+            message = completion.choices[0]?.message;
+        }
+
+        assistantMessage = {
+            role: 'assistant',
+            content: message?.content
+        };
+        messageHistory[dialogId].push(assistantMessage);
+
+        return {
+            id: dialogId,
+            text: assistantMessage.content
+        }
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-        throw error;
     }
 }
 
