@@ -1,4 +1,5 @@
 const moment = require('moment');
+const dayOffAPI = require('isdayoff')();
 const cronValidator = require('cron-validator');
 const { setDutySchedule, addDutyUser, getDutySchedule,
     getDutySchedules, getDutyUsers, setCurrentDuty,
@@ -10,8 +11,14 @@ const TaskType = require('../../types/taskTypes');
 const logger = require('../../logger');
 const resources = require('../../resources');
 
-const createDutyCallback = (channel_id) => {
+const createDutyCallback = (channel_id, considerWorkingDays = false) => {
     return async () => {
+        if (considerWorkingDays) {
+            const isHoliday = await dayOffAPI.today();
+            if (isHoliday) {
+                return;
+            }
+        }
         const users = await getActualDutyList(channel_id);
         const currentDuty = await getCurrentDuty(channel_id);
 
@@ -24,7 +31,7 @@ const createDutyCallback = (channel_id) => {
 const loadDutyCronJobsFromDb = async () => {
     const dutySchedules = await getDutySchedules();
     for (const duty of dutySchedules) {
-        const taskCallback = createDutyCallback(duty.channel_id);
+        const taskCallback = createDutyCallback(duty.channel_id, duty.use_working_days);
         setCronJob(duty.id, duty.cron_schedule, taskCallback, TaskType.DUTY);
     }
 };
