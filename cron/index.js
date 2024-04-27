@@ -1,4 +1,5 @@
 const CronJob = require('cron').CronJob;
+const dayOffAPI = require('isdayoff')();
 const { postMessage } = require('../mattermost/utils');
 const { getReminders } = require('../db/models/reminders');
 const { sendMessage, isApiKeyExist } = require('../chatgpt');
@@ -49,24 +50,36 @@ const loadCronJobsFromDb = async () => {
         const taskCallback = async () => {
             let channel_id = reminder.channel_id;
             let message = reminder.message;
-            try {
-                if (reminder.use_open_ai && isApiKeyExist) {
-                    const messageFromAI = await sendMessage(reminder.prompt, null, null, usePersonality = false);
-                    let messageFromAIText = messageFromAI.text;
 
-                    if (messageFromAIText.startsWith('\"') && messageFromAIText.endsWith('\"')) {
-                        messageFromAIText = messageFromAIText.slice(1, -1);
+            const sendReminder = async () => {
+                try {
+                    if (reminder.use_open_ai && isApiKeyExist) {
+                        const messageFromAI = await sendMessage(reminder.prompt, null, null, usePersonality = false);
+                        let messageFromAIText = messageFromAI.text;
+
+                        if (messageFromAIText.startsWith('\"') && messageFromAIText.endsWith('\"')) {
+                            messageFromAIText = messageFromAIText.slice(1, -1);
+                        }
+                        if (reminder.template) {
+                            message = reminder.template.replace('{messageFromAI}', messageFromAIText);
+                        } else {
+                            message = messageFromAIText;
+                        }
                     }
-                    if (reminder.template) {
-                        message = reminder.template.replace('{messageFromAI}', messageFromAIText);
-                    } else {
-                        message = messageFromAIText;
-                    }
+                } catch (error) {
+                    logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+                } finally {
+                    postMessage(channel_id, message);
                 }
-            } catch (error) {
-                logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-            } finally {
-                postMessage(channel_id, message);
+            };
+
+            if (reminder.use_working_days) {
+                const isHoliday = await dayOffAPI.today();
+                if (!isHoliday) {
+                    sendReminder();
+                }
+            } else {
+                sendReminder();
             }
         };
         setCronJob(reminder.id, reminder.schedule, taskCallback, TaskType.REMINDER);
