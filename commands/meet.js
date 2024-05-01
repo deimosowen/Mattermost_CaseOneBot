@@ -5,6 +5,8 @@ const { getUser, markEventAsNotified } = require('../db/models/calendars');
 const logger = require('../logger');
 const resources = require('../resources');
 
+//Вынести в сервис
+
 function parseDuration(durationString = '15m') {
     const matches = durationString.match(/^(\d+)(m|h)$/);
 

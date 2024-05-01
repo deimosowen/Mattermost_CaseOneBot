@@ -1,4 +1,4 @@
-const { getCurrentDuty, changeNextDuty, updateDutyActivityStatus } = require('../services/dutyService');
+const dutyService = require('../services/dutyService');
 
 const functions = [
     {
@@ -10,7 +10,7 @@ const functions = [
                 channel_id: { type: 'string' },
             },
         },
-        function: getCurrentDuty,
+        function: dutyService.getCurrentDuty,
     },
     {
         name: 'changeNextDuty',
@@ -24,20 +24,67 @@ const functions = [
         function: changeNextDuty,
     },
     {
+        name: 'rotateDuty',
+        description: 'Передвигает (сдвигает) дежурного, если текущий не может сегодня дежурить',
+        parameters: {
+            type: 'object',
+            properties: {
+                channel_id: { type: 'string' },
+            },
+        },
+        function: dutyService.rotateDuty,
+    },
+    {
         name: 'updateDutyActivityStatus',
-        description: 'Меняет активность (отсутствие, отпуск) для конкретного дежурного и списке',
+        description: 'Меняет активность (отсутствие, отпуск) для конкретного дежурного и списке. Позволяет устанавливать дату возвращения',
         parameters: {
             type: 'object',
             properties: {
                 channel_id: { type: 'string' },
                 username: { type: 'string', description: 'Имя пользователя, начиная с @' },
-                isDisabled: { type: 'boolean', description: 'Статус пользователя, активен/неактивен' },
+                isDisabled: { type: 'boolean', description: 'Статус активности дежурного (активен или неактивен).' },
                 returnDate: { type: 'string', description: 'Дата (формат YYYY-MM-DD) возвращения пользователя к дежурству. "null" если не указан явно' },
             },
         },
-        function: updateDutyActivityStatus,
+        function: dutyService.updateDutyActivityStatus,
+    },
+    {
+        name: 'createGoogleMeet',
+        description: 'Создание встречи (события, собрания, мита) в Google Meet.',
+        parameters: {
+            type: 'object',
+            properties: {
+                channel_id: { type: 'string' },
+                users: { type: 'string', description: 'Список пользователей, начиная с @, разделенных запятой' },
+                summary: { type: 'string', description: 'Наименование встречи' },
+                startDate: { type: 'string', description: 'Дата (формат YYYY-MM-DD) начала события. "null" если не указан явно' },
+                startTime: { type: 'string', description: 'Время (формат hh:mm) начала события. "null" если не указан явно' },
+                //stopDate: { type: 'string', description: 'Дата (формат YYYY-MM-DD) окончания события. "null" если не указан явно' },
+                //stopTime: { type: 'string', description: 'Время (формат hh:mm) окончания события. "null" если не указан явно' },
+                duration: { type: 'integer', description: 'Продолжительность в минутах. "15" если не указан явно' },
+            },
+        },
+        returns: {
+            type: "string",
+            description: "Ссылка на встречу в Google Meet. Ее обязательно надо отравить в следующем сообщении"
+        },
+        function: createGoogleMeet,
     }
 ];
+
+async function changeNextDuty({ channel_id }) {
+    return dutyService.changeNextDuty(channel_id);
+}
+
+async function createGoogleMeet({ channel_id, users, summary, startDate, startTime, duration }) {
+    console.log(channel_id);
+    console.log(users);
+    console.log(summary);
+    console.log(startDate);
+    console.log(startTime);
+    console.log(duration);
+    return `https://meet.google.com/rva-ywfk-anb.`
+}
 
 module.exports = {
     functions,

@@ -2,6 +2,7 @@ const { changeNextDuty } = require('../../../services/dutyService');
 const { getDutyUsers, getCurrentDuty, setCurrentDuty } = require('../../../db/models/duty');
 const resources = require('../../../resources');
 const logger = require('../../../logger');
+const DutyTypes = require('../../../types/dutyTypes');
 
 jest.mock('../../../db/models/duty');
 jest.mock('../../../logger');
@@ -31,7 +32,7 @@ describe('changeNextDuty function', () => {
         getDutyUsers.mockResolvedValue([{ user_id: 'user1' }, { user_id: 'user2' }]);
         getCurrentDuty.mockResolvedValue(null);
 
-        const result = await changeNextDuty({ channel_id: 'testChannel' });
+        const result = await changeNextDuty('testChannel');
 
         expect(result).toBe(resources.duty.noExistingError);
         expect(setCurrentDuty).not.toHaveBeenCalled();
@@ -41,18 +42,18 @@ describe('changeNextDuty function', () => {
         getDutyUsers.mockResolvedValue([{ user_id: 'user1' }, { user_id: 'user2' }]);
         getCurrentDuty.mockResolvedValue({ user_id: 'user1' });
 
-        await changeNextDuty({ channel_id: 'testChannel' });
+        await changeNextDuty('testChannel');
 
-        expect(setCurrentDuty).toHaveBeenCalledWith('testChannel', 'user2');
+        expect(setCurrentDuty).toHaveBeenCalledWith('testChannel', 'user2', DutyTypes.REGULAR);
     });
 
     it('should wrap around to the first user after the last', async () => {
         getDutyUsers.mockResolvedValue([{ user_id: 'user1' }, { user_id: 'user2' }]);
         getCurrentDuty.mockResolvedValue({ user_id: 'user2' });
 
-        await changeNextDuty({ channel_id: 'testChannel' });
+        await changeNextDuty('testChannel');
 
-        expect(setCurrentDuty).toHaveBeenCalledWith('testChannel', 'user1');
+        expect(setCurrentDuty).toHaveBeenCalledWith('testChannel', 'user1', DutyTypes.REGULAR);
     });
 
     it('should handle and log exceptions', async () => {
@@ -60,7 +61,7 @@ describe('changeNextDuty function', () => {
         getDutyUsers.mockRejectedValue(error);
 
         try {
-            await changeNextDuty({ channel_id: 'testChannel' });
+            await changeNextDuty('testChannel');
         } catch (e) {
             expect(e).toBe(error);
             expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Database failure'));

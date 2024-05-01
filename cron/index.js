@@ -2,7 +2,9 @@ const CronJob = require('cron').CronJob;
 const dayOffAPI = require('isdayoff')();
 const { postMessage } = require('../mattermost/utils');
 const { getReminders } = require('../db/models/reminders');
+const { getDutySchedules } = require('../db/models/duty');
 const { sendMessage, isApiKeyExist } = require('../chatgpt');
+const { createDutyCallback } = require('../services/dutyService');
 const logger = require('../logger');
 const TaskType = require('../types/taskTypes');
 
@@ -86,8 +88,17 @@ const loadCronJobsFromDb = async () => {
     }
 };
 
+const loadDutyCronJobsFromDb = async () => {
+    const dutySchedules = await getDutySchedules();
+    for (const duty of dutySchedules) {
+        const taskCallback = createDutyCallback(duty.channel_id, duty.use_working_days);
+        setCronJob(duty.id, duty.cron_schedule, taskCallback, TaskType.DUTY);
+    }
+};
+
 module.exports = {
     loadCronJobsFromDb,
+    loadDutyCronJobsFromDb,
     setCronJob,
     cancelCronJob,
     CronJob,
