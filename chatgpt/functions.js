@@ -59,8 +59,6 @@ const functions = [
                 summary: { type: 'string', description: 'Наименование встречи' },
                 startDate: { type: 'string', description: 'Дата (формат YYYY-MM-DD) начала события. "null" если не указан явно' },
                 startTime: { type: 'string', description: 'Время (формат hh:mm) начала события. "null" если не указан явно' },
-                //stopDate: { type: 'string', description: 'Дата (формат YYYY-MM-DD) окончания события. "null" если не указан явно' },
-                //stopTime: { type: 'string', description: 'Время (формат hh:mm) окончания события. "null" если не указан явно' },
                 duration: { type: 'integer', description: 'Продолжительность в минутах. "15" если не указан явно' },
             },
         },
@@ -76,14 +74,9 @@ async function changeNextDuty({ channel_id }) {
     return dutyService.changeNextDuty(channel_id);
 }
 
+//TODO: Implement this function
 async function createGoogleMeet({ channel_id, users, summary, startDate, startTime, duration }) {
-    console.log(channel_id);
-    console.log(users);
-    console.log(summary);
-    console.log(startDate);
-    console.log(startTime);
-    console.log(duration);
-    return `https://meet.google.com/rva-ywfk-anb.`
+    return ``
 }
 
 module.exports = {
