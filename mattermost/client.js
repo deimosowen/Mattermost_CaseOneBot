@@ -1,6 +1,3 @@
-require('babel-polyfill');
-require('isomorphic-fetch');
-
 if (!global.WebSocket) {
     global.WebSocket = require('ws');
 }

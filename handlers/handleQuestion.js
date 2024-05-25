@@ -1,4 +1,4 @@
-const { getUser, getMe, postMessageInTreed, userTyping } = require('../mattermost/utils');
+const { getUser, getMe, postMessageInTreed, userTyping, downloadFile } = require('../mattermost/utils');
 const { sendMessage, isApiKeyExist } = require('../chatgpt');
 const { getChatIdForPost, setChatIdForPost } = require('../chatgpt/chatMap');
 const logger = require('../logger');
@@ -32,11 +32,12 @@ module.exports = async (post, eventData) => {
         const chatId = getChatIdForPost(postId);
         const user = await getUser(post.user_id);
         const message = prapareMessage(question, user);
-        const res = await sendMessage(message, chatId, post.channel_id);
+        const fileIds = post.file_ids ?? [];
+        const imageBase64 = fileIds.length > 0 ? await downloadFile(fileIds[0]) : null;
+        const res = await sendMessage(message, chatId, post.channel_id, true, imageBase64);
 
         setChatIdForPost(postId, res.id);
-
-        postMessageInTreed(post.id, res.text);
+        postMessageInTreed(post.id, res.text, [res.fileId]);
     } catch (error) {
         logger.error(`Error: ${error.message}\nStack trace:\n${error.stack}`);
     } finally {

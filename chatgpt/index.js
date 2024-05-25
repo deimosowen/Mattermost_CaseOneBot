@@ -18,7 +18,7 @@ async function callFunction(functionCall, additionalParams = {}) {
     return foundFunction.function(finalArgs);
 }
 
-async function sendMessage(content, parentMessageId, channel_id, usePersonality = true) {
+async function sendMessage(content, parentMessageId, channel_id, usePersonality = true, imageBase64 = null) {
     try {
         const client = OpenAIClientFactory.getClient();
 
@@ -33,8 +33,22 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
             messageHistory[dialogId].push(systemMessage);
         }
 
-        const userMessage = { role: 'user', content: content };
+        const userMessage = {
+            role: 'user',
+            content: [{
+                type: 'text',
+                text: content
+            }]
+        };
 
+        if (imageBase64) {
+            userMessage.content.push({
+                type: 'image_url',
+                image_url: {
+                    url: `data:image/jpeg;base64,${imageBase64}`
+                }
+            });
+        }
         messageHistory[dialogId].push(userMessage);
 
         const params = {
@@ -46,6 +60,7 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
         let completion = await client.chat.completions.create(params);
         let message = completion.choices[0]?.message;
         let assistantMessage;
+        let fileId;
         if (message.function_call) {
             const additionalParams = { channel_id };
             const result = await callFunction(message.function_call, additionalParams);
@@ -53,11 +68,12 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
             const functionResultMessage = {
                 role: 'function',
                 name: message.function_call.name,
-                content: `Результат: ${JSON.stringify(result)}`,
+                content: `${JSON.stringify(result.data)}`,
             };
             messageHistory[dialogId].push(functionResultMessage);
             completion = await client.chat.completions.create(params);
             message = completion.choices[0]?.message;
+            fileId = result?.fileId;
         }
 
         assistantMessage = {
@@ -68,7 +84,8 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
 
         return {
             id: dialogId,
-            text: assistantMessage.content
+            text: assistantMessage.content,
+            fileId: fileId,
         }
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);

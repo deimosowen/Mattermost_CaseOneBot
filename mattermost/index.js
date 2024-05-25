@@ -24,6 +24,7 @@ const eventHandlers = {
                 channel_type: event.data.channel_type,
                 team_id: event.data.team_id,
                 root_id: post.root_id,
+                file_ids: post.file_ids,
             };
             commands[command](params);
         }

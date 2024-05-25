@@ -32,6 +32,12 @@
                                                         до <%= employee.return_date %>
                                                     </span>
                                                     <% } %>
+                                                        <% if(employee.isUnsheduled) { %>
+                                                            </br>
+                                                            <span class="badge bg-warning text-dark">
+                                                                Внеочередной
+                                                            </span>
+                                                            <% } %>
                                             </td>
                                             <td class="text-end align-middle">
                                                 <form action="/duty/update-status" method="post">
@@ -65,7 +71,11 @@
                                                             <input type="hidden" name="status" value="0">
                                                             <button type="submit"
                                                                 class="btn btn-outline-primary btn-sm">Включить</button>
-                                                            <% } %>
+                                                            <% } else if (employee.status==='Текущий' ) { %>
+                                                                <input type="hidden" name="status" value="-1">
+                                                                <button type="submit"
+                                                                    class="btn btn-outline-warning btn-sm">Сдвинуть</button>
+                                                                <% } %>
                                                 </form>
 
                                             </td>
