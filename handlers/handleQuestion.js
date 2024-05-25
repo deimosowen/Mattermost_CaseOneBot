@@ -35,8 +35,7 @@ module.exports = async (post, eventData) => {
         const res = await sendMessage(message, chatId, post.channel_id);
 
         setChatIdForPost(postId, res.id);
-
-        postMessageInTreed(post.id, res.text);
+        postMessageInTreed(post.id, res.text, [res.fileId]);
     } catch (error) {
         logger.error(`Error: ${error.message}\nStack trace:\n${error.stack}`);
     } finally {
