@@ -18,7 +18,7 @@ async function callFunction(functionCall, additionalParams = {}) {
     return foundFunction.function(finalArgs);
 }
 
-async function sendMessage(content, parentMessageId, channel_id, usePersonality = true) {
+async function sendMessage(content, parentMessageId, channel_id, usePersonality = true, imageBase64 = null) {
     try {
         const client = OpenAIClientFactory.getClient();
 
@@ -33,8 +33,22 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
             messageHistory[dialogId].push(systemMessage);
         }
 
-        const userMessage = { role: 'user', content: content };
+        const userMessage = {
+            role: 'user',
+            content: [{
+                type: 'text',
+                text: content
+            }]
+        };
 
+        if (imageBase64) {
+            userMessage.content.push({
+                type: 'image_url',
+                image_url: {
+                    url: `data:image/jpeg;base64,${imageBase64}`
+                }
+            });
+        }
         messageHistory[dialogId].push(userMessage);
 
         const params = {
