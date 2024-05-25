@@ -1,6 +1,21 @@
+const { v4: uuidv4 } = require('uuid');
 const dutyService = require('../services/dutyService');
+const openAiHelpers = require('./helpers');
+const mattermostHelpers = require('../mattermost/fileHelper');
 
 const functions = [
+    {
+        name: 'createImages',
+        description: 'Создание картинки из текста',
+        parameters: {
+            type: 'object',
+            properties: {
+                channel_id: { type: 'string' },
+                prompt: { type: 'string', description: 'Текст, который будет использован для генерации картинки' },
+            },
+        },
+        function: createImages,
+    },
     {
         name: 'getCurrentDuty',
         description: 'Возвращает текущего дежурного',
@@ -10,7 +25,7 @@ const functions = [
                 channel_id: { type: 'string' },
             },
         },
-        function: dutyService.getCurrentDuty,
+        function: getCurrentDuty,
     },
     {
         name: 'changeNextDuty',
@@ -32,7 +47,7 @@ const functions = [
                 channel_id: { type: 'string' },
             },
         },
-        function: dutyService.rotateDuty,
+        function: rotateDuty,
     },
     {
         name: 'updateDutyActivityStatus',
@@ -46,7 +61,7 @@ const functions = [
                 returnDate: { type: 'string', description: 'Дата (формат YYYY-MM-DD) возвращения пользователя к дежурству. "null" если не указан явно' },
             },
         },
-        function: dutyService.updateDutyActivityStatus,
+        function: updateDutyActivityStatus,
     },
     {
         name: 'createGoogleMeet',
@@ -70,13 +85,50 @@ const functions = [
     }
 ];
 
+async function getCurrentDuty({ channel_id }) {
+    const result = await dutyService.getCurrentDuty(channel_id);
+    return {
+        data: result,
+    };
+}
+
 async function changeNextDuty({ channel_id }) {
-    return dutyService.changeNextDuty(channel_id);
+    const result = await dutyService.changeNextDuty(channel_id);
+    return {
+        data: result,
+    };
+}
+
+async function rotateDuty({ channel_id }) {
+    const result = await dutyService.rotateDuty(channel_id);
+    return {
+        data: result,
+    };
+}
+
+async function updateDutyActivityStatus({ channel_id, username, isDisabled, returnDate }) {
+    const result = await dutyService.updateDutyActivityStatus(channel_id, username, isDisabled, returnDate);
+    return {
+        data: result,
+    };
 }
 
 //TODO: Implement this function
 async function createGoogleMeet({ channel_id, users, summary, startDate, startTime, duration }) {
-    return ``
+    return {
+        data: 'Not implemented',
+    };
+}
+
+async function createImages({ channel_id, prompt }) {
+    var result = await openAiHelpers.generateImages({ prompt });
+    const filename = `${uuidv4()}.png`;
+    const fileBuffer = Buffer.from(result.b64_json, 'base64');
+    const file = await mattermostHelpers.uploadFile(fileBuffer, filename, channel_id);
+    return {
+        data: result.revised_prompt,
+        fileId: file.file_infos[0].id,
+    };
 }
 
 module.exports = {
