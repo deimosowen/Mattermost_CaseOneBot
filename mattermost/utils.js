@@ -1,5 +1,16 @@
 const { client, wsClient } = require('./client');
+const fileHelper = require('./fileHelper');
 const logger = require('../logger');
+
+const downloadFile = async (file_id) => {
+    const file = await fileHelper.downloadFileById(file_id);
+    return file;
+}
+
+const uploadFile = async (file_buffer, file_name, channel_id) => {
+    const file = await fileHelper.uploadFile(file_buffer, file_name, channel_id);
+    return file;
+};
 
 const userTyping = async (post_id) => {
     try {
@@ -14,12 +25,13 @@ const userTyping = async (post_id) => {
     };
 }
 
-const postMessage = async (channel_id, message, root_id = null) => {
+const postMessage = async (channel_id, message, root_id = null, file_ids = []) => {
     try {
         const post = {
             channel_id,
             root_id,
-            message
+            message,
+            file_ids
         };
         return await client.createPost(post);
     } catch (error) {
@@ -27,13 +39,14 @@ const postMessage = async (channel_id, message, root_id = null) => {
     }
 };
 
-const postMessageInTreed = async (post_id, message) => {
+const postMessageInTreed = async (post_id, message, file_ids = []) => {
     try {
         const originalPost = await client.getPost(post_id);
         const post = {
             channel_id: originalPost.channel_id,
             root_id: originalPost.root_id || originalPost.id,
-            message: message
+            message: message,
+            file_ids: file_ids
         };
         return await client.createPost(post);
     } catch (error) {
@@ -139,4 +152,6 @@ module.exports = {
     getTeam,
     addToChannel,
     userTyping,
+    downloadFile,
+    uploadFile,
 };
