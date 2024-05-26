@@ -1,8 +1,8 @@
 const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 const util = require('util');
-const dbPath = path.resolve(__dirname, 'database.db');
+const { getDatabasePath } = require('./config');
 
+const dbPath = getDatabasePath();
 const db = new sqlite3.Database(dbPath);
 db.all = util.promisify(db.all);
 db.get = util.promisify(db.get);
