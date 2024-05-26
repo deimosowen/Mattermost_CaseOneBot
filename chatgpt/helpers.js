@@ -1,6 +1,5 @@
 const OpenAIClientFactory = require('./openAIClientFactory');
 const logger = require('../logger');
-const { OPENAI_API_KEY, OPENAI_API_MODEL } = require('../config');
 
 async function generateImages({ prompt }) {
     try {

@@ -121,14 +121,21 @@ async function createGoogleMeet({ channel_id, users, summary, startDate, startTi
 }
 
 async function createImages({ channel_id, prompt }) {
-    var result = await openAiHelpers.generateImages({ prompt });
-    const filename = `${uuidv4()}.png`;
-    const fileBuffer = Buffer.from(result.b64_json, 'base64');
-    const file = await mattermostHelpers.uploadFile(fileBuffer, filename, channel_id);
-    return {
-        data: result.revised_prompt,
-        fileId: file.file_infos[0].id,
-    };
+    try {
+        var result = await openAiHelpers.generateImages({ prompt });
+        const filename = `${uuidv4()}.png`;
+        const fileBuffer = Buffer.from(result.b64_json, 'base64');
+        const file = await mattermostHelpers.uploadFile(fileBuffer, filename, channel_id);
+        return {
+            data: result.revised_prompt,
+            fileId: file.file_infos[0].id,
+        };
+    } catch (error) {
+        logger.error(`Error: ${error.message}\nStack trace:\n${error.stack}`);
+        return {
+            data: `При генерации изображения произошла ошибка`
+        }
+    }
 }
 
 module.exports = {

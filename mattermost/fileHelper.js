@@ -1,3 +1,4 @@
+const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const FormData = require('form-data');
 const { client } = require('./client');
@@ -19,7 +20,17 @@ async function downloadFileById(file_id) {
         return base64;
     } catch (error) {
         logger.error(`Ошибка при скачивании файла: ${error.message}`);
-        throw error;
+    }
+}
+
+async function uploadFileBase64(base64, channel_id) {
+    try {
+        const filename = `${uuidv4()}.png`;
+        const fileBuffer = Buffer.from(base64, 'base64');
+        const file = await uploadFile(fileBuffer, filename, channel_id);
+        return file;
+    } catch (error) {
+        logger.error(`Ошибка при загрузке файла: ${error.message}`);
     }
 }
 
@@ -43,11 +54,11 @@ async function uploadFile(file_buffer, file_name, channel_id) {
         return response.data;
     } catch (error) {
         logger.error(`Ошибка при загрузке файла: ${error.message}`);
-        throw error;
     }
 }
 
 module.exports = {
     downloadFileById,
-    uploadFile
+    uploadFile,
+    uploadFileBase64,
 };
