@@ -33,21 +33,27 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
             messageHistory[dialogId].push(systemMessage);
         }
 
-        const userMessage = {
-            role: 'user',
-            content: [{
-                type: 'text',
-                text: content
-            }]
-        };
+        let userMessage;
 
         if (imageBase64) {
-            userMessage.content.push({
-                type: 'image_url',
-                image_url: {
-                    url: `data:image/jpeg;base64,${imageBase64}`
-                }
-            });
+            userMessage = {
+                role: 'user',
+                content: [{
+                    type: 'text',
+                    text: content
+                },
+                {
+                    type: 'image_url',
+                    image_url: {
+                        url: `data:image/jpeg;base64,${imageBase64}`
+                    }
+                }]
+            };
+        } else {
+            userMessage = {
+                role: 'user',
+                content: content
+            };
         }
         messageHistory[dialogId].push(userMessage);
 
@@ -58,6 +64,8 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
         };
 
         let completion = await client.chat.completions.create(params);
+        logger.info(`usage: ${JSON.stringify(completion.usage)}`);
+
         let message = completion.choices[0]?.message;
         let assistantMessage;
         let fileId;
@@ -68,10 +76,12 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
             const functionResultMessage = {
                 role: 'function',
                 name: message.function_call.name,
-                content: `${JSON.stringify(result.data)}`,
+                content: result.data,
             };
             messageHistory[dialogId].push(functionResultMessage);
             completion = await client.chat.completions.create(params);
+            logger.info(`usage: ${JSON.stringify(completion.usage)}`);
+
             message = completion.choices[0]?.message;
             fileId = result?.fileId;
         }
@@ -89,6 +99,9 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
         }
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        return {
+            id: dialogId
+        }
     }
 }
 
