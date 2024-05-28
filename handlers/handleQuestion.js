@@ -28,13 +28,17 @@ module.exports = async (post, eventData) => {
         userTyping(post.id);
         typingInterval = setInterval(() => userTyping(post.id), 4000);
 
+        const isPrivateChannel = eventData.channel_type === 'D';
+        const usePersonality = !isPrivateChannel;
         const postId = post.root_id || post.id;
         const chatId = getChatIdForPost(postId);
         const user = await getUser(post.user_id);
         const message = prapareMessage(question, user);
         const fileIds = post.file_ids ?? [];
         const imageBase64 = fileIds.length > 0 ? await downloadFile(fileIds[0]) : null;
-        const res = await sendMessage(message, chatId, post.channel_id, true, imageBase64);
+        const res = await sendMessage(message, chatId, post.channel_id, usePersonality, imageBase64);
+
+        logger.info(message);
 
         setChatIdForPost(postId, res.id);
         postMessageInTreed(post.id, res.text, [res.fileId]);
