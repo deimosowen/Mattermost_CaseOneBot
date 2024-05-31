@@ -120,7 +120,7 @@ const functions = [
     },
     {
         name: 'addCredits',
-        description: 'Пополнение баланса OpenAI API',
+        description: 'Информация по пополнению баланса OpenAI API',
         function: addCredits,
     },
 ];
