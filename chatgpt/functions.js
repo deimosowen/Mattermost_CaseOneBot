@@ -113,7 +113,36 @@ const functions = [
         description: 'Возвращает описание команд для пересылки сообщений',
         function: describeForwardingCommands,
     },
+    {
+        name: 'checkCredits',
+        description: 'Проверка оставшегося баланса OpenAI API',
+        function: checkCredits,
+    },
+    {
+        name: 'addCredits',
+        description: 'Пополнение баланса OpenAI API',
+        function: addCredits,
+    },
 ];
+
+async function addCredits() {
+    return {
+        data: `Ссылку на пополнение баланса можно найти на странице репозитория бота: https://github.com/deimosowen/Mattermost_CaseOneBot`,
+    };
+}
+
+async function checkCredits() {
+    try {
+        const result = await openAiHelpers.checkCredits();
+        return {
+            data: `Баланс: $${result.total_available}`,
+        };
+    } catch (error) {
+        return {
+            data: 'При проверке оставшегося баланса произошла ошибка',
+        };
+    }
+};
 
 async function getCurrentDuty({ channel_id }) {
     const result = await dutyService.getCurrentDuty(channel_id);
