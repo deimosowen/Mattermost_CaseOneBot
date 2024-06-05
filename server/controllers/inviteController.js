@@ -1,6 +1,6 @@
 const express = require('express');
 const { getMyChannels, getChannelMembers, getChannelMember, addToChannel } = require('../../mattermost/utils');
-const { TEAM_CHANNEL_ID } = require('../../config');
+const { TEAM_CHANNEL_ID, TEAM_CHANNEL_PREFIX } = require('../../config');
 const logger = require('../../logger');
 
 const router = express.Router();
@@ -24,9 +24,10 @@ router.use(checkMemberExistence);
 router.get('/', async (req, res) => {
     const { user_id } = req.query;
     try {
+        const channelPrefix = TEAM_CHANNEL_PREFIX;
         const myChannels = await getMyChannels();
         const channelPromises = myChannels
-            .filter(channel => channel.type === 'P')
+            .filter(channel => channel.type === 'P' && channel.display_name.startsWith(channelPrefix))
             .map(async (channel) => {
                 const member = await getChannelMember(channel.id, user_id);
                 if (!member) {
