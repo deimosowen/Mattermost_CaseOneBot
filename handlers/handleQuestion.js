@@ -14,8 +14,9 @@ module.exports = async (post, eventData) => {
     try {
         const bot = await getMe();
         const botName = `@${bot.username}`;
+        const isPrivateChannel = eventData.channel_type === 'D';
 
-        if (!post.message.startsWith(botName)) {
+        if (!post.message.startsWith(botName) && !isPrivateChannel || eventData.sender_name === botName) {
             return;
         }
 
@@ -28,7 +29,6 @@ module.exports = async (post, eventData) => {
         userTyping(post.id);
         typingInterval = setInterval(() => userTyping(post.id), 4000);
 
-        const isPrivateChannel = eventData.channel_type === 'D';
         const usePersonality = !isPrivateChannel;
         const postId = post.root_id || post.id;
         const chatId = getChatIdForPost(postId);
