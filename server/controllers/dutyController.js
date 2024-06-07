@@ -57,7 +57,7 @@ router.post('/update-status', async (req, res) => {
         const intStatus = parseInt(status);
         switch (intStatus) {
             case -1:
-                const nextDuty = await rotateDuty({ channel_id });
+                const nextDuty = await rotateDuty(channel_id);
                 postMessage(channel_id, nextDuty);
                 break;
             default:

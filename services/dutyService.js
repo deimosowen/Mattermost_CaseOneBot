@@ -9,7 +9,7 @@ const resources = require('../resources');
 const DutyType = require('../types/dutyTypes.js');
 
 // Получение текущего дежурного
-async function getCurrentDuty({ channel_id }) {
+async function getCurrentDuty(channel_id) {
     try {
         let message = resources.duty.noCurrent;
         const currentDuty = await getDutyFromDB(channel_id);
@@ -69,7 +69,7 @@ async function updateDutyActivityStatus({ channel_id, username, isDisabled, retu
     return resources.duty.changeStatusSuccess.replace('{user}', username);
 }
 
-async function rotateDuty({ channel_id }) {
+async function rotateDuty(channel_id) {
     const currentDuty = await getDutyFromDB(channel_id);
     const result = await changeNextDuty(channel_id);
     await addUnscheduledUser(channel_id, currentDuty.user_id);
