@@ -135,6 +135,11 @@ const getTeam = async () => {
     return teams[0];
 }
 
+const getPostThread = async (post_id) => {
+    const posts = await client.getPostThread(post_id);
+    return posts;
+}
+
 module.exports = {
     getMe,
     postMessage,
@@ -149,6 +154,7 @@ module.exports = {
     getChannelMember,
     getChannelMembers,
     getMyChannels,
+    getPostThread,
     getTeam,
     addToChannel,
     userTyping,

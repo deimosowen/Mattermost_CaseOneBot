@@ -18,7 +18,7 @@ async function callFunction(functionCall, additionalParams = {}) {
     return foundFunction.function(finalArgs);
 }
 
-async function sendMessage(content, parentMessageId, channel_id, usePersonality = true, imageBase64 = null) {
+async function sendMessage(content, parentMessageId, post, usePersonality = true, imageBase64 = null) {
     try {
         const client = OpenAIClientFactory.getClient();
 
@@ -70,7 +70,7 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
         let assistantMessage;
         let fileId;
         if (message.function_call) {
-            const additionalParams = { channel_id };
+            const additionalParams = { channel_id: post.channel_id, post_id: post.id };
             const result = await callFunction(message.function_call, additionalParams);
 
             const functionResultMessage = {
