@@ -19,10 +19,9 @@ async function callFunction(functionCall, additionalParams = {}) {
 }
 
 async function sendMessage(content, parentMessageId, post, usePersonality = true, imageBase64 = null) {
+    const dialogId = parentMessageId || uuidv4();
     try {
         const client = OpenAIClientFactory.getClient();
-
-        const dialogId = parentMessageId || uuidv4();
 
         if (!messageHistory[dialogId]) {
             messageHistory[dialogId] = [];
@@ -72,7 +71,6 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
         if (message.function_call) {
             const additionalParams = { channel_id: post.channel_id, post_id: post.id };
             const result = await callFunction(message.function_call, additionalParams);
-
             const functionResultMessage = {
                 role: 'function',
                 name: message.function_call.name,
@@ -88,7 +86,7 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
 
         assistantMessage = {
             role: 'assistant',
-            content: message?.content
+            content: message?.content || ''
         };
         messageHistory[dialogId].push(assistantMessage);
 
