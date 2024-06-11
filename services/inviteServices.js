@@ -3,6 +3,36 @@ const logger = require('../logger');
 const resources = require('../resources');
 const { HOST, TEAM_CHANNEL_ID } = require('../config');
 
+async function tryAddToChannel(user_id, args) {
+    const [arg] = args;
+    let channelId;
+    try {
+        if (!isMemberExist(user_id)) {
+            return `You shall not pass! 🧙`;
+        }
+        const team = await getTeam();
+        if (arg.includes('/channels/')) {
+            const channelName = arg.split('/channels/')[1].replace(/\/$/, "");
+            channelId = (await getChannel(team.id, channelName)).id;
+        } else if (arg.includes('/pl/')) {
+            const postId = arg.split('/pl/')[1].replace(/\/$/, "");
+            channelId = (await getPost(postId)).channel_id;
+        } else {
+            channelId = (await getChannel(team.id, arg)).id;
+        }
+
+        if (channelId) {
+            await addToChannel(user_id, channelId);
+            return `Вы успешно присоединились к каналу.`;
+        } else {
+            return `Канал не найден.`;
+        }
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        return `Канал не найден.`;
+    }
+};
+
 async function inviteToChannel(post_id, user_id, channel_type, args) {
     const [arg] = args;
     let channelId;
@@ -57,4 +87,5 @@ async function isMemberExist(user_id) {
 module.exports = {
     getInviteUIUrl,
     inviteToChannel,
+    tryAddToChannel,
 };
