@@ -1,10 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const { getSubtasks, logTime } = require('../services/jiraService');
+const jiraService = require('../services/jiraService');
+
+router.get('/:taskId', async (req, res) => {
+    try {
+        const task = await jiraService.getTask(req.jira, req.params.taskId);
+        res.json(task);
+    } catch (error) {
+        res.status(500).send(error.toString());
+    }
+});
 
 router.get('/:taskId/subtasks', async (req, res) => {
     try {
-        const subtasks = await getSubtasks(req.jira, req.params.taskId);
+        const subtasks = await jiraService.getSubtasks(req.jira, req.params.taskId);
         res.json(subtasks);
     } catch (error) {
         res.status(500).send(error.toString());
@@ -13,7 +22,7 @@ router.get('/:taskId/subtasks', async (req, res) => {
 
 router.post('/log-time', async (req, res) => {
     try {
-        await logTime(req.jira, req.body);
+        await jiraService.logTime(req.jira, req.body);
         res.send('Время успешно залогировано');
     } catch (error) {
         res.status(500).send(error.toString());
