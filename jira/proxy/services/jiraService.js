@@ -15,8 +15,12 @@ const createJiraClient = ({ username, password }) => {
 };
 
 const getTask = async (jiraClient, taskId) => {
+    const customField = "customfield_11161";
     let task = await jiraClient.findIssue(taskId);
-    if (task.fields.parent) {
+    if (task.fields[customField] !== null) {
+        task = await jiraClient.findIssue(task.fields[customField]);
+    }
+    else if (task.fields.parent) {
         task = await jiraClient.findIssue(task.fields.parent.key);
     }
     const taskData = {
