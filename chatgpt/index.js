@@ -18,11 +18,10 @@ async function callFunction(functionCall, additionalParams = {}) {
     return foundFunction.function(finalArgs);
 }
 
-async function sendMessage(content, parentMessageId, channel_id, usePersonality = true, imageBase64 = null) {
+async function sendMessage(content, parentMessageId, post, usePersonality = true, imageBase64 = null) {
+    const dialogId = parentMessageId || uuidv4();
     try {
         const client = OpenAIClientFactory.getClient();
-
-        const dialogId = parentMessageId || uuidv4();
 
         if (!messageHistory[dialogId]) {
             messageHistory[dialogId] = [];
@@ -33,21 +32,27 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
             messageHistory[dialogId].push(systemMessage);
         }
 
-        const userMessage = {
-            role: 'user',
-            content: [{
-                type: 'text',
-                text: content
-            }]
-        };
+        let userMessage;
 
         if (imageBase64) {
-            userMessage.content.push({
-                type: 'image_url',
-                image_url: {
-                    url: `data:image/jpeg;base64,${imageBase64}`
-                }
-            });
+            userMessage = {
+                role: 'user',
+                content: [{
+                    type: 'text',
+                    text: content
+                },
+                {
+                    type: 'image_url',
+                    image_url: {
+                        url: `data:image/jpeg;base64,${imageBase64}`
+                    }
+                }]
+            };
+        } else {
+            userMessage = {
+                role: 'user',
+                content: content
+            };
         }
         messageHistory[dialogId].push(userMessage);
 
@@ -58,27 +63,30 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
         };
 
         let completion = await client.chat.completions.create(params);
+        logger.info(`usage: ${JSON.stringify(completion.usage)}`);
+
         let message = completion.choices[0]?.message;
         let assistantMessage;
         let fileId;
         if (message.function_call) {
-            const additionalParams = { channel_id };
+            const additionalParams = { channel_id: post.channel_id, post_id: post.id, user_id: post.user_id };
             const result = await callFunction(message.function_call, additionalParams);
-
             const functionResultMessage = {
                 role: 'function',
                 name: message.function_call.name,
-                content: `${JSON.stringify(result.data)}`,
+                content: result.data,
             };
             messageHistory[dialogId].push(functionResultMessage);
             completion = await client.chat.completions.create(params);
+            logger.info(`usage: ${JSON.stringify(completion.usage)}`);
+
             message = completion.choices[0]?.message;
             fileId = result?.fileId;
         }
 
         assistantMessage = {
             role: 'assistant',
-            content: message?.content
+            content: message?.content || ''
         };
         messageHistory[dialogId].push(assistantMessage);
 
@@ -89,6 +97,9 @@ async function sendMessage(content, parentMessageId, channel_id, usePersonality 
         }
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        return {
+            id: dialogId
+        }
     }
 }
 

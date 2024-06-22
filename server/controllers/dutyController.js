@@ -1,14 +1,19 @@
 const express = require('express');
 const moment = require('moment');
+const cronstrue = require('cronstrue');
 const { rotateDuty } = require('../../services/dutyService');
-const { getDutyUsers, getCurrentDuty, updateUserActivityStatus, getUnscheduledList } = require('../../db/models/duty');
+const { getDutySchedule, getDutyUsers,
+    getCurrentDuty, updateUserActivityStatus,
+    getUnscheduledList } = require('../../db/models/duty');
 const { getUserByUsername, postMessage } = require('../../mattermost/utils');
 const logger = require('../../logger');
+require('cronstrue/locales/ru');
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
     const { channel_id } = req.query;
+
     try {
         const currentDuty = await getCurrentDuty(channel_id);
         const unscheduledUsers = await getUnscheduledList(channel_id);
@@ -57,7 +62,7 @@ router.post('/update-status', async (req, res) => {
         const intStatus = parseInt(status);
         switch (intStatus) {
             case -1:
-                const nextDuty = await rotateDuty({ channel_id });
+                const nextDuty = await rotateDuty(channel_id);
                 postMessage(channel_id, nextDuty);
                 break;
             default:
@@ -68,6 +73,21 @@ router.post('/update-status', async (req, res) => {
         res.redirect(`/duty?channel_id=${channel_id}`);
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    }
+});
+
+router.post('/schedule', async (req, res) => {
+    const { channel_id, timezone } = req.body;
+    try {
+        const schedule = await getDutySchedule(channel_id);
+        const tzOffset = moment.tz(timezone).utcOffset() / 60;
+        const isWorkingDays = schedule.use_working_days ? ', с учетом рабочих дней' : '';
+        const cronDescription = `${cronstrue.toString(schedule.cron_schedule, { locale: "ru", tzOffset: tzOffset })} ${isWorkingDays}`;
+
+        res.json({ cronDescription });
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 });
 

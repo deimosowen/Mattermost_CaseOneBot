@@ -7,6 +7,7 @@
                     <div class="card shadow">
                         <div class="card-body">
                             <h1 class="card-title text-center">Дежурства</h1>
+                            <h6 class="text-center text-muted small" id="cronDescription"></h6>
                             <table class="table">
                                 <thead>
                                     <tr>
@@ -111,6 +112,8 @@
 
         <script>
             document.addEventListener('DOMContentLoaded', function () {
+                fetchCronDescription();
+
                 let relatedTarget = null;
                 const modal = document.getElementById('disableUntilDateModal');
                 modal.addEventListener('show.bs.modal', event => {
@@ -130,4 +133,24 @@
                     form.submit();
                 });
             });
+
+            function fetchCronDescription() {
+                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const channelId = "<%= channel_id %>";
+
+                fetch('/duty/schedule', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ channel_id: channelId, timezone })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('cronDescription').innerText = data.cronDescription;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching cron description:', error);
+                    });
+            }
         </script>

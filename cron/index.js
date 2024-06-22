@@ -5,6 +5,8 @@ const { getReminders } = require('../db/models/reminders');
 const { getDutySchedules } = require('../db/models/duty');
 const { sendMessage, isApiKeyExist } = require('../chatgpt');
 const { createDutyCallback } = require('../services/dutyService');
+const openAiHelpers = require('../chatgpt/helpers');
+const mattermostHelpers = require('../mattermost/fileHelper');
 const logger = require('../logger');
 const TaskType = require('../types/taskTypes');
 
@@ -52,12 +54,20 @@ const loadCronJobsFromDb = async () => {
         const taskCallback = async () => {
             let channel_id = reminder.channel_id;
             let message = reminder.message;
+            let file_id;
 
             const sendReminder = async () => {
                 try {
                     if (reminder.use_open_ai && isApiKeyExist) {
                         const messageFromAI = await sendMessage(reminder.prompt, null, null, usePersonality = false);
                         let messageFromAIText = messageFromAI.text;
+
+                        if (reminder.is_generate_image) {
+                            const prompt = `${reminder.generate_image_prompt}: ${messageFromAIText}`;
+                            const generateImage = await openAiHelpers.generateImages({ prompt });
+                            const file = await mattermostHelpers.uploadFileBase64(generateImage.b64_json, channel_id);
+                            file_id = file.file_infos[0].id;
+                        }
 
                         if (messageFromAIText.startsWith('\"') && messageFromAIText.endsWith('\"')) {
                             messageFromAIText = messageFromAIText.slice(1, -1);
@@ -71,7 +81,7 @@ const loadCronJobsFromDb = async () => {
                 } catch (error) {
                     logger.error(`${error.message}\nStack trace:\n${error.stack}`);
                 } finally {
-                    postMessage(channel_id, message);
+                    postMessage(channel_id, message, null, [file_id]);
                 }
             };
 

@@ -14,6 +14,27 @@ const createJiraClient = ({ username, password }) => {
     });
 };
 
+const getTask = async (jiraClient, taskId) => {
+    const customField = "customfield_11161";
+    let task = await jiraClient.findIssue(taskId);
+    if (task.fields[customField] !== null) {
+        task = await jiraClient.findIssue(task.fields[customField]);
+    }
+    else if (task.fields.parent) {
+        task = await jiraClient.findIssue(task.fields.parent.key);
+    }
+    const taskData = {
+        key: task.key,
+        summary: task.fields.summary,
+        description: task.fields.description,
+        status: task.fields.status.name,
+        created: task.fields.created,
+        updated: task.fields.updated,
+        comments: task.fields.comment.comments
+    };
+    return taskData;
+};
+
 const getSubtasks = async (jiraClient, taskId) => {
     const cacheKey = `subtasks-${taskId}`;
     const cachedSubtasks = cache.get(cacheKey);
@@ -56,6 +77,7 @@ const logTime = async (jiraClient, { taskId, started, duration, comment }) => {
 
 module.exports = {
     createJiraClient,
+    getTask,
     getSubtasks,
     logTime
 };
