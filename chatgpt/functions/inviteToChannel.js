@@ -20,20 +20,6 @@ const inviteToChannel = async ({ post_id, task_key }) => {
     }
 }
 
-module.exports = {
-    name: 'inviteToChannel',
-    description: 'Пригласить пользователя в канал',
-    parameters: {
-        type: 'object',
-        properties: {
-            post_id: { type: 'string' },
-            task_key: { type: 'string', description: 'Ключа. Формата "CASEM-XXXXX"' },
-        },
-        required: ['task_key'],
-    },
-    function: inviteToChannel,
-};
-
 const extractLink = (comments) => {
     const pattern = /https:\/\/mchat\.pravo\.tech[^\s]*/;
     for (const comment of comments) {
@@ -45,4 +31,18 @@ const extractLink = (comments) => {
         }
     }
     return null;
+};
+
+module.exports = {
+    name: 'inviteToChannel',
+    description: 'Пригласить пользователя в канал по номеру задачи',
+    parameters: {
+        type: 'object',
+        properties: {
+            post_id: { type: 'string' },
+            task_key: { type: 'string', description: 'Номер задачи в формате "CASEM-XXXXX"' },
+        },
+        required: ['task_key'],
+    },
+    function: inviteToChannel,
 };
