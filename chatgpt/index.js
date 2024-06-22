@@ -69,7 +69,7 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
         let assistantMessage;
         let fileId;
         if (message.function_call) {
-            const additionalParams = { channel_id: post.channel_id, post_id: post.id };
+            const additionalParams = { channel_id: post.channel_id, post_id: post.id, user_id: post.user_id };
             const result = await callFunction(message.function_call, additionalParams);
             const functionResultMessage = {
                 role: 'function',

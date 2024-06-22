@@ -1,5 +1,7 @@
+const moment = require('moment-timezone');
 const { google } = require('googleapis');
 const { getOAuth2ClientForUser } = require('../server/googleAuth');
+const { markEventAsNotified } = require('../db/models/calendars');
 const logger = require('../logger');
 
 const createEvent = async (userId, eventData) => {
@@ -11,10 +13,15 @@ const createEvent = async (userId, eventData) => {
             resource: eventData,
             conferenceDataVersion: 1,
         });
+
+        /*users.forEach(user => {
+            markEventAsNotified(user.id, data);
+        });*/
+
         return response.data;
     } catch (error) {
         logger.error(`Error creating calendar event: ${error.message}`);
-        throw error;
+        return "Ошибка создания встречи";
     }
 }
 
@@ -52,6 +59,83 @@ const findEventByTaskNumber = async (userId, event, taskId) => {
     }
 };
 
+const findFreeTimeSlotForGroup = async (userId, participants, duration = 30, requiredSlots = 5) => {
+    try {
+        const userOAuth2Client = await getOAuth2ClientForUser(userId);
+        const calendar = google.calendar({ version: 'v3', auth: userOAuth2Client });
+
+        const now = moment();
+        const oneWeekFromNow = moment().add(1, 'week');
+
+        const items = participants.map(email => ({ id: email }));
+
+        const res = await calendar.freebusy.query({
+            requestBody: {
+                timeMin: now.toISOString(),
+                timeMax: oneWeekFromNow.toISOString(),
+                items: items,
+            },
+        });
+
+        const busyTimes = res.data.calendars;
+
+        const isWeekend = date => date.isoWeekday() === 6 || date.isoWeekday() === 7;
+
+        const freeSlots = [];
+        let start = now;
+        while (start.isBefore(oneWeekFromNow) && freeSlots.length < requiredSlots) {
+            if (isWeekend(start)) {
+                start = start.add(1, 'day').startOf('day');
+                continue;
+            }
+
+            const startHour = start.hour();
+            if (startHour < 6) {
+                start = start.hour(6).minute(0).second(0).millisecond(0).utc();
+            } else if (startHour >= 15) {
+                start = start.add(1, 'day').hour(6).minute(0).second(0).millisecond(0).utc();
+                continue;
+            }
+
+            const end = start.clone().add(duration, 'minutes');
+            if (end.isAfter(oneWeekFromNow)) break;
+
+            const isFree = participants.every(email => {
+                const userBusyTimes = busyTimes[email].busy;
+                return userBusyTimes.every(interval => {
+                    const busyStart = moment(interval.start);
+                    const busyEnd = moment(interval.end);
+                    return end.isBefore(busyStart) || start.isAfter(busyEnd);
+                });
+            });
+
+            if (isFree) {
+                freeSlots.push({
+                    start: start.toISOString(),
+                    end: end.toISOString()
+                });
+                start = end;
+            } else {
+                const nextBusyTimes = participants.flatMap(email => busyTimes[email].busy)
+                    .filter(interval => moment(interval.start).isAfter(start))
+                    .sort((a, b) => moment(a.start) - moment(b.start));
+
+                if (nextBusyTimes.length > 0) {
+                    start = moment(nextBusyTimes[0].end);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        return freeSlots;
+
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        throw error;
+    }
+};
+
 const extractTaskLinks = (description) => {
     const taskPattern = /<a href="(https:\/\/jira\.parcsis\.org\/browse\/CASEM-\d+)"[^>]*>(?:<u>)?(CASEM-\d+)(?:<\/u>)?<\/a>/g;
     const taskLinks = {};
@@ -72,8 +156,39 @@ const getRecordingLinkFromAttachments = (attachments, summary) => {
     return null;
 };
 
+const prepareAttendees = async (userString) => {
+    if (!userString) {
+        return [];
+    }
+
+    const userNames = userString.split(',')
+        .map(user => user.trim())
+        .filter(name => name.startsWith('@'));
+
+    const attendees = [];
+
+    for (const name of userNames) {
+        const mattermostUsername = name.slice(1);
+        try {
+            const mattermostUser = await getUserByUsername(mattermostUsername);
+            if (mattermostUser && mattermostUser.email) {
+                attendees.push({
+                    id: mattermostUser.id,
+                    name: `${mattermostUser.first_name} ${mattermostUser.last_name}`,
+                    email: mattermostUser.email
+                });
+            }
+        } catch (error) {
+            logger.error(`Error retrieving user ${mattermostUsername}: ${error.message}`);
+        }
+    }
+
+    return attendees;
+}
+
 module.exports = {
     createEvent,
     getEventById,
     findEventByTaskNumber,
+    findFreeTimeSlotForGroup,
 };
