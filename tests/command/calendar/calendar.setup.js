@@ -43,7 +43,7 @@ jest.mock('../../../logger', () => ({
 
 jest.mock('../../../server/googleAuth', () => ({
     isLoad: true,
-    oAuth2Client: {
+    getOAuth2ClientForUser: jest.fn().mockResolvedValue({
         setCredentials: jest.fn(),
         getToken: jest.fn().mockResolvedValue({
             access_token: "mocked_access_token",
@@ -52,7 +52,7 @@ jest.mock('../../../server/googleAuth', () => ({
             token_type: "Bearer",
             expiry_date: 123456789
         }),
-    }
+    })
 }));
 
 beforeEach(() => {
