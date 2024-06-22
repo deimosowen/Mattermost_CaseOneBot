@@ -1,16 +1,13 @@
 const moment = require('moment-timezone');
 const { postMessage, getUser } = require('../mattermost/utils');
 const { google } = require('googleapis');
-const { isLoad, createOAuth2Client } = require('../server/googleAuth');
+const { isLoad, getOAuth2ClientForUser } = require('../server/googleAuth');
 const { CronJob } = require('../cron');
-const { getAllUsers, getUser: getUserFromCalendar,
-    markEventAsNotified, checkIfEventWasNotified,
+const { getAllUsers, markEventAsNotified, checkIfEventWasNotified,
     removeNotifiedEvents, removeUser, removeUserSettings } = require('../db/models/calendars');
 const logger = require('../logger');
 const TurndownService = require('turndown');
 const turndownService = new TurndownService();
-
-const oAuth2ClientMap = new Map();
 
 const initGoogleCalendarNotifications = async () => {
     if (isLoad === false) {
@@ -43,13 +40,7 @@ const notifyUser = async (user) => {
 
 async function listEventsForUser(user) {
     try {
-        let userOAuth2Client = oAuth2ClientMap.get(user.user_id);
-        if (!userOAuth2Client) {
-            userOAuth2Client = createOAuth2Client();
-            userOAuth2Client.setCredentials(user);
-            oAuth2ClientMap.set(user.user_id, userOAuth2Client);
-        }
-
+        const userOAuth2Client = await getOAuth2ClientForUser(user.user_id);
         const mattermostUser = await getUser(user.user_id);
         const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true' ? mattermostUser.timezone.automaticTimezone : mattermostUser.timezone.manualTimezone;
         const now = moment().tz(timezone);
@@ -67,7 +58,6 @@ async function listEventsForUser(user) {
         const events = res.data.items;
         if (events.length) {
             const eventPromises = events.map(async (event) => {
-                console.log(event);
                 const eventStartTime = moment(event.start.dateTime);
                 const attendanceStatus = event.attendees ? event.attendees.find(att => att.email === mattermostUser.email)?.responseStatus : null;
                 if (attendanceStatus === 'declined') {
@@ -90,9 +80,8 @@ async function listEventsForUser(user) {
 
 const getEventById = async (user_id, event_id) => {
     try {
-        const user = await getUserFromCalendar(user_id);
-        oAuth2Client.setCredentials(user);
-        const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+        const userOAuth2Client = await getOAuth2ClientForUser(user_id);
+        const calendar = google.calendar({ version: 'v3', auth: userOAuth2Client });
         const res = await calendar.events.get({
             calendarId: 'primary',
             eventId: event_id,
@@ -118,84 +107,7 @@ ${hangoutLink}`;
     }
 }
 
-const findDemoEvents = async (user_id) => {
-    try {
-        const user = await getUserFromCalendar(user_id);
-        oAuth2Client.setCredentials(user);
-        const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
-
-        const oneYearAgo = moment().subtract(1, 'year').toISOString();
-        const now = moment().toISOString();
-
-        const res = await calendar.events.list({
-            calendarId: 'primary',
-            q: 'демо',
-            timeMin: oneYearAgo,
-            timeMax: now,
-            singleEvents: true,
-            orderBy: 'startTime',
-        });
-
-        const demoEvents = res.data.items.filter(event =>
-            /демо/i.test(event.summary) // case-insensitive match for 'демо' in the event summary
-        );
-
-        return demoEvents;
-    } catch (error) {
-        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-    }
-};
-
-const extractTaskLinks = (description) => {
-    const taskPattern = /<a href="(https:\/\/jira\.parcsis\.org\/browse\/CASEM-\d+)"[^>]*>(?:<u>)?(CASEM-\d+)(?:<\/u>)?<\/a>/g;
-    const taskLinks = {};
-    let match;
-    while ((match = taskPattern.exec(description)) !== null) {
-        const [_, taskLink, taskNumber] = match;
-        taskLinks[taskNumber] = taskLink;
-    }
-    return taskLinks;
-};
-
-const getDemoEventTasks = async (user_id) => {
-    try {
-        const events = await findDemoEvents(user_id);
-        const tasks = events.map(event => {
-            const taskLinks = extractTaskLinks(event.description || '');
-            return {
-                eventLink: event.htmlLink,
-                taskLinks
-            };
-        });
-        return tasks;
-    } catch (error) {
-        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-    }
-};
-
-const findEventByTaskNumber = async (user_id, taskNumber) => {
-    try {
-        const events = await findDemoEvents(user_id);
-        for (const event of events) {
-            console.log(event);
-            const taskLinks = extractTaskLinks(event.description || '');
-            if (taskLinks[taskNumber]) {
-                return {
-                    eventLink: event.htmlLink,
-                    taskLink: taskLinks[taskNumber]
-                };
-            }
-        }
-        return null; // If no event is found with the given task number
-    } catch (error) {
-        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-    }
-};
-
 module.exports = {
     initGoogleCalendarNotifications,
     getEventById,
-    findDemoEvents,
-    getDemoEventTasks,
-    findEventByTaskNumber
 };
