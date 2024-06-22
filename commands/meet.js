@@ -1,5 +1,5 @@
 const { google } = require('googleapis');
-const { isLoad, oAuth2Client } = require('../server/googleAuth');
+const { isLoad, getOAuth2ClientForUser } = require('../server/googleAuth');
 const { postMessageInTreed, getUserByUsername, getUser: getUserFromMattermost } = require('../mattermost/utils');
 const { getUser, markEventAsNotified } = require('../db/models/calendars');
 const logger = require('../logger');
@@ -29,9 +29,9 @@ function parseDuration(durationString = '15m') {
 
 async function createMeetEvent(user, summary, users, duration) {
     try {
-        oAuth2Client.setCredentials(user);
+        const userOAuth2Client = await getOAuth2ClientForUser(user.user_id);
 
-        const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+        const calendar = google.calendar({ version: 'v3', auth: userOAuth2Client });
 
         const durationInMilliseconds = parseDuration(duration);
         const eventStart = new Date();

@@ -1,6 +1,6 @@
 {
   "name": "mattermost_caseonebot",
-  "version": "1.18.7",
+  "version": "1.18.10",
   "description": "",
   "type": "commonjs",
   "main": "index.js",
@@ -22,6 +22,7 @@
     "babel-polyfill": "^6.26.0",
     "cron": "^2.3.1",
     "cron-validator": "^1.3.1",
+    "cronstrue": "^2.50.0",
     "db-migrate": "^0.11.14",
     "db-migrate-sqlite3": "^0.5.0",
     "dotenv": "^16.3.1",
