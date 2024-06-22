@@ -1,6 +1,6 @@
 const moment = require('moment');
 const dayOffAPI = require('isdayoff')();
-const { getCurrentDuty: getDutyFromDB, getDutyUsers,
+const { getCurrentDuty: getDutyFromDB, getDutyUsers, getDutySchedule,
     setCurrentDuty, updateUserActivityStatus, addUnscheduledUser,
     getFirstUnscheduledUser, deleteUnscheduledUser } = require('../db/models/duty');
 const { postMessage } = require('../mattermost/utils');
@@ -45,7 +45,8 @@ async function changeNextDuty(channel_id) {
         let nextIndex = (users.findIndex(u => u.user_id === currentDuty.user_id) + increment) % users.length;
         const nextDuty = users[nextIndex].user_id;
         await setCurrentDuty(channel_id, nextDuty, DutyType.REGULAR);
-        return resources.duty.nextNotification.replace('{user}', nextDuty);
+        const message = await nextDutyMessage(channel_id, nextDuty);
+        return message;
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
@@ -97,7 +98,8 @@ async function changeUnscheduledDutyIfNeed(channel_id) {
     if (unscheduledUser) {
         await deleteUnscheduledUser(unscheduledUser.id);
         await setCurrentDuty(channel_id, unscheduledUser.user_id, DutyType.UNSCHEDULED);
-        return resources.duty.nextNotification.replace('{user}', unscheduledUser.user_id);
+        const message = await nextDutyMessage(channel_id, unscheduledUser.user_id);
+        return message;
     }
 }
 
@@ -114,6 +116,11 @@ const createDutyCallback = (channel_id, considerWorkingDays = false) => {
         postMessage(channel_id, changeResult);
     };
 };
+
+async function nextDutyMessage(channel_id, user_id) {
+    const dutySchedule = await getDutySchedule(channel_id);
+    return dutySchedule.nextDutyMessage.replace('{user}', user_id);
+}
 
 module.exports = {
     getCurrentDuty,
