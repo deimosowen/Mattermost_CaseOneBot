@@ -44,6 +44,9 @@ More than just reminders. This robust bot was designed initially for cron-based 
 - `!forward-remove; [id]` - Removes a specific forwarding configuration based on its ID.
 - `!forward-help` - Shows all available commands for the bot's forwarding functionality.
 
+### ChatGPT Functions
+The bot can also perform various functions using the ChatGPT API. Please refer to the [wiki](https://github.com/deimosowen/Mattermost_CaseOneBot/wiki/Functions) for a detailed description of these functions.
+
 ## Installation
 
 1. Clone the repository to your server:  
