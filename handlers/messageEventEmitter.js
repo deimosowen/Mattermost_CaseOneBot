@@ -8,6 +8,7 @@ const messageEventEmitter = new MessageEventEmitter();
 messageEventEmitter.on('nonCommandMessage', (post, eventData) => {
     messageHandlers.handleMessageForwarding(post, eventData);
     messageHandlers.handleQuestion(post, eventData);
+    messageHandlers.handleTaskInReview(post, eventData);
 });
 
 messageEventEmitter.on('postDeleted', (post, eventData) => {
