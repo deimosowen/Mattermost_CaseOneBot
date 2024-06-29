@@ -15,6 +15,7 @@ files.forEach(file => {
             description: funcModule.description,
             function: funcModule.function,
             parameters: funcModule.parameters || { type: 'object', properties: {} },
+            returns: funcModule.returns || {},
         });
     }
 });

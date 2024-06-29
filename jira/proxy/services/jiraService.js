@@ -15,6 +15,20 @@ const createJiraClient = ({ username, password }) => {
 };
 
 const getTask = async (jiraClient, taskId) => {
+    let task = await jiraClient.findIssue(taskId);
+    const taskData = {
+        key: task.key,
+        summary: task.fields.summary,
+        description: task.fields.description,
+        status: task.fields.status.name,
+        created: task.fields.created,
+        updated: task.fields.updated,
+        comments: task.fields.comment.comments
+    };
+    return taskData;
+};
+
+const getTaskParent = async (jiraClient, taskId) => {
     const customField = "customfield_11161";
     let task = await jiraClient.findIssue(taskId);
     if (task.fields[customField] !== null) {
@@ -78,6 +92,7 @@ const logTime = async (jiraClient, { taskId, started, duration, comment }) => {
 module.exports = {
     createJiraClient,
     getTask,
+    getTaskParent,
     getSubtasks,
     logTime
 };

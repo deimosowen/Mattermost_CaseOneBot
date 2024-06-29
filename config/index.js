@@ -3,6 +3,7 @@ module.exports = {
     BOT_TOKEN: process.env.BOT_TOKEN,
     TEAM_CHANNEL_ID: process.env.TEAM_CHANNEL_ID,
     TEAM_CHANNEL_PREFIX: process.env.TEAM_CHANNEL_PREFIX,
+    INREVIEW_CHANNEL_IDS: process.env.INREVIEW_CHANNEL_IDS ? process.env.INREVIEW_CHANNEL_IDS.split(",") : [],
     ADMIN_ID: process.env.ADMIN_ID,
     TZ: process.env.TZ,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,

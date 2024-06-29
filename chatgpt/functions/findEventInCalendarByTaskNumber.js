@@ -3,7 +3,7 @@ const calendarService = require('../../services/calendarService');
 const findEventInCalendarByTaskNumber = async ({ user_id, event, task_key }) => {
     const result = await calendarService.findEventByTaskNumber(user_id, event, task_key);
     return {
-        data: result,
+        data: JSON.stringify(result),
     };
 }
 
