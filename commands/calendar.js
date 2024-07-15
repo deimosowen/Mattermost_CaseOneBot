@@ -1,5 +1,5 @@
 const { postMessageInTreed } = require('../mattermost/utils');
-const { isLoad, getOAuth2ClientForUser } = require('../server/googleAuth');
+const { isLoad, createOAuth2Client } = require('../server/googleAuth');
 const logger = require('../logger');
 const resources = require('../resources');
 
@@ -14,7 +14,7 @@ module.exports = async ({ post_id, channel_id, channel_type, user_id }) => {
             return;
         }
 
-        const userOAuth2Client = await getOAuth2ClientForUser(user_id);
+        const userOAuth2Client = await createOAuth2Client();
 
         const authUrl = userOAuth2Client.generateAuthUrl({
             access_type: 'offline',
