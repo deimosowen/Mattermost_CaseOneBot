@@ -35,6 +35,17 @@
                                                 1 минуту до начала события</option>
                                         </select>
                                     </div>
+                                    <div class="mb-3">
+                                        <label for="authuser" class="form-label">Выберите аккаунт:</label>
+                                        <select class="form-select" id="authuser" name="authuser">
+                                            <option value="0" <%=settings.authuser===0 ? 'selected' : '' %>>
+                                                1 пользователь</option>
+                                            <option value="1" <%=settings.authuser===1 ? 'selected' : '' %>>
+                                                2 пользователь</option>
+                                            <option value="2" <%=settings.authuser===2 ? 'selected' : '' %>>
+                                                3 пользователь</option>
+                                        </select>
+                                    </div>
                                     <button type="submit" class="btn btn-primary w-100">Сохранить</button>
                                 </form>
                 </div>
