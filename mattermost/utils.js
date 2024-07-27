@@ -1,4 +1,5 @@
-const { client, wsClient } = require('./client');
+const moment = require('moment');
+const { client, wsClient, authUser } = require('./client');
 const fileHelper = require('./fileHelper');
 const logger = require('../logger');
 
@@ -140,6 +141,29 @@ const getPostThread = async (post_id) => {
     return posts;
 }
 
+const setStatus = async (user_id, token, text, expires_at, dnd_mode) => {
+    try {
+        const userClient = authUser(token);
+        if (dnd_mode) {
+            await userClient.updateStatus({
+                user_id: user_id,
+                status: 'dnd',
+                manual: true,
+                dnd_end_time: moment(expires_at).unix()
+            });
+        }
+        await userClient.updateCustomStatus({
+            emoji: 'calendar',
+            text: text,
+            duration: 'date_and_time',
+            expires_at: expires_at
+        });
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
 module.exports = {
     getMe,
     postMessage,
@@ -160,4 +184,5 @@ module.exports = {
     userTyping,
     downloadFile,
     uploadFile,
+    setStatus,
 };

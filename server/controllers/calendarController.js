@@ -17,9 +17,11 @@ router.get('/settings/', async (req, res) => {
 });
 
 router.post('/settings/', async (req, res) => {
-    let { user_id, notification_interval, is_notification, authuser } = req.body;
-    is_notification = parseInt(is_notification) || 0;
-    await updateUserSettings(user_id, { notification_interval, is_notification, authuser });
+    const parameters = req.body;
+    const user_id = parameters.user_id;
+    parameters.is_notification = parseInt(parameters.is_notification) || 0;
+    parameters.dnd_mode = parseInt(parameters.dnd_mode) || 0;
+    await updateUserSettings(user_id, parameters);
     res.redirect(`/calendar/settings?user_id=${user_id}&success=true`);
 });
 
