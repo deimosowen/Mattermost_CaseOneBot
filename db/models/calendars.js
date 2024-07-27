@@ -2,7 +2,7 @@ const db = require('../index.js');
 
 const getAllUsers = async () => {
     return db.all(`
-    SELECT c.*, s.notification_interval, s.is_notification, s.authuser
+    SELECT c.*, s.notification_interval, s.is_notification, s.authuser, s.mattermost_token, s.dnd_mode, s.event_summary
     FROM calendars c
     LEFT JOIN user_settings s ON c.user_id = s.user_id
     `);
@@ -58,16 +58,22 @@ const getUserSettings = async (user_id) => {
 
 const createUserSettings = async (user_id) => {
     return await db.run(`
-    INSERT INTO user_settings (user_id, timezone, language, notification_interval, is_notification, authuser) 
-    VALUES (?, 'UTC', 'ru', 10, 1, 0)`, user_id);
+    INSERT INTO user_settings (user_id, timezone, language, notification_interval, is_notification, authuser, mattermost_token, dnd_mode, event_summary) 
+    VALUES (?, 'UTC', 'ru', 10, 1, 0, null, 0, null)`, user_id);
 }
 
 const updateUserSettings = async (user_id, settings) => {
     return await db.run(`
         UPDATE user_settings 
-        SET notification_interval = ?, is_notification = ?, authuser = ?
+        SET notification_interval = ?, is_notification = ?, authuser = ?, mattermost_token = ?, dnd_mode = ?, event_summary = ?
         WHERE user_id = ?`,
-        settings.notification_interval, settings.is_notification, settings.authuser, user_id);
+        settings.notification_interval,
+        settings.is_notification,
+        settings.authuser,
+        settings.mattermost_token,
+        settings.dnd_mode,
+        settings.event_summary,
+        user_id);
 }
 
 const removeUserSettings = async (user_id) => {
@@ -79,12 +85,21 @@ const markEventAsNotified = async (user_id, event) => {
         user_id, event.id, event.summary, event.start.dateTime, event.end.dateTime, event.start.timeZone);
 }
 
+const markStatusAsSet = async (user_id, event_id) => {
+    return db.run('UPDATE notified_events SET status_set = 1 WHERE user_id = ? AND event_id = ?', user_id, event_id);
+}
+
 const getUserNotifiedEvents = async (user_id) => {
     return db.all('SELECT * FROM notified_events WHERE user_id = ? AND is_logged = 0', user_id);
 }
 
 const checkIfEventWasNotified = async (user_id, event_id) => {
     const event = await db.get('SELECT * FROM notified_events WHERE user_id = ? AND event_id = ?', user_id, event_id);
+    return event !== undefined;
+}
+
+const checkIfStatusWasSet = async (user_id, event_id) => {
+    const event = await db.get('SELECT * FROM notified_events WHERE user_id = ? AND event_id = ? AND status_set = 1', user_id, event_id);
     return event !== undefined;
 }
 
@@ -107,7 +122,9 @@ module.exports = {
     removeUserSettings,
     getUserNotifiedEvents,
     markEventAsNotified,
+    markStatusAsSet,
     checkIfEventWasNotified,
+    checkIfStatusWasSet,
     removeNotifiedEvents,
     setNotifiedEventAsLogged,
 };

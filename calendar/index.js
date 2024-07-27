@@ -3,7 +3,9 @@ const { postMessage, getUser } = require('../mattermost/utils');
 const { google } = require('googleapis');
 const { isLoad, getOAuth2ClientForUser } = require('../server/googleAuth');
 const { CronJob } = require('../cron');
+const { setStatus } = require('../mattermost/utils');
 const { getAllUsers, markEventAsNotified, checkIfEventWasNotified,
+    markStatusAsSet, checkIfStatusWasSet,
     removeNotifiedEvents, removeUser, removeUserSettings } = require('../db/models/calendars');
 const logger = require('../logger');
 const TurndownService = require('turndown');
@@ -67,6 +69,13 @@ async function listEventsForUser(user) {
                     const message = createEventMessage(event, timezone, user);
                     await postMessage(user.channel_id, message);
                     await markEventAsNotified(user.user_id, event);
+                }
+                if (eventStartTime.isSameOrBefore(now) && !(await checkIfStatusWasSet(user.user_id, event.id))) {
+                    if (user.mattermost_token) {
+                        const statusText = user.event_summary || event.summary
+                        await setStatus(user.user_id, user.mattermost_token, statusText, event.end.dateTime, user.dnd_mode);
+                        await markStatusAsSet(user.user_id, event.id);
+                    }
                 }
             });
             await Promise.all(eventPromises);
