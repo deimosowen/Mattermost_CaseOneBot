@@ -64,7 +64,7 @@ async function listEventsForUser(user) {
                     return;
                 }
                 if (eventStartTime.isAfter(now) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
-                    const message = createEventMessage(event, timezone);
+                    const message = createEventMessage(event, timezone, user);
                     await postMessage(user.channel_id, message);
                     await markEventAsNotified(user.user_id, event);
                 }
@@ -92,11 +92,12 @@ const getEventById = async (user_id, event_id) => {
     }
 };
 
-function createEventMessage(event, userTimeZone) {
+function createEventMessage(event, userTimeZone, user) {
     try {
+        const authuser = user.authuser || 0;
         const eventDate = moment(event.start.dateTime || event.start.date).tz(userTimeZone);
         const description = event.description ? `${turndownService.turndown(event.description)}\n` : '';
-        const hangoutLink = event.hangoutLink ? `[Присоединиться к Google Meet](${event.hangoutLink})` : '';
+        const hangoutLink = event.hangoutLink ? `[Присоединиться к Google Meet](${event.hangoutLink}?authuser=${authuser})` : '';
         return `
 **${event.summary}**
 *${eventDate.format('LLL')}*\n

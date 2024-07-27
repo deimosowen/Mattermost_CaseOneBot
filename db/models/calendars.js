@@ -2,7 +2,7 @@ const db = require('../index.js');
 
 const getAllUsers = async () => {
     return db.all(`
-    SELECT c.*, s.notification_interval, s.is_notification
+    SELECT c.*, s.notification_interval, s.is_notification, s.authuser
     FROM calendars c
     LEFT JOIN user_settings s ON c.user_id = s.user_id
     `);
@@ -10,7 +10,7 @@ const getAllUsers = async () => {
 
 const getUser = async (user_id) => {
     return db.get(`
-        SELECT c.*, s.notification_interval, s.is_notification
+        SELECT c.*, s.notification_interval, s.is_notification, s.authuser
         FROM calendars c
         LEFT JOIN user_settings s ON c.user_id = s.user_id
         WHERE c.user_id = ?
@@ -58,16 +58,16 @@ const getUserSettings = async (user_id) => {
 
 const createUserSettings = async (user_id) => {
     return await db.run(`
-    INSERT INTO user_settings (user_id, timezone, language, notification_interval, is_notification) 
-    VALUES (?, 'UTC', 'ru', 10, 1)`, user_id);
+    INSERT INTO user_settings (user_id, timezone, language, notification_interval, is_notification, authuser) 
+    VALUES (?, 'UTC', 'ru', 10, 1, 0)`, user_id);
 }
 
 const updateUserSettings = async (user_id, settings) => {
     return await db.run(`
         UPDATE user_settings 
-        SET notification_interval = ?, is_notification = ?
+        SET notification_interval = ?, is_notification = ?, authuser = ?
         WHERE user_id = ?`,
-        settings.notification_interval, settings.is_notification, user_id);
+        settings.notification_interval, settings.is_notification, settings.authuser, user_id);
 }
 
 const removeUserSettings = async (user_id) => {
