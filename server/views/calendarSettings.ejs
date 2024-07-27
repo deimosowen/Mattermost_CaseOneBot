@@ -64,7 +64,7 @@
                                                     <div class="mb-3">
                                                         <label for="mattermost_token" class="form-label">Токен</label>
                                                         <input type="text" class="form-control" id="mattermost_token"
-                                                            value="<%= settings.mattermost_token %>"
+                                                            value="<%= settings.mattermost_token || ''%>"
                                                             name="mattermost_token">
                                                         <div class="form-text">
                                                             <a href="#" data-bs-toggle="modal"
@@ -82,7 +82,7 @@
                                                         <label for="event_summary" class="form-label">Текст
                                                             статуса</label>
                                                         <input type="text" class="form-control" id="event_summary"
-                                                            value="<%= settings.event_summary %>"
+                                                            value="<%= settings.event_summary || '' %>"
                                                             placeholder="По умолчанию: Название мероприятия"
                                                             name="event_summary">
                                                     </div>
