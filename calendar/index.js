@@ -11,6 +11,17 @@ const logger = require('../logger');
 const TurndownService = require('turndown');
 const turndownService = new TurndownService();
 
+const mattermostUserCache = new Map();
+
+async function getMattermostUser(user_id) {
+    let mattermostUser = mattermostUserCache.get(user_id);
+    if (!mattermostUser) {
+        mattermostUser = await getUser(user_id);
+        mattermostUserCache.set(user_id, mattermostUser);
+    }
+    return mattermostUser;
+}
+
 const initGoogleCalendarNotifications = async () => {
     if (isLoad === false) {
         return;
@@ -43,7 +54,7 @@ const notifyUser = async (user) => {
 async function listEventsForUser(user) {
     try {
         const userOAuth2Client = await getOAuth2ClientForUser(user.user_id);
-        const mattermostUser = await getUser(user.user_id);
+        const mattermostUser = await getMattermostUser(user.user_id);
         const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true' ? mattermostUser.timezone.automaticTimezone : mattermostUser.timezone.manualTimezone;
         const now = moment().tz(timezone);
         const tenMinutesFromNow = now.clone().add(user.notification_interval + 1, 'minutes');
@@ -73,8 +84,10 @@ async function listEventsForUser(user) {
                 if (eventStartTime.isSameOrBefore(now) && !(await checkIfStatusWasSet(user.user_id, event.id))) {
                     if (user.mattermost_token) {
                         const statusText = user.event_summary || event.summary
-                        await setStatus(user.user_id, user.mattermost_token, statusText, event.end.dateTime, user.dnd_mode);
-                        await markStatusAsSet(user.user_id, event.id);
+                        const status = await setStatus(user.user_id, user.mattermost_token, statusText, event.end.dateTime, user.dnd_mode);
+                        if (status) {
+                            await markStatusAsSet(user.user_id, event.id);
+                        }
                     }
                 }
             });
