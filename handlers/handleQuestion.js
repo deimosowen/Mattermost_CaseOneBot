@@ -4,6 +4,17 @@ const { getChatIdForPost, setChatIdForPost } = require('../chatgpt/chatMap');
 const logger = require('../logger');
 const resources = require('../resources');
 
+const mattermostUserCache = new Map();
+
+async function getMattermostUser(user_id) {
+    let mattermostUser = mattermostUserCache.get(user_id);
+    if (!mattermostUser) {
+        mattermostUser = await getMe(user_id);
+        mattermostUserCache.set(user_id, mattermostUser);
+    }
+    return mattermostUser;
+}
+
 module.exports = async (post, eventData) => {
     if (!isApiKeyExist) {
         logger.info('OpenAI API key is not set.');
@@ -12,7 +23,7 @@ module.exports = async (post, eventData) => {
 
     let typingInterval;
     try {
-        const bot = await getMe();
+        const bot = await getMattermostUser('fake_id');
         const botName = `@${bot.username}`;
         const isPrivateChannel = eventData.channel_type === 'D';
 
