@@ -29,8 +29,9 @@ router.get('/', async (req, res) => {
         const channelPromises = myChannels
             .filter(channel => channel.type === 'P' && channel.display_name.startsWith(channelPrefix))
             .map(async (channel) => {
-                const member = await getChannelMember(channel.id, user_id);
-                if (!member) {
+                const members = await getChannelMembers(channel.id);
+                const isMember = members.some(member => member.user_id === user_id);
+                if (!isMember) {
                     return {
                         id: channel.id,
                         display_name: channel.display_name,
