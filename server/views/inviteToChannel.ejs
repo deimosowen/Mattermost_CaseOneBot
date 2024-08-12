@@ -7,7 +7,7 @@
                     <div class="card shadow">
                         <div class="card-body">
                             <h1 class="card-title text-center">Доступные каналы</h1>
-                            <% if (channels.length> 0) { %>
+                            <% if (activeChannels.length> 0) { %>
                                 <table class="table">
                                     <thead>
                                         <tr>
@@ -16,7 +16,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% channels.forEach(channel=> { %>
+                                        <% activeChannels.forEach(channel=> { %>
                                             <tr>
                                                 <td>
                                                     <div class="d-flex align-items-center">
@@ -44,6 +44,51 @@
                                         Вы уже приглашены во все доступные каналы 😊
                                     </div>
                                     <% } %>
+
+                                        <% if (inactiveChannels.length> 0) { %>
+                                            <button class="btn btn-link" type="button" data-bs-toggle="collapse"
+                                                data-bs-target="#inactiveChannelsCollapse" aria-expanded="false"
+                                                aria-controls="inactiveChannelsCollapse">
+                                                Показать неактивные каналы
+                                            </button>
+
+                                            <div class="collapse" id="inactiveChannelsCollapse">
+                                                <p class="text-muted mt-3">В этих каналах не было сообщений больше <%=
+                                                        daysThreshold %>
+                                                        дней.</p>
+                                                <table class="table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th scope="col">Канал</th>
+                                                            <th scope="col" class="text-end"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <% inactiveChannels.forEach(channel=> { %>
+                                                            <tr>
+                                                                <td>
+                                                                    <div class="d-flex align-items-center">
+                                                                        <div class="flex-grow-1">
+                                                                            <%= channel.display_name %>
+                                                                        </div>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <form action="/invite" method="post">
+                                                                        <input type="hidden" name="user_id"
+                                                                            value="<%= user_id %>">
+                                                                        <input type="hidden" name="channel_id"
+                                                                            value="<%= channel.id %>">
+                                                                        <button type="submit"
+                                                                            class="btn btn-outline-primary btn-sm">Войти
+                                                                            в канал</button>
+                                                                    </form>
+                                                                </td>
+                                                            </tr>
+                                                            <% }) %>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <% } %>
                         </div>
                     </div>
                 </div>

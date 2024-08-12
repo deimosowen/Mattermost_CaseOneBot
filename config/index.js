@@ -17,4 +17,5 @@ module.exports = {
     JIRA_ROOT_TASK_ID: process.env.JIRA_ROOT_TASK_ID,
     JIRA_BOT_USERNAME: process.env.JIRA_BOT_USERNAME,
     JIRA_BOT_PASSWORD: process.env.JIRA_BOT_PASSWORD,
+    INVITE_DAYS_THRESHOLD: process.env.INVITE_DAYS_THRESHOLD,
 };
