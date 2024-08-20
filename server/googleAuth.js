@@ -20,8 +20,16 @@ async function getOAuth2ClientForUser(user_id) {
     return userOAuth2Client;
 }
 
+function invalidateOAuth2ClientForUser(user_id) {
+    const userOAuth2Client = oAuth2ClientMap.get(user_id);
+    if (userOAuth2Client) {
+        oAuth2ClientMap.delete(user_id);
+    }
+}
+
 module.exports = {
     isLoad,
     createOAuth2Client,
     getOAuth2ClientForUser,
+    invalidateOAuth2ClientForUser,
 };

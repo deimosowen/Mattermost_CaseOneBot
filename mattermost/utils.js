@@ -143,7 +143,7 @@ const getPostThread = async (post_id) => {
 
 const setStatus = async (user_id, token, text, expires_at, dnd_mode) => {
     try {
-        const userClient = authUser(token);
+        const userClient = await authUser(token);
         const meInfo = await userClient.getMe();
         const currentStatus = meInfo.props.customStatus
         if (currentStatus && moment(currentStatus.expires_at).isAfter(moment())) {
@@ -165,6 +165,7 @@ const setStatus = async (user_id, token, text, expires_at, dnd_mode) => {
         });
         return true;
     } catch (error) {
+        logger.error(error);
         return false;
     }
 }

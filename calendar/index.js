@@ -71,7 +71,7 @@ async function listEventsForUser(user) {
         const events = res.data.items;
         if (events.length) {
             const eventPromises = events.map(async (event) => {
-                const eventStartTime = moment(event.start.dateTime);
+                const eventStartTime = moment(event.start.dateTime).tz(timezone);
                 const attendanceStatus = event.attendees ? event.attendees.find(att => att.email === mattermostUser.email)?.responseStatus : null;
                 if (attendanceStatus === 'declined') {
                     return;
@@ -83,7 +83,7 @@ async function listEventsForUser(user) {
                 }
                 if (eventStartTime.isSameOrBefore(now) && !(await checkIfStatusWasSet(user.user_id, event.id))) {
                     if (user.mattermost_token) {
-                        const statusText = user.event_summary || event.summary
+                        const statusText = user.event_summary || event.summary;
                         const status = await setStatus(user.user_id, user.mattermost_token, statusText, event.end.dateTime, user.dnd_mode);
                         if (status) {
                             await markStatusAsSet(user.user_id, event.id);
