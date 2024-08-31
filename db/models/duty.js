@@ -63,6 +63,24 @@ const updateUserActivityStatus = async (id, isDisabled, returnDate) => {
     );
 };
 
+// Обновление порядка дежурных пользователей
+const updateDutyUsersOrder = async (channel_id, order) => {
+    const promises = order.map((id, index) => {
+        return db.run(`
+            UPDATE duty_list 
+            SET order_number = ? 
+            WHERE channel_id = ? AND id = ?
+        `, index, channel_id, id);
+    });
+
+    return Promise.all(promises);
+};
+
+// Удаление дежурного пользователя в канале
+const removeDutyUser = async (id, channel_id) => {
+    return db.run('DELETE FROM duty_list WHERE id = ? AND channel_id = ?', id, channel_id);
+};
+
 // Удаление дежурного расписания
 const deleteDutySchedule = async (channel_id) => {
     return db.run('DELETE FROM duty_schedule WHERE channel_id = ?', channel_id);
@@ -118,4 +136,6 @@ module.exports = {
     getFirstUnscheduledUser,
     addUnscheduledUser,
     deleteUnscheduledUser,
+    removeDutyUser,
+    updateDutyUsersOrder,
 };

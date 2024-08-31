@@ -6,19 +6,26 @@
                 <div class="col-12 col-md-8 mx-auto">
                     <div class="card shadow">
                         <div class="card-body">
-                            <h1 class="card-title text-center">Дежурства</h1>
-                            <h6 class="text-center text-muted small" id="cronDescription"></h6>
+                            <div class="d-flex flex-column align-items-center">
+                                <h1 class="card-title text-center">Дежурства</h1>
+                                <h6 class="text-center text-muted small" id="cronDescription"></h6>
+                            </div>
                             <table class="table">
                                 <thead>
                                     <tr>
                                         <th scope="col">Имя</th>
                                         <th scope="col">Статус</th>
-                                        <th scope="col" class="text-end">Действие</th>
+                                        <th scope="col" class="text-end">
+                                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
+                                                data-bs-target="#addUserModal">
+                                                Добавить
+                                            </button>
+                                        </th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="sortableTableBody">
                                     <% employees.forEach(employee=> { %>
-                                        <tr>
+                                        <tr data-id="<%= employee.id %>">
                                             <td class="align-middle">
                                                 <%= employee.name %>
                                             </td>
@@ -41,7 +48,8 @@
                                                             <% } %>
                                             </td>
                                             <td class="text-end align-middle">
-                                                <form action="/duty/update-status" method="post">
+                                                <form action="/duty/update-status" method="post"
+                                                    id="statusForm-<%= employee.id %>">
                                                     <input type="hidden" name="id" value="<%= employee.id %>">
                                                     <input type="hidden" name="username"
                                                         value="<%= employee.username %>">
@@ -65,6 +73,10 @@
                                                                         data-bs-target="#disableUntilDateModal">Отключить
                                                                         до
                                                                         даты</a>
+                                                                </li>
+                                                                <li><button type="button"
+                                                                        class="dropdown-item text-danger"
+                                                                        onclick="deleteUser('<%= employee.id %>')">Удалить</button>
                                                                 </li>
                                                             </ul>
                                                         </div>
@@ -90,6 +102,31 @@
             </div>
         </div>
 
+        <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="addUserModalLabel">Добавить пользователя</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form action="/duty/add-user" method="post" onsubmit="disableSubmitButton(this);">
+                            <input type="hidden" name="channel_id" value="<%= channel_id %>">
+                            <div class="input-group mb-3">
+                                <span class="input-group-text" id="username">@</span>
+                                <input type="text" class="form-control" placeholder="Имя пользователя" id="username"
+                                    name="username" aria-label="username" aria-describedby="username">
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                <button type="submit" class="btn btn-success">Добавить</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="modal fade" id="disableUntilDateModal" data-bs-backdrop="static" data-bs-keyboard="false"
             tabindex="-1" aria-labelledby="disableUntilDateModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -110,9 +147,39 @@
             </div>
         </div>
 
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script>
+            const channelId = "<%= channel_id %>";
+
             document.addEventListener('DOMContentLoaded', function () {
                 fetchCronDescription();
+
+                const sortable = new Sortable(document.getElementById('sortableTableBody'), {
+                    animation: 150,
+                    handle: 'tr',
+                    onEnd: function (evt) {
+                        const sortedIds = Array.from(evt.to.children).map(row => row.dataset.id);
+
+                        fetch('/duty/update-order', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ channel_id: channelId, order: sortedIds })
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    console.log('Order updated successfully.');
+                                } else {
+                                    console.error('Failed to update order.');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error updating order:', error);
+                            });
+                    }
+                });
 
                 let relatedTarget = null;
                 const modal = document.getElementById('disableUntilDateModal');
@@ -134,9 +201,22 @@
                 });
             });
 
+            function disableSubmitButton(form) {
+                const submitButton = form.querySelector('button[type="submit"]');
+                submitButton.disabled = true;
+                submitButton.textContent = 'Добавление...';
+            }
+
+            function deleteUser(userId) {
+                if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
+                    const form = document.getElementById(`statusForm-${userId}`);
+                    form.action = '/duty/delete-user';
+                    form.submit();
+                }
+            }
+
             function fetchCronDescription() {
                 const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                const channelId = "<%= channel_id %>";
 
                 fetch('/duty/schedule', {
                     method: 'POST',
