@@ -1,5 +1,6 @@
 const { postMessageInTreed } = require('../mattermost/utils');
-const { getTask } = require('../jira');
+const { getTask, changeStatus } = require('../jira');
+const JiraStatusType = require('../types/jiraStatusTypes');
 const logger = require('../logger');
 const { INREVIEW_CHANNEL_IDS, JIRA_BOT_USERNAME, JIRA_BOT_PASSWORD } = require('../config');
 
@@ -17,7 +18,11 @@ module.exports = async (post, eventData) => {
         const authHeader = btoa(`${JIRA_BOT_USERNAME}:${JIRA_BOT_PASSWORD}`);
         const task = await getTask(taskKey, `Basic ${authHeader}`);
         if (!isInReviewStatus(task.status)) {
-            const message = prepareMessage(eventData, taskKey, task.status);
+            let message = prepareMessage(eventData, taskKey, task.status);
+            if (isInProgressStatus(task.status)) {
+                await changeStatusToInReview(taskKey, `Basic ${authHeader}`);
+                message += `\nСтатус задачи изменен на **${JiraStatusType.INREVIEW}**.`;
+            }
             postMessageInTreed(post.id, message);
         }
         return;
@@ -26,8 +31,12 @@ module.exports = async (post, eventData) => {
     }
 }
 
+function changeStatusToInReview(taskKey, authHeader) {
+    return changeStatus(taskKey, JiraStatusType.INREVIEW, authHeader);
+}
+
 function prepareMessage(eventData, taskKey, currentStatus) {
-    return `${eventData.sender_name}, статус задачи ${taskKey} не соответствует "In Review". Текущий статус: "${currentStatus}".`;
+    return `${eventData.sender_name}, статус задачи **${taskKey}** не соответствует **${JiraStatusType.INREVIEW}**.\nТекущий статус: **${currentStatus}**.`;
 }
 
 function checkChannel(channel_id) {
@@ -35,7 +44,11 @@ function checkChannel(channel_id) {
 }
 
 function isInReviewStatus(status) {
-    return status.toLowerCase() === 'in review'.toLowerCase();
+    return status.toLowerCase() === JiraStatusType.INREVIEW.toLowerCase();
+}
+
+function isInProgressStatus(status) {
+    return status.toLowerCase() === JiraStatusType.INPROGRESS.toLowerCase();
 }
 
 function checkAndExtractTaskNumber(post) {

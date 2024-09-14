@@ -29,6 +29,15 @@ router.get('/:taskId/subtasks', async (req, res) => {
     }
 });
 
+router.put('/:taskId/status', async (req, res) => {
+    try {
+        await jiraService.changeStatus(req.jira, req.params.taskId, req.body.status);
+        res.send('Статус успешно изменен');
+    } catch (error) {
+        res.status(500).send(error.toString());
+    }
+});
+
 router.post('/log-time', async (req, res) => {
     try {
         await jiraService.logTime(req.jira, req.body);

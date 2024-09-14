@@ -89,10 +89,26 @@ const logTime = async (jiraClient, { taskId, started, duration, comment }) => {
     }
 };
 
+const changeStatus = async (jiraClient, taskId, status) => {
+    try {
+        const transitions = await jiraClient.listTransitions(taskId);
+        const transition = transitions.transitions.find(t => t.to.name.toLowerCase() === status.toLowerCase());
+
+        if (!transition) {
+            throw new Error(`Переход к статусу "${status}" не найден для задачи ${taskId}.`);
+        }
+
+        await jiraClient.transitionIssue(taskId, { transition: { id: transition.id } });
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
     createJiraClient,
     getTask,
     getTaskParent,
     getSubtasks,
-    logTime
+    logTime,
+    changeStatus,
 };
