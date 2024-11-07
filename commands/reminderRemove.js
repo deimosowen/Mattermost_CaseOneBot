@@ -1,14 +1,14 @@
 const { deleteReminder } = require('../db/models/reminders');
 const { cancelCronJob } = require('../cron');
-const { postMessage } = require('../mattermost/utils');
+const { postMessageInTreed } = require('../mattermost/utils');
 const logger = require('../logger');
 const TaskType = require('../types/taskTypes');
 
-module.exports = async ({ channel_id, user_id, args }) => {
+module.exports = async ({ post_id, channel_id, user_id, args }) => {
     const [id] = args;
 
     if (!id) {
-        postMessage(channel_id, 'Ошибка: не указан ID напоминания.');
+        postMessageInTreed(post_id, 'Ошибка: не указан ID напоминания.');
         return;
     }
 
@@ -17,9 +17,9 @@ module.exports = async ({ channel_id, user_id, args }) => {
 
         if (changes > 0) {
             cancelCronJob(id, TaskType.REMINDER);
-            postMessage(channel_id, `Напоминание \`${id}\` успешно удалено.`);
+            postMessageInTreed(post_id, `Напоминание \`${id}\` успешно удалено.`);
         } else {
-            postMessage(channel_id, `Не удалось найти напоминание \`${id}\` для удаления.`);
+            postMessageInTreed(post_id, `Не удалось найти напоминание \`${id}\` для удаления.`);
         }
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
