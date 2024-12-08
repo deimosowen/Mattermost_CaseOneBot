@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const homeController = require('./controllers/homeController');
 const oauthController = require('./controllers/oauthController');
 const calendarController = require('./controllers/calendarController');
 const dutyController = require('./controllers/dutyController');
@@ -16,7 +17,8 @@ const initializeServer = () => {
     app.set('views', path.join(__dirname, '/views'));
     app.use(express.static('public'));
 
-    app.use('/', oauthController);
+    app.use('/', homeController);
+    app.use('/oauth', oauthController);
     app.use('/calendar', calendarController);
     app.use('/duty', dutyController);
     app.use('/invite', inviteController);

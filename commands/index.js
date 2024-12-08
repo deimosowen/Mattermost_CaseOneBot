@@ -1,5 +1,4 @@
 const invite = require('./invite');
-const calendar = require('./calendar');
 const calendarSettings = require('./calendar/calendarSettings');
 const calendarRemove = require('./calendarRemove');
 const meet = require('./meet');
@@ -25,7 +24,7 @@ const commands = {
     '!jira': jira,
     '!sendAs': sendAs,
     '!invite': invite,
-    '!calendar': calendar,
+    '!calendar': calendarSettings,
     '!calendar-settings': calendarSettings,
     '!calendar-remove': calendarRemove,
     '!meet': meet,

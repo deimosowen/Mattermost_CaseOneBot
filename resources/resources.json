@@ -15,13 +15,13 @@
         "changeStatusSuccess": "Изменена активность дежурного {user}"
     },
     "calendar": {
-        "alreadyConnected": "Вы уже подключили свой Google Календарь",
+        "alreadyConnected": "Вы уже подключили свой Календарь",
         "authRequest": "Пожалуйста, авторизуйте бота, перейдя по этой ссылке: {url}",
-        "notConnected": "Вы еще не подключили свой Google Календарь",
-        "disconnected": "Вы успешно отключили свой Google Календарь",
+        "notConnected": "Вы еще не подключили свой Календарь",
+        "disconnected": "Вы успешно отключили свой Календарь",
         "defaultMeetingSummary": "Рабочее обсуждение",
         "meetingSummaryWithUsers": "Встреча с {users}",
-        "notAuthorized": "Вы не авторизованы в Google Календаре.\nПожалуйста, используйте команду `!calendar` для авторизации.",
+        "notAuthorized": "Вы не авторизованы в Календаре.\nПожалуйста, используйте команду `!calendar` для авторизации.",
         "meetingCreated": "Ваша встреча создана! Присоединяйтесь: [{linkName}]({link})",
         "errorCreatingMeeting": "Произошла ошибка при создании встречи."
     },

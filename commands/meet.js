@@ -1,7 +1,8 @@
-const { google } = require('googleapis');
-const { isLoad, getOAuth2ClientForUser } = require('../server/googleAuth');
+const moment = require('moment-timezone');
+const YandexService = require('../services/yandexService');
+const YandexApiManager = require('../services/yandexService/apiManager');
 const { postMessageInTreed, getUserByUsername, getUser: getUserFromMattermost } = require('../mattermost/utils');
-const { getUser, markEventAsNotified } = require('../db/models/calendars');
+const { markEventAsNotified } = require('../db/models/calendars');
 const logger = require('../logger');
 const resources = require('../resources');
 
@@ -27,51 +28,33 @@ function parseDuration(durationString = '15m') {
     }
 }
 
-async function createMeetEvent(user, summary, users, duration) {
+async function createMeetEvent(author, summary, users, duration) {
     try {
-        const userOAuth2Client = await getOAuth2ClientForUser(user.user_id);
-
-        const calendar = google.calendar({ version: 'v3', auth: userOAuth2Client });
-
         const durationInMilliseconds = parseDuration(duration);
-        const eventStart = new Date();
-        const eventEnd = new Date(eventStart.getTime() + durationInMilliseconds);
+        const eventStart = moment().utc();
+        const eventEnd = eventStart.clone().add(durationInMilliseconds, 'ms');
 
-        const event = {
+        const eventData = {
             summary: summary,
-            start: {
-                dateTime: eventStart.toISOString(),
-                timeZone: 'UTC',
-            },
-            end: {
-                dateTime: eventEnd.toISOString(),
-                timeZone: 'UTC',
+            start: eventStart,
+            end: eventEnd,
+            organizer: {
+                name: author.username,
+                email: author.email
             },
             attendees: users.map(u => ({
                 name: u.name,
                 email: u.email
-            })),
-            conferenceData: {
-                createRequest: {
-                    requestId: `mattermost-meet-${Date.now()}`,
-                    conferenceSolutionKey: {
-                        type: 'hangoutsMeet',
-                    },
-                },
-            },
+            }))
         };
 
-        const { data } = await calendar.events.insert({
-            calendarId: 'primary',
-            resource: event,
-            conferenceDataVersion: 1,
-        });
-
         users.forEach(user => {
-            markEventAsNotified(user.id, data);
+            markEventAsNotified(user.id, eventData);
         });
 
-        return data.hangoutLink;
+        const api = await YandexApiManager.getApiInstance(author.id);
+        const event = await api.createEvent(eventData);
+        return event.conference.join_url;
     } catch (error) {
         logger.error(`Error creating Meet event: ${error.message}`);
         throw error;
@@ -125,12 +108,8 @@ module.exports = async ({ user_id, post_id, args }) => {
     try {
         const [userString, summary, duration] = args;
 
-        if (isLoad === false) {
-            return;
-        }
-
-        const user = await getUser(user_id);
-        if (!user) {
+        const isAuthenticated = await YandexService.isAuthenticated(user_id);
+        if (isAuthenticated === false) {
             postMessageInTreed(post_id, resources.calendar.notAuthorized);
             return;
         }
@@ -152,7 +131,7 @@ module.exports = async ({ user_id, post_id, args }) => {
             return acc;
         }, []);
 
-        const meetLink = await createMeetEvent(user, preparedSummary, uniqueUsers, duration);
+        const meetLink = await createMeetEvent(author, preparedSummary, uniqueUsers, duration);
         if (meetLink) {
             postMessageInTreed(post_id, resources.calendar.meetingCreated.replace('{linkName}', meetLink).replace('{link}', meetLink));
         } else {

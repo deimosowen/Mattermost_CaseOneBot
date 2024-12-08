@@ -23,10 +23,10 @@ More than just reminders. This robust bot was designed initially for cron-based 
    - Using the channel name: `!invite; general`
    - Using the channel link: `!invite; https://your-mattermost-server.com/teamname/channels/general`
 
-### Google Calendar Integration
-* `!calendar` - Initiates the Google Calendar integration process. Upon invocation, the user will receive a link to grant the bot access to their Google Calendar data.
-* `!calendar-remove` - Removes the Google Calendar integration for the current user. This action will revoke the bot's permission to access the user's Google Calendar.
-* `!meet` - Creates a Google Meet meeting. Variants:
+### Yandex Calendar Integration
+* `!calendar` - Initiates the Yandex Calendar integration process. Upon invocation, the user will receive a link to grant the bot access to their Yandex Calendar data.
+* `!calendar-remove` - Removes the Yandex Calendar integration for the current user. This action will revoke the bot's permission to access the user's Yandex Calendar.
+* `!meet` - Creates a Yandex meeting. Variants:
    - `!meet` - Creates a quick meeting with default settings.
    - `!meet; [user-list]` - Creates a meeting with specified users.
    - `!meet; [user-list]; [meeting title]` - Creates a meeting with a title and specified users.

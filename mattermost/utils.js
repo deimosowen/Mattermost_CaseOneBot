@@ -145,29 +145,54 @@ const setStatus = async (user_id, token, text, expires_at, dnd_mode) => {
     try {
         const userClient = await authUser(token);
         const meInfo = await userClient.getMe();
-        const currentStatus = meInfo.props.customStatus
-        if (currentStatus && moment(currentStatus.expires_at).isAfter(moment())) {
+
+        let currentStatus = meInfo.props.customStatus;
+        if (typeof currentStatus === 'string') {
+            try {
+                currentStatus = JSON.parse(currentStatus);
+            } catch (parseError) {
+                logger.error('Ошибка при парсинге currentStatus:', parseError);
+                currentStatus = null;
+            }
+        }
+
+        const currentExpiresAt = currentStatus && currentStatus.expires_at
+            ? moment.utc(currentStatus.expires_at)
+            : null;
+
+        const now = moment().utc();
+
+        if (currentStatus && currentExpiresAt && currentExpiresAt.isAfter(now)) {
             return true;
         }
+
         if (dnd_mode) {
+            const dndEndTime = moment(expires_at).utc().unix();
             await userClient.updateStatus({
                 user_id: user_id,
                 status: 'dnd',
                 manual: true,
-                dnd_end_time: moment(expires_at).unix()
+                dnd_end_time: dndEndTime
             });
         }
+
         await userClient.updateCustomStatus({
             emoji: 'calendar',
             text: text,
             duration: 'date_and_time',
             expires_at: expires_at
         });
+
         return true;
     } catch (error) {
-        logger.error(error);
+        logger.error('Ошибка при обновлении статуса:', error);
         return false;
     }
+};
+
+const createDirectChannel = async (user_ids) => {
+    const channel = await client.createDirectChannel(user_ids);
+    return channel;
 }
 
 module.exports = {
@@ -191,4 +216,5 @@ module.exports = {
     downloadFile,
     uploadFile,
     setStatus,
+    createDirectChannel,
 };
