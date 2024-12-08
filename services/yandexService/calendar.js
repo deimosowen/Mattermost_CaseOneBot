@@ -84,9 +84,7 @@ class CalendarManager {
             const formattedStartTime = now.clone().format('YYYYMMDDTHHmmss[Z]');
             const formattedEndTime = now.clone().add(user.notification_interval, 'minutes').format('YYYYMMDDTHHmmss[Z]');
 
-            const events = await api.listEvents('20241206T000000Z', formattedEndTime);
-
-            // const events = await api.listEvents(formattedStartTime, formattedEndTime);
+            const events = await api.listEvents(formattedStartTime, formattedEndTime);
 
             for (const event of events) {
                 await this.processEvent(user, event, now, timezone);
