@@ -11,10 +11,28 @@ router.get('/:taskId', async (req, res) => {
     }
 });
 
+router.get('/:taskId/parent', async (req, res) => {
+    try {
+        const subtasks = await jiraService.getTaskParent(req.jira, req.params.taskId);
+        res.json(subtasks);
+    } catch (error) {
+        res.status(500).send(error.toString());
+    }
+});
+
 router.get('/:taskId/subtasks', async (req, res) => {
     try {
         const subtasks = await jiraService.getSubtasks(req.jira, req.params.taskId);
         res.json(subtasks);
+    } catch (error) {
+        res.status(500).send(error.toString());
+    }
+});
+
+router.put('/:taskId/status', async (req, res) => {
+    try {
+        await jiraService.changeStatus(req.jira, req.params.taskId, req.body.status);
+        res.send('Статус успешно изменен');
     } catch (error) {
         res.status(500).send(error.toString());
     }

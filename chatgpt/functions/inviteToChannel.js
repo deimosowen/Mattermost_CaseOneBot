@@ -1,14 +1,19 @@
 const inviteService = require('../../services/inviteServices');
 const { getPost } = require('../../mattermost/utils');
-const { getTask } = require('../../jira');
+const { getTaskParent } = require('../../jira');
 const { JIRA_BOT_USERNAME, JIRA_BOT_PASSWORD } = require('../../config');
 
-const inviteToChannel = async ({ post_id, task_key }) => {
+const inviteToChannel = async ({ post_id, task_key, message_url }) => {
     try {
+        let link;
         const post = await getPost(post_id);
-        const authHeader = btoa(`${JIRA_BOT_USERNAME}:${JIRA_BOT_PASSWORD}`);
-        const task = await getTask(task_key, `Basic ${authHeader}`);
-        const link = extractLink(task.comments);
+        if (task_key) {
+            const authHeader = btoa(`${JIRA_BOT_USERNAME}:${JIRA_BOT_PASSWORD}`);
+            const task = await getTaskParent(task_key, `Basic ${authHeader}`);
+            link = extractLink(task.comments);
+        } else if (message_url) {
+            link = message_url;
+        }
         const result = await inviteService.tryAddToChannel(post.user_id, [link]);
         return {
             data: result,
@@ -35,14 +40,14 @@ const extractLink = (comments) => {
 
 module.exports = {
     name: 'inviteToChannel',
-    description: 'Пригласить пользователя в канал по номеру задачи',
+    description: 'Пригласить пользователя в канал по номеру задачи или по ссылке на сообщение в канале',
     parameters: {
         type: 'object',
         properties: {
             post_id: { type: 'string' },
             task_key: { type: 'string', description: 'Номер задачи в формате "CASEM-XXXXX"' },
+            message_url: { type: 'string', description: 'Ссылка на сообщение в канале' },
         },
-        required: ['task_key'],
     },
     function: inviteToChannel,
 };

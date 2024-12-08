@@ -3,11 +3,24 @@ const { postMessage, getUser } = require('../mattermost/utils');
 const { google } = require('googleapis');
 const { isLoad, getOAuth2ClientForUser } = require('../server/googleAuth');
 const { CronJob } = require('../cron');
+const { setStatus } = require('../mattermost/utils');
 const { getAllUsers, markEventAsNotified, checkIfEventWasNotified,
+    markStatusAsSet, checkIfStatusWasSet,
     removeNotifiedEvents, removeUser, removeUserSettings } = require('../db/models/calendars');
 const logger = require('../logger');
 const TurndownService = require('turndown');
 const turndownService = new TurndownService();
+
+const mattermostUserCache = new Map();
+
+async function getMattermostUser(user_id) {
+    let mattermostUser = mattermostUserCache.get(user_id);
+    if (!mattermostUser) {
+        mattermostUser = await getUser(user_id);
+        mattermostUserCache.set(user_id, mattermostUser);
+    }
+    return mattermostUser;
+}
 
 const initGoogleCalendarNotifications = async () => {
     if (isLoad === false) {
@@ -41,7 +54,7 @@ const notifyUser = async (user) => {
 async function listEventsForUser(user) {
     try {
         const userOAuth2Client = await getOAuth2ClientForUser(user.user_id);
-        const mattermostUser = await getUser(user.user_id);
+        const mattermostUser = await getMattermostUser(user.user_id);
         const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true' ? mattermostUser.timezone.automaticTimezone : mattermostUser.timezone.manualTimezone;
         const now = moment().tz(timezone);
         const tenMinutesFromNow = now.clone().add(user.notification_interval + 1, 'minutes');
@@ -58,15 +71,24 @@ async function listEventsForUser(user) {
         const events = res.data.items;
         if (events.length) {
             const eventPromises = events.map(async (event) => {
-                const eventStartTime = moment(event.start.dateTime);
+                const eventStartTime = moment(event.start.dateTime).tz(timezone);
                 const attendanceStatus = event.attendees ? event.attendees.find(att => att.email === mattermostUser.email)?.responseStatus : null;
                 if (attendanceStatus === 'declined') {
                     return;
                 }
                 if (eventStartTime.isAfter(now) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
-                    const message = createEventMessage(event, timezone);
+                    const message = createEventMessage(event, timezone, user);
                     await postMessage(user.channel_id, message);
                     await markEventAsNotified(user.user_id, event);
+                }
+                if (eventStartTime.isSameOrBefore(now) && !(await checkIfStatusWasSet(user.user_id, event.id))) {
+                    if (user.mattermost_token) {
+                        const statusText = user.event_summary || event.summary;
+                        const status = await setStatus(user.user_id, user.mattermost_token, statusText, event.end.dateTime, user.dnd_mode);
+                        if (status) {
+                            await markStatusAsSet(user.user_id, event.id);
+                        }
+                    }
                 }
             });
             await Promise.all(eventPromises);
@@ -92,11 +114,12 @@ const getEventById = async (user_id, event_id) => {
     }
 };
 
-function createEventMessage(event, userTimeZone) {
+function createEventMessage(event, userTimeZone, user) {
     try {
+        const authuser = user.authuser || 0;
         const eventDate = moment(event.start.dateTime || event.start.date).tz(userTimeZone);
         const description = event.description ? `${turndownService.turndown(event.description)}\n` : '';
-        const hangoutLink = event.hangoutLink ? `[Присоединиться к Google Meet](${event.hangoutLink})` : '';
+        const hangoutLink = event.hangoutLink ? `[Присоединиться к Google Meet](${event.hangoutLink}?authuser=${authuser})` : '';
         return `
 **${event.summary}**
 *${eventDate.format('LLL')}*\n

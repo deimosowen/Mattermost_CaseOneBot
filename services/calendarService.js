@@ -25,6 +25,29 @@ const createEvent = async (userId, eventData) => {
     }
 }
 
+const findEvents = async (userId, event) => {
+    try {
+        const userOAuth2Client = await getOAuth2ClientForUser(userId);
+        const calendar = google.calendar({ version: 'v3', auth: userOAuth2Client });
+
+        const oneYearAgo = moment().subtract(1, 'year').toISOString();
+        const now = moment().toISOString();
+
+        const res = await calendar.events.list({
+            calendarId: 'primary',
+            q: event,
+            timeMin: oneYearAgo,
+            timeMax: now,
+            singleEvents: true,
+            orderBy: 'startTime',
+        });
+
+        return res.data.items;
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    }
+};
+
 const getEventById = async (userId, eventId) => {
     try {
         const userOAuth2Client = await getOAuth2ClientForUser(userId);

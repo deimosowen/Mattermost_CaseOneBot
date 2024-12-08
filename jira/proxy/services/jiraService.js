@@ -15,6 +15,20 @@ const createJiraClient = ({ username, password }) => {
 };
 
 const getTask = async (jiraClient, taskId) => {
+    let task = await jiraClient.findIssue(taskId);
+    const taskData = {
+        key: task.key,
+        summary: task.fields.summary,
+        description: task.fields.description,
+        status: task.fields.status.name,
+        created: task.fields.created,
+        updated: task.fields.updated,
+        comments: task.fields.comment.comments
+    };
+    return taskData;
+};
+
+const getTaskParent = async (jiraClient, taskId) => {
     const customField = "customfield_11161";
     let task = await jiraClient.findIssue(taskId);
     if (task.fields[customField] !== null) {
@@ -75,9 +89,26 @@ const logTime = async (jiraClient, { taskId, started, duration, comment }) => {
     }
 };
 
+const changeStatus = async (jiraClient, taskId, status) => {
+    try {
+        const transitions = await jiraClient.listTransitions(taskId);
+        const transition = transitions.transitions.find(t => t.to.name.toLowerCase() === status.toLowerCase());
+
+        if (!transition) {
+            throw new Error(`Переход к статусу "${status}" не найден для задачи ${taskId}.`);
+        }
+
+        await jiraClient.transitionIssue(taskId, { transition: { id: transition.id } });
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
     createJiraClient,
     getTask,
+    getTaskParent,
     getSubtasks,
-    logTime
+    logTime,
+    changeStatus,
 };

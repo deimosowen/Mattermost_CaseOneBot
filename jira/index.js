@@ -48,8 +48,40 @@ async function getTask(taskId, authHeader) {
     }
 }
 
+async function getTaskParent(taskId, authHeader) {
+    const url = `${JIRA_API_URL}/tasks/${taskId}/parent`;
+    try {
+        const response = await axios.get(url, {
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+            }
+        });
+        return (response.data);
+    } catch (error) {
+        logger.error('Ошибка при получении задачи:', error);
+    }
+}
+
+async function changeStatus(taskId, status, authHeader) {
+    const url = `${JIRA_API_URL}/tasks/${taskId}/status`;
+    try {
+        const response = await axios.put(url, { status }, {
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+            }
+        });
+        return (response.data);
+    } catch (error) {
+        logger.error('Ошибка при изменении статуса задачи:', error);
+    }
+}
+
 module.exports = {
     getSubtasks,
     logTime,
     getTask,
+    getTaskParent,
+    changeStatus,
 };

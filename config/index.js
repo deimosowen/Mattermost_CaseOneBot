@@ -3,6 +3,7 @@ module.exports = {
     BOT_TOKEN: process.env.BOT_TOKEN,
     TEAM_CHANNEL_ID: process.env.TEAM_CHANNEL_ID,
     TEAM_CHANNEL_PREFIX: process.env.TEAM_CHANNEL_PREFIX,
+    INREVIEW_CHANNEL_IDS: process.env.INREVIEW_CHANNEL_IDS ? process.env.INREVIEW_CHANNEL_IDS.split(",") : [],
     ADMIN_ID: process.env.ADMIN_ID,
     TZ: process.env.TZ,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -16,4 +17,5 @@ module.exports = {
     JIRA_ROOT_TASK_ID: process.env.JIRA_ROOT_TASK_ID,
     JIRA_BOT_USERNAME: process.env.JIRA_BOT_USERNAME,
     JIRA_BOT_PASSWORD: process.env.JIRA_BOT_PASSWORD,
+    INVITE_DAYS_THRESHOLD: process.env.INVITE_DAYS_THRESHOLD,
 };

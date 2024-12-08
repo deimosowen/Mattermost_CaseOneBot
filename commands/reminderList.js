@@ -1,11 +1,11 @@
 const { getReminders } = require('../db/models/reminders');
-const { postMessage } = require('../mattermost/utils');
+const { postMessageInTreed } = require('../mattermost/utils');
 
-module.exports = async ({ channel_id }) => {
+module.exports = async ({ post_id, channel_id }) => {
     const reminders = await getReminders(channel_id);
 
     if (reminders.length === 0) {
-        postMessage(channel_id, 'Нет активных напоминаний.');
+        postMessageInTreed(post_id, 'Нет активных напоминаний.');
         return;
     }
 
@@ -15,5 +15,5 @@ module.exports = async ({ channel_id }) => {
         message += `- ID: \`${reminder.id}\`, Расписание: \`${reminder.schedule}\`, Автор: ${reminder.user_name}, Сообщение: ${reminder.message}\n`;
     });
 
-    postMessage(channel_id, message);
+    postMessageInTreed(post_id, message);
 };

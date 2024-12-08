@@ -1,5 +1,5 @@
 const { postMessageInTreed } = require('../mattermost/utils');
-const { isLoad, oAuth2Client } = require('../server/googleAuth');
+const { isLoad, createOAuth2Client } = require('../server/googleAuth');
 const logger = require('../logger');
 const resources = require('../resources');
 
@@ -14,7 +14,9 @@ module.exports = async ({ post_id, channel_id, channel_type, user_id }) => {
             return;
         }
 
-        const authUrl = oAuth2Client.generateAuthUrl({
+        const userOAuth2Client = await createOAuth2Client();
+
+        const authUrl = userOAuth2Client.generateAuthUrl({
             access_type: 'offline',
             prompt: 'consent',
             scope: ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar.events'],

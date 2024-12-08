@@ -4,7 +4,8 @@ const cronstrue = require('cronstrue');
 const { rotateDuty } = require('../../services/dutyService');
 const { getDutySchedule, getDutyUsers,
     getCurrentDuty, updateUserActivityStatus,
-    getUnscheduledList } = require('../../db/models/duty');
+    getUnscheduledList, removeDutyUser, addDutyUser,
+    updateDutyUsersOrder } = require('../../db/models/duty');
 const { getUserByUsername, postMessage } = require('../../mattermost/utils');
 const logger = require('../../logger');
 require('cronstrue/locales/ru');
@@ -70,6 +71,42 @@ router.post('/update-status', async (req, res) => {
                 await updateUserActivityStatus(id, status, returnDate);
                 break;
         }
+        res.redirect(`/duty?channel_id=${channel_id}`);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    }
+});
+
+router.post('/update-order', async (req, res) => {
+    try {
+        const { channel_id, order } = req.body;
+        await updateDutyUsersOrder(channel_id, order);
+        res.json({ message: 'OK' });
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ message: 'Ошибка при обновлении порядка пользователей' });
+    }
+});
+
+router.post('/add-user', async (req, res) => {
+    const { username, channel_id } = req.body;
+    try {
+        const formattedUsername = username.startsWith('@') ? username.substring(1) : username;
+        const userDetails = await getUserByUsername(formattedUsername);
+        if (userDetails) {
+            await addDutyUser(channel_id, `@${userDetails.username}`, 999);
+        }
+        res.redirect(`/duty?channel_id=${channel_id}`);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.redirect(`/duty?channel_id=${channel_id}`);
+    }
+});
+
+router.post('/delete-user', async (req, res) => {
+    try {
+        const { id, channel_id } = req.body;
+        await removeDutyUser(id, channel_id);
         res.redirect(`/duty?channel_id=${channel_id}`);
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
