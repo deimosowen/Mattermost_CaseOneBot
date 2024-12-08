@@ -1,7 +1,7 @@
 const moment = require('moment-timezone');
 const { getUser: getMattermostUser, postMessage, setStatus } = require('../../mattermost/utils');
 const { markEventAsNotified, checkIfEventWasNotified, markStatusAsSet, checkIfStatusWasSet, removeNotifiedEvents } = require('../../db/models/calendars');
-const CacheService = require('../CacheService');
+const CacheService = require('../cacheService');
 const YandexService = require('./index');
 const YandexApiManager = require('./apiManager');
 const { CronJob } = require('cron');

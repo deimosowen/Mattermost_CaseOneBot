@@ -1,4 +1,4 @@
-const CacheService = require('../CacheService');
+const CacheService = require('../cacheService');
 const YandexApi = require('./api');
 const YandexService = require('./index');
 
