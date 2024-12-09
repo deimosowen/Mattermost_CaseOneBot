@@ -27,11 +27,11 @@ class YandexApi {
                 authMethod: 'Basic',
                 defaultAccountType: 'caldav',
                 defaultRequestOptions: {
-                    timeout: 30000,
+                    timeout: 60000,
                 },
             });
         } catch (error) {
-            logger.error('Ошибка инициализации DAV клиента:', error);
+            logger.error(error);
             throw new Error('Не удалось инициализировать DAV клиент.');
         }
     }
@@ -121,13 +121,13 @@ class YandexApi {
                     const eventData = await this.fetchEventDirectly(event.href);
                     parsedEvents.push(eventData);
                 } catch (error) {
-                    logger.warn(`Не удалось загрузить событие ${event.href}:`, error.message);
+                    logger.warn(`Не удалось загрузить событие ${event.href}:`, error);
                 }
             }
 
             return parsedEvents;
         } catch (error) {
-            logger.error('Ошибка получения событий:', error);
+            logger.error(error);
             throw new Error('Не удалось получить события.');
         }
     }
@@ -168,7 +168,7 @@ class YandexApi {
                 'BEGIN:VEVENT',
                 `SUMMARY:${summary || 'Без названия'}`,
                 `UID:event-${Date.now()}@caseonebot`,
-                'SEQUENCE:1',
+                'SEQUENCE:0',
                 'STATUS:CONFIRMED',
                 'TRANSP:OPAQUE',
                 `DTSTART:${moment.utc(start).format('YYYYMMDDTHHmmss')}Z`,
@@ -179,7 +179,7 @@ class YandexApi {
                 organizerString,
                 attendeeStrings,
                 conferenceFields,
-                'CLASS:PRIVATE',
+                'CLASS:PUBLIC',
                 'END:VEVENT',
                 'END:VCALENDAR'
             ].join('\n');
