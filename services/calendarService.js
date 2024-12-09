@@ -1,29 +1,9 @@
-const moment = require('moment-timezone');
+/*const moment = require('moment-timezone');
 const { google } = require('googleapis');
 const { getOAuth2ClientForUser } = require('../server/googleAuth');
 const { markEventAsNotified } = require('../db/models/calendars');
 const logger = require('../logger');
 
-const createEvent = async (userId, eventData) => {
-    try {
-        const userOAuth2Client = await getOAuth2ClientForUser(userId);
-        const calendar = google.calendar({ version: 'v3', auth: userOAuth2Client });
-        const response = await calendar.events.insert({
-            calendarId: 'primary',
-            resource: eventData,
-            conferenceDataVersion: 1,
-        });
-
-        /*users.forEach(user => {
-            markEventAsNotified(user.id, data);
-        });*/
-
-        return response.data;
-    } catch (error) {
-        logger.error(`Error creating calendar event: ${error.message}`);
-        return "Ошибка создания встречи";
-    }
-}
 
 const findEvents = async (userId, event) => {
     try {
@@ -82,13 +62,14 @@ const findEventByTaskNumber = async (userId, event, taskId) => {
     }
 };
 
-const findFreeTimeSlotForGroup = async (userId, participants, duration = 30, requiredSlots = 5) => {
+const findFreeTimeSlotForGroup = async (userId, participants, duration = 30, requiredSlots = 1) => {
     try {
         const userOAuth2Client = await getOAuth2ClientForUser(userId);
         const calendar = google.calendar({ version: 'v3', auth: userOAuth2Client });
 
-        const now = moment();
-        const oneWeekFromNow = moment().add(1, 'week');
+        // Текущее время в UTC
+        const now = moment.utc();
+        const oneWeekFromNow = now.clone().add(1, 'week');
 
         const items = participants.map(email => ({ id: email }));
 
@@ -100,31 +81,38 @@ const findFreeTimeSlotForGroup = async (userId, participants, duration = 30, req
             },
         });
 
+        console.log(res.data);
         const busyTimes = res.data.calendars;
 
         const isWeekend = date => date.isoWeekday() === 6 || date.isoWeekday() === 7;
 
         const freeSlots = [];
-        let start = now;
+        let start = now.clone();
+
+        // Установка начала рабочего дня на 6 утра по UTC, если текущее время раньше
+        if (start.hour() < 6) {
+            start = start.hour(6).minute(0).second(0).millisecond(0);
+        } else if (start.hour() >= 15) {
+            // Если текущее время уже после рабочего дня, переход на начало следующего дня
+            start = start.add(1, 'day').hour(6).minute(0).second(0).millisecond(0);
+        }
+
         while (start.isBefore(oneWeekFromNow) && freeSlots.length < requiredSlots) {
             if (isWeekend(start)) {
-                start = start.add(1, 'day').startOf('day');
-                continue;
-            }
-
-            const startHour = start.hour();
-            if (startHour < 6) {
-                start = start.hour(6).minute(0).second(0).millisecond(0).utc();
-            } else if (startHour >= 15) {
-                start = start.add(1, 'day').hour(6).minute(0).second(0).millisecond(0).utc();
+                start = start.add(1, 'day').hour(6).minute(0).second(0).millisecond(0);
                 continue;
             }
 
             const end = start.clone().add(duration, 'minutes');
-            if (end.isAfter(oneWeekFromNow)) break;
+            if (start.hour() >= 15) {
+                // Если конец слота выходит за пределы рабочего дня, переход на начало следующего дня
+                start = start.add(1, 'day').hour(6).minute(0).second(0).millisecond(0);
+                continue;
+            }
 
             const isFree = participants.every(email => {
                 const userBusyTimes = busyTimes[email].busy;
+                console.log(busyTimes[email]);
                 return userBusyTimes.every(interval => {
                     const busyStart = moment(interval.start);
                     const busyEnd = moment(interval.end);
@@ -145,6 +133,11 @@ const findFreeTimeSlotForGroup = async (userId, participants, duration = 30, req
 
                 if (nextBusyTimes.length > 0) {
                     start = moment(nextBusyTimes[0].end);
+                    if (start.hour() < 6) {
+                        start.hour(6).minute(0).second(0).millisecond(0);
+                    } else if (start.hour() >= 15) {
+                        start = start.add(1, 'day').hour(6).minute(0).second(0).millisecond(0);
+                    }
                 } else {
                     break;
                 }
@@ -215,3 +208,4 @@ module.exports = {
     findEventByTaskNumber,
     findFreeTimeSlotForGroup,
 };
+*/

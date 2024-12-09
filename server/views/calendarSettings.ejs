@@ -1,98 +1,125 @@
 <% layout('layout') -%>
     <% block('title', 'Настройки Календаря' ); -%>
 
+        <head>
+            <script
+                src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"></script>
+        </head>
+
         <div class="container my-4">
             <div class="row justify-content-center">
                 <div class="col-12 col-md-8 col-lg-6">
-                    <div class="card shadow-lg mx-auto rounded">
-                        <div class="card-body">
-                            <h2 class="card-title text-center mb-3">Настройки календаря</h2>
-                            <% if (success) { %>
-                                <div class="alert alert-success text-center" role="alert">
-                                    Настройки успешно сохранены!
-                                </div>
-                                <% } %>
-                                    <form action="/calendar/settings/" method="post">
-                                        <input type="hidden" id="user_id" name="user_id" value="<%= user_id %>">
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" id="is_notification"
-                                                name="is_notification" value="1" <%=settings.is_notification ? 'checked'
-                                                : '' %>>
-                                            <label class="form-check-label" for="is_notification">Включить
-                                                уведомления</label>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="notification_interval" class="form-label">Уведомлять
-                                                меня:</label>
-                                            <select class="form-select" id="notification_interval"
-                                                name="notification_interval">
-                                                <option value="10" <%=settings.notification_interval===10 ? 'selected'
-                                                    : '' %>
-                                                    >За 10 минут до начала события</option>
-                                                <option value="5" <%=settings.notification_interval===5 ? 'selected'
-                                                    : '' %>>За
-                                                    5 минут до начала события</option>
-                                                <option value="1" <%=settings.notification_interval===1 ? 'selected'
-                                                    : '' %>>За
-                                                    1 минуту до начала события</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="authuser" class="form-label">Выберите аккаунт:</label>
-                                            <select class="form-select" id="authuser" name="authuser">
-                                                <option value="0" <%=settings.authuser===0 ? 'selected' : '' %>>1
-                                                    пользователь
-                                                </option>
-                                                <option value="1" <%=settings.authuser===1 ? 'selected' : '' %>>2
-                                                    пользователь
-                                                </option>
-                                                <option value="2" <%=settings.authuser===2 ? 'selected' : '' %>>3
-                                                    пользователь
-                                                </option>
-                                            </select>
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <button class="btn btn-link w-100 text-start" type="button"
-                                                data-bs-toggle="collapse" data-bs-target="#experimentalFeatures"
-                                                aria-expanded="false" aria-controls="experimentalFeatures">
-                                                Экспериментальные функции
-                                            </button>
-                                            <div class="collapse" id="experimentalFeatures">
-                                                <div class="card card-body">
-                                                    <h6>Смена статуса в Mattermost</h6>
-                                                    <div class="mb-3">
-                                                        <label for="mattermost_token" class="form-label">Токен</label>
-                                                        <input type="text" class="form-control" id="mattermost_token"
-                                                            name="mattermost_token">
-                                                        <div class="form-text">
-                                                            <a href="#" data-bs-toggle="modal"
-                                                                data-bs-target="#tokenInfoModal">Как получить токен?</a>
-                                                        </div>
-                                                    </div>
-                                                    <div class="form-check mb-3">
-                                                        <input class="form-check-input" type="checkbox" id="dnd_mode"
-                                                            name="dnd_mode" value="1" <%=settings.dnd_mode ? 'checked'
-                                                            : '' %>>
-                                                        <label class="form-check-label" for="dnd_mode">Режим не
-                                                            беспокоить</label>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label for="event_summary" class="form-label">Текст
-                                                            статуса</label>
-                                                        <input type="text" class="form-control" id="event_summary"
-                                                            value="<%= settings.event_summary || '' %>"
-                                                            placeholder="По умолчанию: Название мероприятия"
-                                                            name="event_summary">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <button type="submit" class="btn btn-primary w-100">Сохранить</button>
-                                    </form>
+                    <% if (isAuthenticated) { %>
+                        <div class="row">
+                            <div class="col-12">
+                                <form action="/calendar/logout" method="post" class="text-end">
+                                    <input type="hidden" id="user_id" name="user_id" value="<%= user_id %>">
+                                    <button type="submit" class="btn btn-sm btn-link text-danger">Выйти</button>
+                                </form>
+                            </div>
                         </div>
-                    </div>
+                        <% } %>
+                            <div class="card shadow-lg mx-auto rounded">
+                                <div class="card-body">
+                                    <h2 class="card-title text-center mb-3">Настройки календаря</h2>
+                                    <% if (success) { %>
+                                        <div class="alert alert-success text-center" role="alert">
+                                            Настройки успешно сохранены!
+                                        </div>
+                                        <% } %>
+
+                                            <% if (!isAuthenticated) { %>
+                                                <div id="buttonContainerId"></div>
+                                                <% } %>
+
+                                                    <% if (isAuthenticated) { %>
+                                                        <form action="/calendar/settings/" method="post">
+                                                            <input type="hidden" id="user_id" name="user_id"
+                                                                value="<%= user_id %>">
+                                                            <div class="form-check mb-3">
+                                                                <input class="form-check-input" type="checkbox"
+                                                                    id="is_notification" name="is_notification"
+                                                                    value="1" <%=settings.is_notification ? 'checked'
+                                                                    : '' %>>
+                                                                <label class="form-check-label"
+                                                                    for="is_notification">Включить
+                                                                    уведомления</label>
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label for="notification_interval"
+                                                                    class="form-label">Уведомлять
+                                                                    меня:</label>
+                                                                <select class="form-select" id="notification_interval"
+                                                                    name="notification_interval">
+                                                                    <option value="10"
+                                                                        <%=settings.notification_interval===10
+                                                                        ? 'selected' : '' %>
+                                                                        >За 10 минут до начала события</option>
+                                                                    <option value="5"
+                                                                        <%=settings.notification_interval===5
+                                                                        ? 'selected' : '' %>>За
+                                                                        5 минут до начала события</option>
+                                                                    <option value="1"
+                                                                        <%=settings.notification_interval===1
+                                                                        ? 'selected' : '' %>>За
+                                                                        1 минуту до начала события</option>
+                                                                </select>
+                                                            </div>
+
+                                                            <div class="mb-3">
+                                                                <button class="btn btn-link w-100 text-start"
+                                                                    type="button" data-bs-toggle="collapse"
+                                                                    data-bs-target="#experimentalFeatures"
+                                                                    aria-expanded="false"
+                                                                    aria-controls="experimentalFeatures">
+                                                                    Экспериментальные функции
+                                                                </button>
+                                                                <div class="collapse" id="experimentalFeatures">
+                                                                    <div class="card card-body">
+                                                                        <h6>Смена статуса в Mattermost</h6>
+                                                                        <div class="mb-3">
+                                                                            <label for="mattermost_token"
+                                                                                class="form-label">Токен</label>
+                                                                            <input type="text" class="form-control"
+                                                                                id="mattermost_token"
+                                                                                name="mattermost_token">
+                                                                            <div class="form-text">
+                                                                                <a href="#" data-bs-toggle="modal"
+                                                                                    data-bs-target="#tokenInfoModal">Как
+                                                                                    получить токен?</a>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class="form-check mb-3">
+                                                                            <input class="form-check-input"
+                                                                                type="checkbox" id="dnd_mode"
+                                                                                name="dnd_mode" value="1"
+                                                                                <%=settings.dnd_mode ? 'checked' : ''
+                                                                                %>>
+                                                                            <label class="form-check-label"
+                                                                                for="dnd_mode">Режим
+                                                                                не
+                                                                                беспокоить</label>
+                                                                        </div>
+                                                                        <div class="mb-3">
+                                                                            <label for="event_summary"
+                                                                                class="form-label">Текст
+                                                                                статуса</label>
+                                                                            <input type="text" class="form-control"
+                                                                                id="event_summary"
+                                                                                value="<%= settings.event_summary || '' %>"
+                                                                                placeholder="По умолчанию: Название мероприятия"
+                                                                                name="event_summary">
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <button type="submit"
+                                                                class="btn btn-primary w-100">Сохранить</button>
+                                                        </form>
+                                                        <% } %>
+                                </div>
+                            </div>
                 </div>
             </div>
         </div>
@@ -127,12 +154,69 @@
             </div>
         </div>
 
-
         <script>
+            const isAuthenticated = '<%= isAuthenticated %>' === 'true';
             document.addEventListener('DOMContentLoaded', function () {
-                var myCollapse = document.getElementById('experimentalFeatures')
-                var bsCollapse = new bootstrap.Collapse(myCollapse, {
-                    toggle: false
-                });
+                if (!isAuthenticated) {
+                    yandexInit();
+                } else {
+                    var myCollapse = document.getElementById('experimentalFeatures');
+                    var bsCollapse = new bootstrap.Collapse(myCollapse, {
+                        toggle: false
+                    });
+                }
             });
+
+            function yandexInit() {
+                YaAuthSuggest.init(
+                    {
+                        client_id: '<%= credentials.client_id %>',
+                        response_type: 'token',
+                        redirect_uri: '<%= credentials.redirect_uri %>'
+                    }, '<%= credentials.origin %>', {
+                    view: "button",
+                    parentId: "buttonContainerId",
+                    buttonSize: 'l',
+                    buttonView: 'main',
+                    buttonTheme: 'light',
+                    buttonBorderRadius: "0",
+                    buttonIcon: 'ya',
+                })
+                    .then(({ handler }) => handler())
+                    .then(async (data) => {
+                        const res = await fetchAuthenticate(data);
+                        location.reload();
+                    })
+                    .catch(error => console.log('Обработка ошибки', error));
+            }
+
+            async function fetchAuthenticate(data) {
+                try {
+                    const fetchData = {
+                        user_id: '<%= user_id %>',
+                        tokens: {
+                            access_token: data.access_token,
+                            token_type: data.token_type,
+                            expiry_date: data.expires_in
+                        }
+                    };
+
+                    const response = await fetch('/calendar/auth', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(fetchData)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Ошибка при сохранении данных на сервере. Статус: ${response.status}`);
+                    }
+
+                    return true;
+                } catch (error) {
+                    console.error('Ошибка при сохранении данных:', error);
+                    throw error;
+                }
+            }
         </script>

@@ -1,18 +1,21 @@
+const moment = require('moment-timezone');
 const db = require('../index.js');
 
 const getAllUsers = async () => {
     return db.all(`
-    SELECT c.*, s.notification_interval, s.is_notification, s.authuser, s.mattermost_token, s.dnd_mode, s.event_summary
+    SELECT c.*, s.notification_interval, s.is_notification, s.authuser, s.mattermost_token, s.dnd_mode, s.event_summary, u.login
     FROM calendars c
     LEFT JOIN user_settings s ON c.user_id = s.user_id
+    LEFT JOIN user_info u ON c.user_id = u.user_id
     `);
 }
 
 const getUser = async (user_id) => {
     return db.get(`
-        SELECT c.*, s.notification_interval, s.is_notification, s.authuser
+        SELECT c.*, s.notification_interval, s.is_notification, s.authuser, u.login
         FROM calendars c
         LEFT JOIN user_settings s ON c.user_id = s.user_id
+        LEFT JOIN user_info u ON c.user_id = u.user_id
         WHERE c.user_id = ?
     `, user_id);
 }
@@ -48,8 +51,38 @@ const updateUser = async (user_id, channel_id, tokens) => {
     }
 }
 
+const updateUserInfo = async (user_id, userInfo) => {
+    await db.run(`
+        INSERT INTO user_info (
+            user_id, yandex_id, login, client_id, display_name, real_name, first_name, 
+            last_name, sex, default_email, emails, birthday, 
+            default_avatar_id, is_avatar_empty, psuid
+        ) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        user_id,
+        userInfo.id,
+        userInfo.login,
+        userInfo.client_id,
+        userInfo.display_name,
+        userInfo.real_name,
+        userInfo.first_name,
+        userInfo.last_name,
+        userInfo.sex,
+        userInfo.default_email,
+        JSON.stringify(userInfo.emails),
+        userInfo.birthday,
+        userInfo.default_avatar_id,
+        userInfo.is_avatar_empty,
+        userInfo.psuid
+    );
+};
+
 const removeUser = async (user_id) => {
     return db.run('DELETE FROM calendars WHERE user_id = ?', user_id);
+}
+
+const removeUserInfo = async (user_id) => {
+    return db.run('DELETE FROM user_info WHERE user_id = ?', user_id);
 }
 
 const getUserSettings = async (user_id) => {
@@ -82,7 +115,7 @@ const removeUserSettings = async (user_id) => {
 
 const markEventAsNotified = async (user_id, event) => {
     return db.run('INSERT INTO notified_events (user_id, event_id, summary, start_date, end_date, date_time_zone) VALUES (?, ?, ?, ?, ?, ?)',
-        user_id, event.id, event.summary, event.start.dateTime, event.end.dateTime, event.start.timeZone);
+        user_id, event.id, event.summary, event.start.format('YYYY-MM-DDTHH:mm:ssZ'), event.end.format('YYYY-MM-DDTHH:mm:ssZ'), event.start.tz());
 }
 
 const markStatusAsSet = async (user_id, event_id) => {
@@ -116,7 +149,9 @@ module.exports = {
     getUser,
     createUser,
     updateUser,
+    updateUserInfo,
     removeUser,
+    removeUserInfo,
     getUserSettings,
     updateUserSettings,
     removeUserSettings,

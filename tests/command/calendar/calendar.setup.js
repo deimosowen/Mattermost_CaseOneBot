@@ -1,24 +1,11 @@
-const { google } = require('googleapis');
-const { OAuth2Client } = require('google-auth-library');
+const YandexApiManager = require('../../../services/yandexService/apiManager');
 const { postMessageInTreed, getUserByUsername } = require('../../../mattermost/utils');
 const { getUser, markEventAsNotified } = require('../../../db/models/calendars');
 const resources = require('../../../resources/resources.json').calendar;
 const logger = require('../../../logger');
 
-jest.mock('googleapis', () => ({
-    google: {
-        calendar: jest.fn().mockReturnValue({
-            events: {
-                insert: jest.fn()
-            }
-        })
-    }
-}));
-
-jest.mock('google-auth-library', () => ({
-    OAuth2Client: jest.fn().mockImplementation(() => ({
-        setCredentials: jest.fn()
-    }))
+jest.mock('../../../services/yandexService/apiManager', () => ({
+    getApiInstance: jest.fn()
 }));
 
 jest.mock('../../../mattermost/utils', () => ({
@@ -41,20 +28,6 @@ jest.mock('../../../logger', () => ({
     error: jest.fn()
 }));
 
-jest.mock('../../../server/googleAuth', () => ({
-    isLoad: true,
-    getOAuth2ClientForUser: jest.fn().mockResolvedValue({
-        setCredentials: jest.fn(),
-        getToken: jest.fn().mockResolvedValue({
-            access_token: "mocked_access_token",
-            refresh_token: "mocked_refresh_token",
-            scope: "https://www.googleapis.com/auth/calendar",
-            token_type: "Bearer",
-            expiry_date: 123456789
-        }),
-    })
-}));
-
 beforeEach(() => {
     jest.useFakeTimers('modern');
     jest.setSystemTime(new Date('2023-11-11T12:00:00.000Z'));
@@ -66,8 +39,7 @@ afterEach(() => {
 });
 
 module.exports = {
-    google,
-    OAuth2Client,
+    YandexApiManager,
     postMessageInTreed,
     getUserByUsername,
     getUser,

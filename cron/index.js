@@ -1,5 +1,6 @@
 const CronJob = require('cron').CronJob;
 const dayOffAPI = require('isdayoff')();
+const { wsClient } = require('../mattermost/client');
 const { postMessage } = require('../mattermost/utils');
 const { getReminders } = require('../db/models/reminders');
 const { getDutySchedules } = require('../db/models/duty');
@@ -106,9 +107,38 @@ const loadDutyCronJobsFromDb = async () => {
     }
 };
 
+const pingWebSocket = () => {
+    const CHANNEL_ID = "dutk7ninhtg7bgwhsht6ijfxpw";
+    let pingReceived = false;
+
+    try {
+        const timeout = setTimeout(() => {
+            if (!pingReceived) {
+                logger.error("WebSocket ping response not received in time.");
+                postMessage(CHANNEL_ID, "WebSocket ping failed. No response received.");
+            }
+        }, 5000);
+
+        wsClient.getStatuses(() => {
+            pingReceived = true;
+            clearTimeout(timeout);
+        });
+
+    } catch (error) {
+        logger.error(`WebSocket ping failed: ${error.message}\nStack trace:\n${error.stack}`);
+        postMessage(CHANNEL_ID, `WebSocket ping failed: ${error.message}`);
+    }
+};
+
+const startPingCronJob = () => {
+    const pingCronJob = new CronJob('*/1 * * * *', pingWebSocket, null, true, 'UTC');
+    pingCronJob.start();
+};
+
 module.exports = {
     loadCronJobsFromDb,
     loadDutyCronJobsFromDb,
+    startPingCronJob,
     setCronJob,
     cancelCronJob,
     CronJob,

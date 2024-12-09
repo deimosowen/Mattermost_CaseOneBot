@@ -43,9 +43,9 @@ const getDutyUsers = async (channel_id) => {
 // Установка текущего дежурного
 const setCurrentDuty = async (channel_id, user_id, duty_type = DutyType.REGULAR) => {
     return db.run(`
-        INSERT OR REPLACE INTO duty_current (channel_id, user_id)
-        VALUES (?, ?)`,
-        channel_id, user_id
+        INSERT OR REPLACE INTO duty_current (channel_id, user_id, duty_type)
+        VALUES (?, ?, ?)`,
+        channel_id, user_id, duty_type
     );
 };
 
