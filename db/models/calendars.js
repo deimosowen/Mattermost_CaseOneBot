@@ -81,6 +81,10 @@ const removeUser = async (user_id) => {
     return db.run('DELETE FROM calendars WHERE user_id = ?', user_id);
 }
 
+const removeUserInfo = async (user_id) => {
+    return db.run('DELETE FROM user_info WHERE user_id = ?', user_id);
+}
+
 const getUserSettings = async (user_id) => {
     return db.get('SELECT * FROM user_settings WHERE user_id = ?', user_id);
 }
@@ -147,6 +151,7 @@ module.exports = {
     updateUser,
     updateUserInfo,
     removeUser,
+    removeUserInfo,
     getUserSettings,
     updateUserSettings,
     removeUserSettings,

@@ -1,4 +1,4 @@
-const { getUser, getAllUsers, updateUser, updateUserInfo, removeUser } = require('../../db/models/calendars');
+const { getUser, getAllUsers, updateUser, updateUserInfo, removeUser, removeUserInfo, removeUserSettings } = require('../../db/models/calendars');
 const { getMe, getUser: getUserInMattermost, createDirectChannel } = require('../../mattermost/utils');
 const { HOST, YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET, YANDEX_REDIRECT_URI } = require('../../config');
 const logger = require('../../logger');
@@ -34,6 +34,8 @@ class YandexService {
         const user = await getUser(userId);
         if (user) {
             await removeUser(userId);
+            await removeUserInfo(userId);
+            await removeUserSettings(userId);
         }
     };
 
