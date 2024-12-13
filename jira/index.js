@@ -78,10 +78,26 @@ async function changeStatus(taskId, status, authHeader) {
     }
 }
 
+async function addComment(taskId, comment, authHeader) {
+    const url = `${JIRA_API_URL}/tasks/${taskId}/comments`;
+    try {
+        const response = await axios.post(url, { comment }, {
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+            }
+        });
+        return (response.data);
+    } catch (error) {
+        logger.error('Ошибка при добавлении комментария:', error);
+    }
+}
+
 module.exports = {
     getSubtasks,
     logTime,
     getTask,
     getTaskParent,
     changeStatus,
+    addComment,
 };

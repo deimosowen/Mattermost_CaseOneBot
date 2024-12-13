@@ -2,6 +2,14 @@ function parseStandardCommand(message) {
     return message.split(';').map(part => part.trim());
 }
 
+function parseSpaceFirstSeparatedCommand(message) {
+    //разделить сообщение по первому пробелу
+    const parts = message.split(/\s+/);
+    const command = parts.shift();
+    const rest = parts.join(' ');
+    return [command, rest];
+}
+
 function parseMeetCommand(message) {
     const parts = message.split(/\s+/);
     const command = parts.shift();
@@ -19,6 +27,7 @@ function parseMeetCommand(message) {
 
 const commandParsers = {
     '!meet': parseMeetCommand,
+    '!reop': parseSpaceFirstSeparatedCommand
 };
 
 function parseCommand(message) {

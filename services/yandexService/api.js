@@ -48,6 +48,7 @@ class YandexApi {
                     username: this.username,
                     password: this.password,
                 },
+                timeout: 10000,
             });
             const icsData = response.data;
             const parsed = ical.parseICS(icsData);
@@ -61,7 +62,7 @@ class YandexApi {
                 const eventEndDateInOriginalTz = moment.tz(eventEnd, 'YYYY-MM-DDTHH:mm:ss', details.start.tz);
 
                 return {
-                    id: details.uid,
+                    id: `${details.uid}_${details.sequence}_${eventStartDateInOriginalTz.format('YYYY-MM-DDTHH:mm:ss')}`,
                     url: details.url,
                     summary: details.summary || 'Без названия',
                     description: details.description || '',
