@@ -103,7 +103,18 @@ class CalendarManager {
      */
     async processEvent(user, event, now, timezone) {
         const eventStartTime = event.start;
-        if (eventStartTime.isAfter(now) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
+        const nowTime = now.clone().set({
+            year: 0,
+            month: 0,
+            date: 0,
+        });
+        const eventTime = eventStartTime.clone().set({
+            year: 0,
+            month: 0,
+            date: 0,
+        });
+
+        if (eventTime.isAfter(nowTime) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
             const message = this.createEventMessage(event, timezone);
             await postMessage(user.channel_id, message);
             await markEventAsNotified(user.user_id, event);

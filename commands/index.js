@@ -18,6 +18,7 @@ const forwardHelp = require('./forward/forwardHelp');
 const ping = require('./ping');
 const sendAs = require('./sendAs');
 const jira = require('./jira');
+const reop = require('./reop');
 
 const commands = {
     '!ping': ping,
@@ -41,6 +42,7 @@ const commands = {
     '!forward-list': forwardList,
     '!forward-remove': forwardRemove,
     '!forward-help': forwardHelp,
+    '!reop': reop,
 };
 
 module.exports = commands;

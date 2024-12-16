@@ -1,8 +1,9 @@
 const { postMessageInTreed } = require('../mattermost/utils');
-const { getTask, changeStatus } = require('../jira');
+const JiraService = require('../services/jiraService');
 const JiraStatusType = require('../types/jiraStatusTypes');
+const { isInReviewStatus, isInProgressStatus, extractTaskNumber } = require('../services/jiraService/jiraHelper');
 const logger = require('../logger');
-const { INREVIEW_CHANNEL_IDS, JIRA_BOT_USERNAME, JIRA_BOT_PASSWORD } = require('../config');
+const { INREVIEW_CHANNEL_IDS } = require('../config');
 
 module.exports = async (post, eventData) => {
     try {
@@ -10,17 +11,16 @@ module.exports = async (post, eventData) => {
             return;
         }
 
-        const taskKey = checkAndExtractTaskNumber(post);
+        const taskKey = extractTaskNumber(post);
         if (!taskKey) {
             return;
         }
 
-        const authHeader = btoa(`${JIRA_BOT_USERNAME}:${JIRA_BOT_PASSWORD}`);
-        const task = await getTask(taskKey, `Basic ${authHeader}`);
+        const task = await JiraService.fetchTask(taskKey);
         if (!isInReviewStatus(task.status)) {
             let message = prepareMessage(eventData, taskKey, task.status);
             if (isInProgressStatus(task.status)) {
-                await changeStatusToInReview(taskKey, `Basic ${authHeader}`);
+                await JiraService.changeTaskStatus(taskKey, JiraStatusType.INREVIEW);
                 message += `\nСтатус задачи изменен на **${JiraStatusType.INREVIEW}**.`;
             }
             postMessageInTreed(post.id, message);
@@ -31,40 +31,10 @@ module.exports = async (post, eventData) => {
     }
 }
 
-function changeStatusToInReview(taskKey, authHeader) {
-    return changeStatus(taskKey, JiraStatusType.INREVIEW, authHeader);
-}
-
 function prepareMessage(eventData, taskKey, currentStatus) {
     return `${eventData.sender_name}, статус задачи **${taskKey}** не соответствует **${JiraStatusType.INREVIEW}**.\nТекущий статус: **${currentStatus}**.`;
 }
 
 function checkChannel(channel_id) {
     return INREVIEW_CHANNEL_IDS.includes(channel_id);
-}
-
-function isInReviewStatus(status) {
-    return status.toLowerCase() === JiraStatusType.INREVIEW.toLowerCase();
-}
-
-function isInProgressStatus(status) {
-    return status.toLowerCase() === JiraStatusType.INPROGRESS.toLowerCase();
-}
-
-function checkAndExtractTaskNumber(post) {
-    const message = post.message;
-    const reviewRegex = /^(?:\*\*)?IN REVIEW(?:\*\*)?/i;
-    if (reviewRegex.test(message)) {
-        const taskNumberRegex = /(CASEM-\d+)/i;
-        const taskNumberMatch = message.match(taskNumberRegex);
-
-        if (taskNumberMatch) {
-            const taskNumber = taskNumberMatch[1];
-            return taskNumber;
-        } else {
-            return null;
-        }
-    } else {
-        return null;
-    }
 }

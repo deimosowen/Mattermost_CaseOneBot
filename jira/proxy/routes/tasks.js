@@ -38,6 +38,15 @@ router.put('/:taskId/status', async (req, res) => {
     }
 });
 
+router.post('/:taskId/comments', async (req, res) => {
+    try {
+        await jiraService.addComment(req.jira, req.params.taskId, req.body.comment);
+        res.send('Комментарий успешно добавлен');
+    } catch (error) {
+        res.status(500).send(error.toString());
+    }
+});
+
 router.post('/log-time', async (req, res) => {
     try {
         await jiraService.logTime(req.jira, req.body);

@@ -104,6 +104,14 @@ const changeStatus = async (jiraClient, taskId, status) => {
     }
 };
 
+const addComment = async (jiraClient, taskId, comment) => {
+    try {
+        await jiraClient.addComment(taskId, comment);
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
     createJiraClient,
     getTask,
@@ -111,4 +119,5 @@ module.exports = {
     getSubtasks,
     logTime,
     changeStatus,
+    addComment,
 };
