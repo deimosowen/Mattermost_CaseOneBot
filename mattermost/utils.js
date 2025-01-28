@@ -100,6 +100,11 @@ class MattermostService {
         return this.client.getMyChannels(resolvedTeamId, false);
     }
 
+    async getTeam() {
+        const team = await this._getDefaultTeam();
+        return team;
+    }
+
     async getChannel(teamId = null, channelName) {
         const resolvedTeamId = teamId || (await this._getDefaultTeam()).id;
         return this.client.getChannelByName(resolvedTeamId, channelName);
@@ -216,4 +221,5 @@ module.exports = {
     getPost: (...args) => mattermostService.getPost(...args),
     deletePost: (...args) => mattermostService.deletePost(...args),
     getPostThread: (...args) => mattermostService.getPostThread(...args),
+    getTeam: (...args) => mattermostService.getTeam(...args),
 };
