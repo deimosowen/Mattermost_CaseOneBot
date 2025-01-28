@@ -15,13 +15,13 @@ module.exports = async ({ post_id, args }) => {
         const task = await JiraService.fetchTask(taskKey);
 
         if (isInReviewStatus(task.status)) {
-            await JiraService.changeTaskStatus(taskKey, JiraStatusType.OPEN);
+            await JiraService.changeTaskStatus(taskKey, JiraStatusType.TODO);
 
             if (comment) {
                 await JiraService.addComment(taskKey, comment);
             }
 
-            postMessageInTreed(post_id, `Статус задачи изменен на **${JiraStatusType.OPEN}**.`);
+            postMessageInTreed(post_id, `Статус задачи изменен на **${JiraStatusType.TODO}**.`);
             return;
         }
 

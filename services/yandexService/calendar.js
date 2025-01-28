@@ -103,29 +103,20 @@ class CalendarManager {
      */
     async processEvent(user, event, now, timezone) {
         const eventStartTime = event.start;
-        const nowTime = now.clone().set({
-            year: 0,
-            month: 0,
-            date: 0,
-        });
-        const eventTime = eventStartTime.clone().set({
-            year: 0,
-            month: 0,
-            date: 0,
-        });
+        const eventTime = eventStartTime.clone();
 
-        if (eventTime.isAfter(nowTime) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
+        if (eventTime.isAfter(now) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
             const message = this.createEventMessage(event, timezone);
             await postMessage(user.channel_id, message);
             await markEventAsNotified(user.user_id, event);
         }
-        if (user.mattermost_token && eventStartTime.isSameOrBefore(now) && !(await checkIfStatusWasSet(user.user_id, event.id))) {
-            const statusText = user.event_summary || event.summary;
-            const status = await setStatus(user.user_id, user.mattermost_token, statusText, event.end, user.dnd_mode);
-            if (status) {
-                await markStatusAsSet(user.user_id, event.id);
-            }
-        }
+        /*  if (user.mattermost_token && eventStartTime.isSameOrBefore(now) && !(await checkIfStatusWasSet(user.user_id, event.id))) {
+              const statusText = user.event_summary || event.summary;
+              const status = await setStatus(user.user_id, user.mattermost_token, statusText, event.end, user.dnd_mode);
+              if (status) {
+                  await markStatusAsSet(user.user_id, event.id);
+              }
+          }*/
     }
 
     /**

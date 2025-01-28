@@ -1,4 +1,5 @@
 const moment = require('moment-timezone');
+const { RRule, RRuleSet, rrulestr } = require('rrule');
 const { createDAVClient, DAVNamespace } = require('tsdav');
 const ical = require('ical');
 const axios = require('axios');
@@ -55,20 +56,11 @@ class YandexApi {
             const eventKey = Object.keys(parsed).find((key) => parsed[key].type === 'VEVENT');
             if (eventKey) {
                 const details = parsed[eventKey];
-                const eventStart = moment(details.start).format('YYYY-MM-DDTHH:mm:ss');
-                const eventStartDateInOriginalTz = moment.tz(eventStart, 'YYYY-MM-DDTHH:mm:ss', details.start.tz).utc();
-
-                const eventEnd = moment(details.end).format('YYYY-MM-DDTHH:mm:ss');
-                const eventEndDateInOriginalTz = moment.tz(eventEnd, 'YYYY-MM-DDTHH:mm:ss', details.start.tz);
-
-                return {
-                    id: `${details.uid}_${details.sequence}_${eventStartDateInOriginalTz.format('YYYY-MM-DDTHH:mm:ss')}`,
-                    url: details.url,
-                    summary: details.summary || 'Без названия',
-                    description: details.description || '',
-                    start: eventStartDateInOriginalTz,
-                    end: eventEndDateInOriginalTz
-                };
+                if (details.rrule) {
+                    return this._handleRecurringEvent(details);
+                } else {
+                    return this._handleSingleEvent(details);
+                }
             } else {
                 throw new Error('Событие не содержит данных.');
             }
@@ -77,6 +69,68 @@ class YandexApi {
             throw new Error(`Не удалось загрузить событие по URL ${eventUrl}.`);
         }
     }
+
+    _handleSingleEvent(event) {
+        const eventStart = moment(event.start).format('YYYY-MM-DDTHH:mm:ss');
+        const eventStartDateInOriginalTz = moment.tz(eventStart, 'YYYY-MM-DDTHH:mm:ss', event.start.tz).utc();
+
+        const eventEnd = moment(event.end).format('YYYY-MM-DDTHH:mm:ss');
+        const eventEndDateInOriginalTz = moment.tz(eventEnd, 'YYYY-MM-DDTHH:mm:ss', event.end.tz).utc();
+
+        return {
+            id: `${event.uid}_${eventStartDateInOriginalTz}`,
+            url: event.url,
+            summary: event.summary || 'Без названия',
+            description: event.description || '',
+            start: eventStartDateInOriginalTz,
+            end: eventEndDateInOriginalTz,
+        };
+    };
+
+    _handleRecurringEvent(event) {
+        const eventStartDateInOriginalTz = moment.tz(moment(event.start).format('YYYY-MM-DDTHH:mm:ss'), 'YYYY-MM-DDTHH:mm:ss', event.start.tz).utc();
+        const rruleString = event.rrule.toString();
+        const rule = rrulestr(rruleString, {
+            dtstart: `${eventStartDateInOriginalTz.format('YYYY-MM-DDTHH:mm:ss')}Z`,
+        });
+
+        let nextOccurrence = rule.after(event.dtstamp, true);
+
+        if (!nextOccurrence) {
+            const recurrences = Object.values(event.recurrences);
+            nextOccurrence = recurrences.reduce((closest, recurrence) => {
+                const recurrenceStartDate = moment.tz(
+                    moment(recurrence.start).format('YYYY-MM-DDTHH:mm:ss'),
+                    'YYYY-MM-DDTHH:mm:ss',
+                    recurrence.start.tz
+                ).utc();
+
+                if (recurrenceStartDate.isAfter(moment(event.dtstamp))) {
+                    if (!closest || recurrenceStartDate.isBefore(moment(closest))) {
+                        return recurrence.start;
+                    }
+                }
+                return closest;
+            }, null);
+
+            if (!nextOccurrence) {
+                throw new Error('Нет экземпляров повторяющегося события.');
+            }
+        }
+
+        const startInOriginalTz = moment.tz(moment(nextOccurrence).format('YYYY-MM-DDTHH:mm:ss'), 'YYYY-MM-DDTHH:mm:ss', event.start.tz).utc();
+        const duration = moment.tz(event.end, event.start.tz).diff(moment.tz(event.start, event.start.tz));
+        const endInOriginalTz = startInOriginalTz.clone().add(duration);
+
+        return {
+            id: `${event.uid}_${startInOriginalTz.format('YYYY-MM-DDTHH:mm:ss')}`,
+            url: event.url,
+            summary: event.summary || 'Без названия',
+            description: event.description || '',
+            start: startInOriginalTz,
+            end: endInOriginalTz,
+        };
+    };
 
     /**
      * Получение событий за указанный период

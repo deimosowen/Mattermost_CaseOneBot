@@ -4,6 +4,8 @@ const mattermostHelpers = require('../../mattermost/fileHelper');
 
 const createImages = async ({ channel_id, prompt }) => {
     try {
+        return { data: 'Генерация временно недоступна' };
+
         const result = await openAiHelpers.generateImages({ prompt });
         const filename = `${uuidv4()}.png`;
         const fileBuffer = Buffer.from(result.b64_json, 'base64');

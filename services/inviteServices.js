@@ -10,15 +10,15 @@ async function tryAddToChannel(user_id, args) {
         if (!isMemberExist(user_id)) {
             return `You shall not pass! 🧙`;
         }
-        const team = await getTeam();
+        // const team = await getTeam();
         if (arg.includes('/channels/')) {
             const channelName = arg.split('/channels/')[1].replace(/\/$/, "");
-            channelId = (await getChannel(team.id, channelName)).id;
+            channelId = (await getChannel(null, channelName)).id;
         } else if (arg.includes('/pl/')) {
             const postId = arg.split('/pl/')[1].replace(/\/$/, "");
             channelId = (await getPost(postId)).channel_id;
         } else {
-            channelId = (await getChannel(team.id, arg)).id;
+            channelId = (await getChannel(null, arg)).id;
         }
 
         if (channelId) {

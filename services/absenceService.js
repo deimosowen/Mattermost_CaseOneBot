@@ -1,46 +1,56 @@
-const axios = require('axios');
+const proxyService = require('./proxyService');
 const logger = require('../logger');
 const { ABSENCE_BASE_URL, ABSENCE_API_TOKEN } = require('../config');
 
-// Функция для проверки доступности сотрудников по датам
-async function checkEmployeeAvailability(employeeRequests) {
-    try {
-        const response = await axios.post(
-            `${ABSENCE_BASE_URL}/absence/employees-availability`,
-            employeeRequests,
-            {
+class AbsenceService {
+    constructor() {
+        this.baseUrl = ABSENCE_BASE_URL;
+        this.apiToken = ABSENCE_API_TOKEN;
+    }
+
+    /**
+     * Унифицированный метод для отправки запросов через прокси.
+     * @param {string} endpoint - Конечная точка API (например, '/absence/employees-availability').
+     * @param {string} method - HTTP метод (GET, POST, PUT и т.д.).
+     * @param {Object} data - Тело запроса (для POST/PUT).
+     * @param {Object} params - Параметры запроса (для GET).
+     * @returns {Promise<Object>} - Ответ API.
+     */
+    async _proxyRequest(endpoint, method = 'GET', data = {}, params = {}) {
+        try {
+            const response = await proxyService.sendProxyRequest({
+                url: `${this.baseUrl}${endpoint}`,
+                method,
                 headers: {
-                    'Authorization': `Bearer ${ABSENCE_API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-        return response.data;
-    } catch (error) {
-        logger.error(`Ошибка при выполнении запроса: ${error.message}`);
+                    'Authorization': `Bearer ${this.apiToken}`,
+                    'Content-Type': 'application/json',
+                },
+                data,
+                params,
+            });
+            return response;
+        } catch (error) {
+            logger.error(`Ошибка при запросе к ${endpoint}: ${error.message}`);
+        }
+    }
+
+    /**
+     * Проверка доступности сотрудников по датам.
+     * @param {Object} employeeRequests - Данные для проверки.
+     * @returns {Promise<Object>} - Ответ API.
+     */
+    async checkEmployeeAvailability(employeeRequests) {
+        return this._proxyRequest('/absence/employees-availability', 'POST', employeeRequests);
+    }
+
+    /**
+     * Проверка доступности сотрудников на указанные даты.
+     * @param {Object} requestData - Данные для проверки.
+     * @returns {Promise<Object>} - Ответ API.
+     */
+    async checkEmployeeAvailabilityByDate(requestData) {
+        return this._proxyRequest('/absence/employees-availability-by-date', 'POST', requestData);
     }
 }
 
-// Функция для проверки доступности сотрудников на указанные даты
-async function checkEmployeeAvailabilityByDate(requestData) {
-    try {
-        const response = await axios.post(
-            `${ABSENCE_BASE_URL}/absence/employees-availability-by-date`,
-            requestData,
-            {
-                headers: {
-                    'Authorization': `Bearer ${ABSENCE_API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-        return response.data;
-    } catch (error) {
-        logger.error(`Ошибка при выполнении запроса: ${error.message}`);
-    }
-}
-
-module.exports = {
-    checkEmployeeAvailability,
-    checkEmployeeAvailabilityByDate
-}
+module.exports = new AbsenceService();

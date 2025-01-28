@@ -2,8 +2,9 @@ const moment = require('moment');
 const dayOffAPI = require('isdayoff')();
 const { getCurrentDuty: getDutyFromDB, getDutyUsers, getDutySchedule,
     setCurrentDuty, updateUserActivityStatus, addUnscheduledUser,
-    getFirstUnscheduledUser, deleteUnscheduledUser } = require('../db/models/duty');
-const { postMessage } = require('../mattermost/utils');
+    deleteUnscheduledUser, getAllUnscheduledUsers } = require('../db/models/duty');
+const { postMessage, getUserByUsername } = require('../mattermost/utils');
+const absenceService = require('./absenceService');
 const logger = require('../logger');
 const resources = require('../resources');
 const DutyType = require('../types/dutyTypes.js');
@@ -25,15 +26,14 @@ async function getCurrentDuty(channel_id) {
 // Смена дежурного
 async function changeNextDuty(channel_id) {
     try {
-        const unscheduledDuty = await changeUnscheduledDutyIfNeed(channel_id);
-        if (unscheduledDuty) {
-            return unscheduledDuty;
-        }
-
         let users = await getActualDutyList(channel_id);
-        users = users.filter(user => !user.is_disabled);
         if (users.length === 0) {
             return resources.duty.noUsersError;
+        }
+
+        const unscheduledDuty = await changeUnscheduledDutyIfNeed(channel_id, users);
+        if (unscheduledDuty) {
+            return unscheduledDuty;
         }
 
         const currentDuty = await getDutyFromDB(channel_id);
@@ -70,6 +70,7 @@ async function updateDutyActivityStatus({ channel_id, username, isDisabled, retu
     return resources.duty.changeStatusSuccess.replace('{user}', username);
 }
 
+// Смена дежурного, добавление внеочередного дежурного
 async function rotateDuty(channel_id) {
     const currentDuty = await getDutyFromDB(channel_id);
     const result = await changeNextDuty(channel_id);
@@ -79,35 +80,82 @@ async function rotateDuty(channel_id) {
 
 // Получение актуального списка дежурных
 const getActualDutyList = async (channel_id) => {
-    const currentDate = moment().format('YYYY-MM-DD');
-    let users = await getDutyUsers(channel_id);
-    users.map(async user => {
-        if (user.return_date && moment(user.return_date, 'YYYY-MM-DD').isBefore(currentDate)) {
-            user.is_disabled = false;
-            user.return_date = null;
-            await updateUserActivityStatus(user.id, user.is_disabled, user.return_date);
+    try {
+        const currentDate = moment().format('YYYY-MM-DD');
+        const currentDateISO = moment(currentDate).toISOString();
+        let users = await getDutyUsers(channel_id);
+
+        // Обновляем статусы пользователей, которые уже должны вернуться
+        const usersToReactivate = users.filter(user =>
+            user.return_date && moment(user.return_date).isBefore(currentDate)
+        );
+        if (usersToReactivate.length > 0) {
+            await Promise.all(usersToReactivate.map(user =>
+                updateUserActivityStatus(user.id, false, null)
+            ));
         }
-    });
-    users = users.filter(user => !user.is_disabled);
-    return users;
+
+        // Получаем email'ы пользователей из Mattermost
+        const mattermostUsers = await Promise.all(
+            users.map(user => getUserByUsername(user.user_name.replace('@', '')))
+        );
+        // Проверяем доступность
+        const availability = await absenceService.checkEmployeeAvailabilityByDate({
+            employeeEmails: mattermostUsers.map(user => user.email),
+            dates: [currentDate]
+        });
+
+        // Обновляем статусы пользователей
+        if (availability && Object.keys(availability).length > 0) {
+            const updatePromises = users.map(async (user, index) => {
+                const mattermostUser = mattermostUsers[index];
+                const isAvailable = availability[mattermostUser.email]?.[currentDateISO];
+
+                if (!isAvailable) {
+                    user.is_disabled = true;
+                    await updateUserActivityStatus(user.id, user.is_disabled, currentDate);
+                }
+            });
+            await Promise.all(updatePromises);
+        }
+
+        return users.filter(user => !user.is_disabled);
+
+    } catch (error) {
+        logger.error(`Error in getActualDutyList: ${error.message}\nStack trace:\n${error.stack}`);
+    }
 };
 
 // Проверка наличия внеочередных дежурных и установка первого из них в качестве текущего дежурного
 async function changeUnscheduledDutyIfNeed(channel_id) {
-    let unscheduledUser = await getFirstUnscheduledUser(channel_id);
-    if (unscheduledUser) {
-        await deleteUnscheduledUser(unscheduledUser.id);
-        await setCurrentDuty(channel_id, unscheduledUser.user_id, DutyType.UNSCHEDULED);
-        const message = await nextDutyMessage(channel_id, unscheduledUser.user_id);
-        return message;
+    const unscheduledUsers = await getAllUnscheduledUsers(channel_id);
+    if (!unscheduledUsers || unscheduledUsers.length === 0) {
+        return null;
     }
+
+    for (const unscheduledUser of unscheduledUsers) {
+        // Проверяем, есть ли пользователь в актуальном списке (активен)
+        const isAvailable = actualUsers.some(user => user.user_id === unscheduledUser.user_id);
+
+        if (isAvailable) {
+            // Если пользователь доступен, назначаем его дежурным
+            await deleteUnscheduledUser(unscheduledUser.id);
+            await setCurrentDuty(channel_id, unscheduledUser.user_id, DutyType.UNSCHEDULED);
+            return await nextDutyMessage(channel_id, unscheduledUser.user_id);
+        } else {
+            // Если пользователь недоступен, просто удаляем его из списка внеочередных
+            await deleteUnscheduledUser(unscheduledUser.id);
+        }
+    }
+
+    return null;
 }
 
 // Создание callback для cron-задачи
 const createDutyCallback = (channel_id, considerWorkingDays = false) => {
     return async () => {
         if (considerWorkingDays) {
-            const isHoliday = await dayOffAPI.today();
+            const isHoliday = await checkIsHoliday();
             if (isHoliday) {
                 return;
             }
@@ -120,6 +168,16 @@ const createDutyCallback = (channel_id, considerWorkingDays = false) => {
 async function nextDutyMessage(channel_id, user_id) {
     const dutySchedule = await getDutySchedule(channel_id);
     return dutySchedule.nextDutyMessage.replace('{user}', user_id);
+}
+
+async function checkIsHoliday() {
+    try {
+        const isHoliday = await dayOffAPI.today();
+        return isHoliday;
+    } catch (error) {
+        logger.error(`Error in isHoliday: ${error.message}\nStack trace:\n${error.stack}`);
+        return false;
+    }
 }
 
 module.exports = {
