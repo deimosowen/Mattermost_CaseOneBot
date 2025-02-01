@@ -22,8 +22,7 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
                 dialogHistory.addMessage(systemMessage);
             }
 
-            const contextParams = await redisService.get(`openai:${post.channel_id}`);
-            console.log(contextParams);
+            const contextParams = await redisService.get(`openai:${post?.channel_id}`);
             if (contextParams.context && contextParams.context.length > 0) {
                 const contextString = contextParams.context
                     .map(item => {
@@ -75,12 +74,10 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
         let message = completion.choices[0]?.message;
         let fileId;
 
-        console.log(JSON.stringify(completion, null, 2));
-
         const functionsResult = await strategy.handleFunctionCall(message, {
-            channel_id: post.channel_id,
-            post_id: post.id,
-            user_id: post.user_id
+            channel_id: post?.channel_id,
+            post_id: post?.id,
+            user_id: post?.user_id
         });
 
         if (functionsResult) {
@@ -94,29 +91,10 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
             });
 
             completion = await strategy.createChatCompletion(client, params);
-            console.log(JSON.stringify(completion, null, 2));
 
             message = completion.choices[0]?.message;
             fileId = functionsResult?.fileId;
         }
-        /* if (functionResult) {
-             let assistantMessage = strategy.createAssistantMessage({
-                 content: functionResult.data,
-                 name: message?.function_call?.name,
-                 tool_calls: message?.tool_calls
-             });
- 
-             dialogHistory.addMessage(assistantMessage);
- 
-             const functionResultMessage = strategy.createFunctionResultMessage(functionResult);
-             dialogHistory.addMessage(functionResultMessage);
- 
-             completion = await strategy.createChatCompletion(client, params);
-             message = completion.choices[0]?.message;
- 
-             fileId = functionResult?.fileId;
-         }*/
-        console.log(message);
 
         dialogHistory.addMessage({
             role: 'assistant',
