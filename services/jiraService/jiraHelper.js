@@ -8,6 +8,10 @@ function isInProgressStatus(status) {
     return status.toLowerCase() === JiraStatusType.INPROGRESS.toLowerCase();
 }
 
+function isToDoStatus(status) {
+    return status.toLowerCase() === JiraStatusType.TODO.toLowerCase();
+}
+
 function extractTaskNumber(post) {
     const message = post.message;
     const reviewRegex = /^(?:\*\*)?IN REVIEW(?:\*\*)?/i;
@@ -29,5 +33,6 @@ function extractTaskNumber(post) {
 module.exports = {
     isInReviewStatus,
     isInProgressStatus,
+    isToDoStatus,
     extractTaskNumber
 };

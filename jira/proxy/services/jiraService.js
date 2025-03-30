@@ -15,17 +15,28 @@ const createJiraClient = ({ username, password }) => {
 };
 
 const getTask = async (jiraClient, taskId) => {
-    let task = await jiraClient.findIssue(taskId);
-    const taskData = {
-        key: task.key,
-        summary: task.fields.summary,
-        description: task.fields.description,
-        status: task.fields.status.name,
-        created: task.fields.created,
-        updated: task.fields.updated,
-        comments: task.fields.comment.comments
-    };
-    return taskData;
+    try {
+        let task = await jiraClient.findIssue(taskId);
+        const devDetails = await jiraClient.getDevStatusDetail(task.id, 'gitlabselfmanaged', 'pullrequest');
+
+        const allPullRequests = devDetails.detail?.[0]?.pullRequests || [];
+        const openPullRequests = allPullRequests.filter(pr => pr.status === "OPEN");
+
+        const taskData = {
+            key: task.key,
+            summary: task.fields.summary,
+            description: task.fields.description,
+            status: task.fields.status.name,
+            created: task.fields.created,
+            updated: task.fields.updated,
+            comments: task.fields.comment.comments,
+            pullRequests: openPullRequests,
+        };
+
+        return taskData;
+    } catch (error) {
+        console.log(error);
+    }
 };
 
 const getTaskParent = async (jiraClient, taskId) => {

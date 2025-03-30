@@ -1,42 +1,25 @@
 const fs = require('fs');
 const path = require('path');
-const { FunctionAdapterFactory } = require('./functionAdapters');
-const OpenAIClientFactory = require('../openAIClientFactory');
 
-class FunctionRegistry {
-    constructor(model) {
-        this.adapter = FunctionAdapterFactory.createAdapter(model);
-        this.functions = [];
-        this.loadFunctions();
-    }
+const functionsPath = __dirname;
+const functions = [];
 
-    loadFunctions() {
-        const functionsPath = __dirname;
-        const files = fs.readdirSync(functionsPath);
+const files = fs.readdirSync(functionsPath);
 
-        files.forEach(file => {
-            if (file.endsWith('.js') && !['index.js', 'functionAdapters.js', 'baseFunction.js'].includes(file)) {
-                const funcModule = require(path.join(functionsPath, file));
-                this.functions.push(this.adapter.adapt(funcModule));
-            }
+files.forEach(file => {
+    if (file.endsWith('.js') && file !== 'index.js') {
+        const funcModule = require(path.join(functionsPath, file));
+
+        functions.push({
+            name: funcModule.name,
+            description: funcModule.description,
+            function: funcModule.function,
+            parameters: funcModule.parameters || { type: 'object', properties: {} },
+            returns: funcModule.returns || {},
         });
     }
-
-    getFunctions() {
-        return this.functions;
-    }
-}
-
-let functionRegistry = null;
-
-function getFunctions(model = OpenAIClientFactory.getModel()) {
-    if (!functionRegistry || functionRegistry.model !== model) {
-        functionRegistry = new FunctionRegistry(model);
-    }
-    return functionRegistry.getFunctions();
-}
+});
 
 module.exports = {
-    functions: getFunctions(),
-    getFunctions
+    functions,
 };

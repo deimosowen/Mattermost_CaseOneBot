@@ -1,6 +1,8 @@
 const moment = require('moment-timezone');
 const { getUser: getMattermostUser, postMessage, setStatus } = require('../../mattermost/utils');
-const { markEventAsNotified, checkIfEventWasNotified, markStatusAsSet, checkIfStatusWasSet, removeNotifiedEvents } = require('../../db/models/calendars');
+const { markEventAsNotified, checkIfEventWasNotified, markStatusAsSet,
+    checkIfStatusWasSet, removeNotifiedEvents,
+    removeUser, removeUserInfo, removeUserSettings } = require('../../db/models/calendars');
 const CacheService = require('../cacheService');
 const YandexService = require('./index');
 const YandexApiManager = require('./apiManager');
@@ -72,12 +74,17 @@ class CalendarManager {
      */
     async listAndNotifyEvents(user) {
         try {
-            const api = await YandexApiManager.getApiInstance(user.user_id);
-
             const mattermostUser = await this.getUserFromCache(user.user_id);
+            if (mattermostUser.delete_at > 0) {
+                await this.removeUserById(mattermostUser.id);
+                return;
+            }
+
             const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true'
                 ? mattermostUser.timezone.automaticTimezone
                 : mattermostUser.timezone.manualTimezone;
+
+            const api = await YandexApiManager.getApiInstance(user.user_id);
 
             const now = moment().utc();
 
@@ -178,6 +185,20 @@ class CalendarManager {
         try {
             const api = await YandexApiManager.getApiInstance(userId);
             return await api.getEventById(eventId);
+        } catch (error) {
+            logger.error(error);
+        }
+    }
+
+    /**
+     * Удаления юзера по ID
+     * @param {String} userId 
+     */
+    async removeUserById(userId) {
+        try {
+            await removeUser(userId);
+            await removeUserInfo(userId);
+            await removeUserSettings(userId);
         } catch (error) {
             logger.error(error);
         }

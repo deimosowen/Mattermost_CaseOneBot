@@ -119,7 +119,7 @@ class MattermostService {
     }
 
     async getChannelMembers(channelId) {
-        return this.client.getChannelMembers(channelId);
+        return this.client.getChannelMembers(channelId, 0, 100);
     }
 
     async getChannelMember(channelId, userId) {

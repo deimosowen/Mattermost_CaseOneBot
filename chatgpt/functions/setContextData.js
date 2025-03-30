@@ -1,13 +1,8 @@
 const redisService = require('../../services/redisService');
 
-const setContextData = async ({ channel_id, key, value }) => {
+const setContextData = async ({ key, value }) => {
     try {
-        return {
-            data: 'Данные успешно сохранены'
-        };
-
-        console.log(channel_id, key, value);
-        const redisKey = `openai:${channel_id}`;
+        const redisKey = `openai:globalContext`;
         await redisService.append(
             redisKey,
             key,
@@ -29,7 +24,6 @@ module.exports = {
     parameters: {
         type: 'object',
         properties: {
-            channel_id: { type: 'string' },
             key: {
                 type: 'string',
                 description: 'Ключ контекста'

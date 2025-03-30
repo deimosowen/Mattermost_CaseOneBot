@@ -1,5 +1,4 @@
 const OpenAIClientFactory = require('./openAIClientFactory');
-const { ModelStrategyFactory } = require('./strategies');
 const { createService: createDialogHistoryService } = require('./dialogHistoryService');
 const redisService = require('../services/redisService');
 const { v4: uuidv4 } = require('uuid');
@@ -7,12 +6,22 @@ const { functions } = require('./functions');
 const logger = require('../logger');
 const resources = require('../resources');
 
+async function callFunction(functionCall, additionalParams = {}) {
+    const { name, arguments: argsString } = functionCall;
+    const args = JSON.parse(argsString);
+    const foundFunction = functions.find(func => func.name === name);
+    if (!foundFunction) {
+        throw new Error('Function not found');
+    }
+    const finalArgs = { ...args, ...additionalParams };
+    return foundFunction.function(finalArgs);
+}
+
 async function sendMessage(content, parentMessageId, post, usePersonality = true, imageBase64 = null) {
     const dialogId = parentMessageId || uuidv4();
     try {
         const client = OpenAIClientFactory.getClient();
         const model = OpenAIClientFactory.getModel();
-        const strategy = ModelStrategyFactory.createStrategy(model);
 
         const dialogHistory = createDialogHistoryService(dialogId);
 
@@ -22,7 +31,7 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
                 dialogHistory.addMessage(systemMessage);
             }
 
-            const contextParams = await redisService.get(`openai:${post?.channel_id}`);
+            const contextParams = await redisService.get(`openai:globalContext`);
             if (contextParams.context && contextParams.context.length > 0) {
                 const contextString = contextParams.context
                     .map(item => {
@@ -64,52 +73,49 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
         dialogHistory.addMessage(userMessage);
 
         const history = dialogHistory.getHistory();
-        const baseParams = strategy.prepareParams(history, functions);
+
         const params = {
-            model,
-            ...baseParams
+            model: model ?? 'gpt-4-turbo-preview',
+            messages: history,
+            functions: functions
         };
 
-        let completion = await strategy.createChatCompletion(client, params);
+        let completion = await client.chat.completions.create(params);
         let message = completion.choices[0]?.message;
         let fileId;
-
-        const functionsResult = await strategy.handleFunctionCall(message, {
-            channel_id: post?.channel_id,
-            post_id: post?.id,
-            user_id: post?.user_id
-        });
-
-        if (functionsResult) {
-            for (const message of functionsResult) {
-                dialogHistory.addMessage(message);
-            }
-
-            dialogHistory.addMessage({
-                role: 'user',
-                content: 'Расскажи мне результат.'
-            });
-
-            completion = await strategy.createChatCompletion(client, params);
+        let assistantMessage;
+        if (message.function_call) {
+            const additionalParams = { channel_id: post.channel_id, post_id: post.id, user_id: post.user_id };
+            const result = await callFunction(message.function_call, additionalParams);
+            const functionResultMessage = {
+                role: 'function',
+                name: message.function_call.name,
+                content: result.data,
+            };
+            dialogHistory.addMessage(functionResultMessage);
+            completion = await client.chat.completions.create(params);
+            logger.info(`usage: ${JSON.stringify(completion.usage)}`);
 
             message = completion.choices[0]?.message;
-            fileId = functionsResult?.fileId;
+            fileId = result?.fileId;
         }
 
-        dialogHistory.addMessage({
+        assistantMessage = {
             role: 'assistant',
-            content: message?.content // || functionResult.data
-        });
+            content: message?.content || ''
+        };
+        dialogHistory.addMessage(assistantMessage);
 
         return {
             id: dialogId,
-            text: message?.content, // || functionResult.data,
+            text: assistantMessage.content,
             fileId: fileId,
         }
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
         return {
-            id: dialogId
+            id: dialogId,
+            text: 'Что-то пошло не так.'
         }
     }
 }
