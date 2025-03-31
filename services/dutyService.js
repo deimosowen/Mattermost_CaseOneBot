@@ -127,7 +127,7 @@ const getActualDutyList = async (channel_id) => {
 };
 
 // Проверка наличия внеочередных дежурных и установка первого из них в качестве текущего дежурного
-async function changeUnscheduledDutyIfNeed(channel_id) {
+async function changeUnscheduledDutyIfNeed(channel_id, actualUsers) {
     const unscheduledUsers = await getAllUnscheduledUsers(channel_id);
     if (!unscheduledUsers || unscheduledUsers.length === 0) {
         return null;
