@@ -4,7 +4,7 @@ const JiraStatusType = require('../types/jiraStatusTypes');
 const { isInReviewStatus, extractTaskNumber } = require('../services/jiraService/jiraHelper');
 const logger = require('../logger');
 
-module.exports = async ({ post_id, args }) => {
+module.exports = async ({ post_id, user_name, args }) => {
     try {
         const [comment] = args;
 
@@ -18,7 +18,7 @@ module.exports = async ({ post_id, args }) => {
             await JiraService.changeTaskStatus(taskKey, JiraStatusType.TODO);
 
             if (comment) {
-                await JiraService.addComment(taskKey, comment);
+                await JiraService.addComment(taskKey, `[~${user_name}]: ${comment}`);
             }
 
             postMessageInTreed(post_id, `Статус задачи изменен на **${JiraStatusType.TODO}**.`);

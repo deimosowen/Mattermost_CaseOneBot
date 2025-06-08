@@ -8,7 +8,7 @@ const resources = require('../resources');
 
 module.exports = async ({ post_id, channel_type, user_name, args }) => {
     try {
-        const [taskKey, mergeRequest] = args;
+        const [taskKey, mergeRequest, reviewer] = args;
 
         if (channel_type !== 'D') {
             const message = resources.onlyDirectMessagesCommand;
@@ -17,7 +17,7 @@ module.exports = async ({ post_id, channel_type, user_name, args }) => {
         }
 
         const task = await JiraService.fetchTask(taskKey);
-        const message = prepareMessage(task, mergeRequest, user_name);
+        const message = prepareMessage(task, mergeRequest, user_name, reviewer);
 
         if (isToDoStatus(task.status) || isInProgressStatus(task.status)) {
             await JiraService.changeTaskStatus(taskKey, JiraStatusType.INREVIEW);
@@ -29,7 +29,7 @@ module.exports = async ({ post_id, channel_type, user_name, args }) => {
     }
 }
 
-const prepareMessage = (task, mergeRequest, user_name) => {
+const prepareMessage = (task, mergeRequest, user_name, reviewer) => {
     let message = `**${JiraStatusType.INREVIEW.toUpperCase()}** [${task.key}](https://jira.parcsis.org/browse/${task.key}) ${task.summary}`;
 
     if (mergeRequest) {
@@ -40,6 +40,10 @@ const prepareMessage = (task, mergeRequest, user_name) => {
     }
 
     message += `\nАвтор: ${user_name}`;
+
+    if (reviewer) {
+        message += `\nРевьювер: ${reviewer}`;
+    }
 
     return message;
 };

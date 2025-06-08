@@ -31,6 +31,7 @@ async function uploadFileBase64(base64, channel_id) {
         return file;
     } catch (error) {
         logger.error(`Ошибка при загрузке файла: ${error.message}`);
+        return null;
     }
 }
 

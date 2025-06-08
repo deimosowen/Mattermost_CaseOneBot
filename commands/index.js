@@ -11,6 +11,7 @@ const dutyRemove = require('./duty/dutyRemove');
 const dutyCurrent = require('./duty/dutyCurrent');
 const dutyNext = require('./duty/dutyNext');
 const dutyHelp = require('./duty/dutyHelp');
+const dutyStatistics = require('./duty/dutyStatistics');
 const forward = require('./forward/forward');
 const forwardList = require('./forward/forwardList');
 const forwardRemove = require('./forward/forwardRemove');
@@ -39,6 +40,7 @@ const commands = {
     '!duty-current': dutyCurrent,
     '!duty-next': dutyNext,
     '!duty-help': dutyHelp,
+    '!stat': dutyStatistics,
     '!forward': forward,
     '!forward-list': forwardList,
     '!forward-remove': forwardRemove,

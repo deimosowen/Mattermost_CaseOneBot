@@ -64,10 +64,12 @@ const loadCronJobsFromDb = async () => {
                         let messageFromAIText = messageFromAI.text;
 
                         if (reminder.is_generate_image) {
-                            const prompt = `${reminder.generate_image_prompt}: ${messageFromAIText}`;
+                            const prompt = `${reminder.generate_image_prompt}`;
                             const generateImage = await openAiHelpers.generateImages({ prompt });
                             const file = await mattermostHelpers.uploadFileBase64(generateImage.b64_json, channel_id);
-                            file_id = file.file_infos[0].id;
+                            if (file) {
+                                file_id = file.file_infos[0].id;
+                            }
                         }
 
                         if (messageFromAIText.startsWith('\"') && messageFromAIText.endsWith('\"')) {

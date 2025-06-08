@@ -49,9 +49,13 @@ function parseReviewCommand(message) {
         prLink = parts[urlIndex];
     }
 
-    return [command, caseCode, prLink];
+    let reviewer = null;
+    const userParts = parts.filter(p => p.startsWith('@'));
+    if (userParts){
+        reviewer = userParts;
+    }
+    return [command, caseCode, prLink, reviewer];
 }
-
 
 const commandParsers = {
     '!meet': parseMeetCommand,
