@@ -1,6 +1,6 @@
 # Mattermost CaseOneBot
 
-More than just reminders. This robust bot was designed initially for cron-based reminders within your Mattermost team. As it grew, features like duty scheduling, channel invitations, and calendar integrations were incorporated. Enhance your team's productivity and streamline your Mattermost experience with CaseOneBot
+CaseOneBot is a multifunctional assistant for Mattermost. It began as a simple cron-based reminder tool and now manages duty rotations, channel invites, Yandex Calendar meetings, Jira helpers, message forwarding, and ChatGPT functions. Use it to automate routine tasks and keep your team organized.
 
 ## Key Commands
 
@@ -25,6 +25,7 @@ More than just reminders. This robust bot was designed initially for cron-based 
 
 ### Yandex Calendar Integration
 * `!calendar` - Initiates the Yandex Calendar integration process. Upon invocation, the user will receive a link to grant the bot access to their Yandex Calendar data.
+* `!calendar-settings` - Alias for `!calendar` command.
 * `!calendar-remove` - Removes the Yandex Calendar integration for the current user. This action will revoke the bot's permission to access the user's Yandex Calendar.
 * `!meet` - Creates a Yandex meeting. Variants:
    - `!meet` - Creates a quick meeting with default settings.
@@ -46,6 +47,17 @@ More than just reminders. This robust bot was designed initially for cron-based 
 
 ### ChatGPT Functions
 The bot can also perform various functions using the ChatGPT API. Please refer to the [wiki](https://github.com/deimosowen/Mattermost_CaseOneBot/wiki/Functions) for a detailed description of these functions.
+### Miscellaneous
+* `!ping` - Check the bot response.
+* `!sendAs; [channel/message id]; [text]` - Post a message as admin.
+
+### Jira Workflow Helpers
+* `!review; [task-key]; [link]; [reviewer]` - Send a task to review and post details.
+* `!reop; [comment]` - Reopen a task from review status with an optional comment.
+
+### Duty Statistics
+* `!stat` - Generate statistics for the current channel.
+
 
 ## Installation
 
@@ -56,30 +68,69 @@ The bot can also perform various functions using the ChatGPT API. Please refer t
    `npm install`
 
 3. Create a `.env` file in the root folder of the project and specify the following environment variables:
-
 ```
 API_BASE_URL=your_mattermost_url
 BOT_TOKEN=your_bot_token
+TEAM_CHANNEL_ID=your_team_channel_id
+TEAM_CHANNEL_PREFIX=your_team_channel_prefix
+INREVIEW_CHANNEL_IDS=channel_id_1,channel_id_2
 ADMIN_ID=your_admin_id
 TZ=your_time_zone
-HOST=your_host
-PORT=your_port
+OPENAI_BASE_URL=your_openai_base_url
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_API_MODEL=your_openai_api_model
 OPENAI_API_TEMPERATURE=your_openai_api_temperature
 OPENAI_API_TOP_P=your_openai_api_top_p
+OPENAI_SESSION_TOKEN=your_openai_session_token
+OPENAI_DALLE_API_KEY=your_dalle_api_key
+HOST=your_host
+PORT=your_port
+JIRA_API_URL=your_jira_api_url
+JIRA_HOST=your_jira_host
+JIRA_ROOT_TASK_ID=your_jira_root_task_id
+JIRA_BOT_USERNAME=your_jira_bot_username
+JIRA_BOT_PASSWORD=your_jira_bot_password
+INVITE_DAYS_THRESHOLD=30
+ABSENCE_BASE_URL=your_absence_api_url
+ABSENCE_API_TOKEN=your_absence_api_token
+YANDEX_CLIENT_ID=your_yandex_client_id
+YANDEX_CLIENT_SECRET=your_yandex_client_secret
+YANDEX_REDIRECT_URI=your_yandex_redirect_uri
+REDIS_HOST=your_redis_host
+REDIS_PORT=your_redis_port
+REDIS_PASSWORD=your_redis_password
 ```
 
-- `API_BASE_URL`: Your Mattermost server URL (e.g., "my-mattermost-server.com")
-- `BOT_TOKEN`: Your bot token in Mattermost.
-- `TZ`: Your timezone. Defaults to "UTC".
+- `API_BASE_URL`: Your Mattermost server URL.
+- `BOT_TOKEN`: Bot token in Mattermost.
+- `TEAM_CHANNEL_ID`: ID of the default channel for invites.
+- `TEAM_CHANNEL_PREFIX`: Prefix used to filter team channels for invites.
+- `INREVIEW_CHANNEL_IDS`: Comma-separated IDs of channels used for code review.
 - `ADMIN_ID`: Mattermost user ID of the bot administrator.
-- `HOST`: Hostname for the bot server (e.g., "localhost").
-- `PORT`: Port number for the bot server (e.g., 3000).
-- `OPENAI_API_KEY`: API key for OpenAI, used for generating responses.
-- `OPENAI_API_MODEL`: The model of OpenAI API to use (e.g., "text-davinci-003").
-- `OPENAI_API_TEMPERATURE`: Controls randomness in OpenAI's response. Range from 0 to 1.
-- `OPENAI_API_TOP_P`: Nucleus sampling parameter for OpenAI's response generation.
+- `TZ`: Timezone used for scheduling.
+- `OPENAI_BASE_URL`: Base URL of the OpenAI API.
+- `OPENAI_API_KEY`: API key for OpenAI.
+- `OPENAI_API_MODEL`: Model of the OpenAI API to use.
+- `OPENAI_API_TEMPERATURE`: Randomness factor for OpenAI responses.
+- `OPENAI_API_TOP_P`: Nucleus sampling parameter for OpenAI.
+- `OPENAI_SESSION_TOKEN`: Session token for ChatGPT API.
+- `OPENAI_DALLE_API_KEY`: API key for DALL-E image generation.
+- `HOST`: Hostname for the bot server.
+- `PORT`: Port number for the bot server.
+- `JIRA_API_URL`: URL of the Jira proxy service.
+- `JIRA_HOST`: Hostname of your Jira instance.
+- `JIRA_ROOT_TASK_ID`: ID of the root Jira task used for logging work.
+- `JIRA_BOT_USERNAME`: Jira username for the bot.
+- `JIRA_BOT_PASSWORD`: Jira password for the bot account.
+- `INVITE_DAYS_THRESHOLD`: Days of inactivity to show a channel as inactive.
+- `ABSENCE_BASE_URL`: Base URL of the absence tracking service.
+- `ABSENCE_API_TOKEN`: API token for the absence service.
+- `YANDEX_CLIENT_ID`: OAuth client ID for Yandex integrations.
+- `YANDEX_CLIENT_SECRET`: OAuth client secret for Yandex.
+- `YANDEX_REDIRECT_URI`: Redirect URI for Yandex OAuth.
+- `REDIS_HOST`: Hostname of the Redis server.
+- `REDIS_PORT`: Redis server port.
+- `REDIS_PASSWORD`: Redis password.
 
 4. Launch the bot:  
    `node index.js`
