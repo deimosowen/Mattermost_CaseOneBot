@@ -6,6 +6,7 @@ const { initializeMattermost } = require('./mattermost');
 const { loadCronJobsFromDb, loadDutyCronJobsFromDb, startPingCronJob } = require('./cron');
 const { initializeServer } = require('./server');
 const CalendarManager = require('./services/yandexService/calendar');
+const ReviewManager = require('./services/reviewService');
 const runMigrations = require('./db/migrations');
 
 moment.locale('ru');
@@ -17,6 +18,7 @@ runMigrations()
         loadDutyCronJobsFromDb();
         initializeServer();
         CalendarManager.init();
+        ReviewManager.init();
         startPingCronJob();
     })
     .catch(err => {

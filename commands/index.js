@@ -21,8 +21,10 @@ const sendAs = require('./sendAs');
 const jira = require('./jira');
 const reop = require('./reop');
 const review = require('./review');
+const removeMessage = require('./removeMessage');
 
 const commands = {
+    '!r': removeMessage,
     '!ping': ping,
     '!jira': jira,
     '!sendAs': sendAs,

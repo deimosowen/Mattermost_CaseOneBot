@@ -29,32 +29,20 @@ function parseReviewCommand(message) {
     const parts = message.split(/\s+/);
     const command = parts.shift();
 
-    let caseCode = null;
-    const caseIndex = parts.findIndex(part => part.includes("CASEM"));
-    if (caseIndex !== -1) {
-        const match = parts[caseIndex].match(/CASEM-\d+/);
-        if (match) {
-            caseCode = match[0];
-            parts.splice(caseIndex, 1);
-        } else {
-            throw new Error("Невозможно извлечь номер задачи");
-        }
-    } else {
-        throw new Error("Задача не найдена");
-    }
+    const codePrefixes = ['CASEM', 'REN'];
+    const codePattern = new RegExp(`^(${codePrefixes.join('|')})-\\d+$`);
 
-    let prLink = null;
+    const codeIndex = parts.findIndex(part => codePattern.test(part));
+    const taskCode = codeIndex !== -1 ? parts[codeIndex].match(codePattern)[0] : null;
+    parts.splice(codeIndex, 1);
+
     const urlIndex = parts.findIndex(part => /^https?:\/\//.test(part));
-    if (urlIndex !== -1) {
-        prLink = parts[urlIndex];
-    }
+    const prLink = urlIndex !== -1 ? parts[urlIndex] : null;
 
-    let reviewer = null;
-    const userParts = parts.filter(p => p.startsWith('@'));
-    if (userParts){
-        reviewer = userParts;
-    }
-    return [command, caseCode, prLink, reviewer];
+    const userMentions = parts.filter(p => p.startsWith('@'));
+    const reviewer = userMentions.length > 0 ? userMentions[0] : null;
+
+    return [command, taskCode, prLink, reviewer];
 }
 
 const commandParsers = {

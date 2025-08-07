@@ -21,7 +21,6 @@ const getTask = async (jiraClient, taskId) => {
 
         const allPullRequests = devDetails.detail?.[0]?.pullRequests || [];
         const openPullRequests = allPullRequests.filter(pr => pr.status === "OPEN");
-
         const taskData = {
             key: task.key,
             summary: task.fields.summary,
@@ -30,6 +29,7 @@ const getTask = async (jiraClient, taskId) => {
             created: task.fields.created,
             updated: task.fields.updated,
             comments: task.fields.comment.comments,
+            labels: task.fields.labels,
             pullRequests: openPullRequests,
         };
 

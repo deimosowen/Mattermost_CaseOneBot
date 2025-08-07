@@ -32,12 +32,9 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
             }
 
             const contextParams = await redisService.get(`openai:globalContext`);
-            if (contextParams.context && contextParams.context.length > 0) {
-                const contextString = contextParams.context
-                    .map(item => {
-                        const [key, value] = Object.entries(item)[0];
-                        return `${key}: ${value}`;
-                    })
+            if (contextParams.context && typeof contextParams.context === 'object') {
+                const contextString = Object.entries(contextParams.context)
+                    .map(([key, value]) => `${key}: ${value}`)
                     .join('\n');
 
                 const contextMessage = {
