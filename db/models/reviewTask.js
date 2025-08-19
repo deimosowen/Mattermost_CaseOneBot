@@ -64,6 +64,19 @@ const updateReviewTaskStatus = async (task) => {
     });
 }
 
+const updateReviewTaskReviewer = async (task) => {
+    return new Promise((resolve, reject) => {
+        db.run(
+            `UPDATE review_task SET reviewer = ? WHERE task_key = ?`,
+            [task.reviewer, task.task_key],
+            function (err) {
+                if (err) reject(err);
+                else resolve(this.changes);
+            }
+        );
+    });
+}
+
 const getTaskNotifications = async (review_task_id) => {
     try {
         const rows = await db.all(`SELECT * FROM review_task_notification WHERE review_task_id = ? ORDER BY created_at DESC`, [review_task_id]);
@@ -117,6 +130,7 @@ module.exports = {
     getNotClosedReviewTasks,
     addReviewTask,
     updateReviewTaskStatus,
+    updateReviewTaskReviewer,
     getTaskNotifications,
     addTaskNotification,
     deleteTaskReview,

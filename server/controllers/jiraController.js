@@ -3,6 +3,7 @@ const moment = require('moment');
 const { getSubtasks, logTime } = require('../../jira/index');
 const { getUserNotifiedEvents, setNotifiedEventAsLogged } = require('../../db/models/calendars');
 const { JIRA_ROOT_TASK_ID } = require('../../config');
+const reviewManager = require('../../services/reviewService');
 const logger = require('../../logger');
 
 const router = express.Router();
@@ -60,6 +61,17 @@ router.post('/api/tasks', async (req, res) => {
         res.status(200).json(tasks);
     } catch (error) {
         res.status(500);
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    }
+});
+
+router.get('/api/review', async (req, res) => {
+    const { taskKey, userName } = req.query;
+    try {
+        const result = await reviewManager.handleReviewCommand({ taskKey, userName });
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 });

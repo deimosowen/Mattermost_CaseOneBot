@@ -1,5 +1,5 @@
 const { getPost, postMessage, postMessageInTreed, getChannelMembers } = require('../mattermost/utils');
-const { getReviewTaskByKey, getReviewTaskByPostId, addReviewTask, updateReviewTaskStatus, addTaskNotification } = require('../db/models/reviewTask');
+const { getReviewTaskByKey, getReviewTaskByPostId, addReviewTask, updateReviewTaskStatus, updateReviewTaskReviewer, addTaskNotification } = require('../db/models/reviewTask');
 const JiraService = require('../services/jiraService');
 const JiraStatusType = require('../types/jiraStatusTypes');
 const { isToDoStatus, isInProgressStatus } = require('../services/jiraService/jiraHelper');
@@ -15,27 +15,58 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
             : await getReviewTaskByKey(taskKey);
 
         if (taskKey === null && reviewTask === null) {
-            await postMessageInTreed(post_id, `Не удалось найти задачу для перевода в статус **${JiraStatusType.INREVIEW}**. Укажите task_key или убедитесь, что задача уже существует.`);
+            if (post_id !== null) {
+                await postMessageInTreed(post_id, `Не удалось найти задачу для перевода в статус **${JiraStatusType.INREVIEW}**. Укажите task_key или убедитесь, что задача уже существует.`);
+            }
             return;
         }
 
         const key = taskKey || reviewTask.task_key;
         const task = await JiraService.fetchTask(key);
         const message = prepareMessage(task, mergeRequest, user_name, reviewer);
+        let taskStatus = task.status;
 
         for (const channelId of INREVIEW_CHANNEL_IDS) {
             const isExistsChannel = await getChannelUserExists(channelId, user_id);
+
             if (!isExistsChannel) {
-                return;
+                continue;
             }
 
-            if (isToDoStatus(task.status) || isInProgressStatus(task.status)) {
-                await JiraService.changeTaskStatus(key, JiraStatusType.INREVIEW);
+            if (isToDoStatus(taskStatus)) {
+                const result = await JiraService.changeTaskStatus(key, JiraStatusType.INPROGRESS);
+                if (!result) {
+                    await postMessageInTreed(post_id, `Не удалось перевести задачу [${key}](https://jira.parcsis.org/browse/${key}) в статус **${JiraStatusType.INPROGRESS}**.`);
+                    return;
+                }
+                taskStatus = JiraStatusType.INPROGRESS;
+            }
+
+            if (isInProgressStatus(taskStatus)) {
+                const result = await JiraService.changeTaskStatus(key, JiraStatusType.INREVIEW);
+                if (!result) {
+                    await postMessageInTreed(post_id, `Не удалось перевести задачу [${key}](https://jira.parcsis.org/browse/${key}) в статус **${JiraStatusType.INREVIEW}**.`);
+                    return;
+                }
             }
 
             if (reviewTask) {
-                let repeatedReviewMessage = `Задача снова переведена в статус **${JiraStatusType.INREVIEW}**.`;
-                if (reviewTask.reviewer || reviewTask.reviewer !== null) {
+                let repeatedReviewMessage = '';
+
+                if (taskStatus !== JiraStatusType.INREVIEW) {
+                    repeatedReviewMessage = `Задача [${key}](https://jira.parcsis.org/browse/${key}) переведена в статус **${JiraStatusType.INREVIEW}**`;
+                }
+                else {
+                    repeatedReviewMessage = `Обратите внимание на задачу [${key}](https://jira.parcsis.org/browse/${key})`;
+                }
+
+                if (reviewer !== null && reviewer !== reviewTask.reviewer) {
+                    repeatedReviewMessage += `\nИзменён ревьювер: ${reviewer || 'не указан'}`;
+                    await updateReviewTaskReviewer({
+                        task_key: key,
+                        reviewer: reviewer
+                    });
+                } else if (reviewTask.reviewer || reviewTask.reviewer !== null) {
                     repeatedReviewMessage += `\nРевьювер: ${reviewTask.reviewer}`;
                 }
 
@@ -45,6 +76,8 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
                     task_key: key,
                     status: JiraStatusType.INREVIEW
                 });
+
+                await addTaskNotification(reviewTask.id);
             }
             else {
                 const post = await postMessage(channelId, message);
