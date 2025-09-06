@@ -47,6 +47,15 @@ router.post('/:taskId/comments', async (req, res) => {
     }
 });
 
+router.post('/:taskId/reviewers', async (req, res) => {
+    try {
+        await jiraService.setReviewers(req.jira, req.params.taskId, req.body.reviewers);
+        res.send('Рецензенты успешно установлены');
+    } catch (error) {
+        res.status(500).send(error.toString());
+    }
+});
+
 router.post('/log-time', async (req, res) => {
     try {
         await jiraService.logTime(req.jira, req.body);

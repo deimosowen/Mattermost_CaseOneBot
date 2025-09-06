@@ -68,6 +68,7 @@ router.post('/api/tasks', async (req, res) => {
 router.get('/api/review', async (req, res) => {
     const { taskKey, userName } = req.query;
     try {
+        await new Promise(resolve => setTimeout(resolve, 7000));
         const result = await reviewManager.handleReviewCommand({ taskKey, userName });
         res.status(200).json(result);
     } catch (error) {

@@ -6,7 +6,7 @@ const { getDutySchedule, getDutyUsers,
     getCurrentDuty, updateUserActivityStatus,
     getUnscheduledList, removeDutyUser, addDutyUser,
     updateDutyUsersOrder } = require('../../db/models/duty');
-const { getUserByUsername, postMessage } = require('../../mattermost/utils');
+const { getUserByUsername, getUserByUsernameOrEmail, postMessage } = require('../../mattermost/utils');
 const logger = require('../../logger');
 require('cronstrue/locales/ru');
 
@@ -22,8 +22,7 @@ router.get('/', async (req, res) => {
         users = users.sort((a, b) => a.order_number - b.order_number);
 
         const userPromises = users.map(async (user) => {
-            const userName = user.user_name.startsWith('@') ? user.user_name.substring(1) : user.user_name;
-            const userDetails = await getUserByUsername(userName);
+            const userDetails = await getUserByUsernameOrEmail(user.user_name);
 
             let status;
             if (user.is_disabled) {
@@ -36,12 +35,13 @@ router.get('/', async (req, res) => {
 
             return {
                 id: user.id,
-                username: userDetails.username,
-                name: `${userDetails.first_name} ${userDetails.last_name}`,
+                username: userDetails?.username,
+                name: `${userDetails?.first_name} ${userDetails?.last_name}`,
                 status: status,
                 isUnsheduled: unscheduledUsers.some(u => u.user_id === user.user_id),
                 return_date: user.return_date ? moment(user.return_date).format('DD-MM-YYYY') : null,
             };
+
         });
 
         const employees = await Promise.all(userPromises);
@@ -91,8 +91,7 @@ router.post('/update-order', async (req, res) => {
 router.post('/add-user', async (req, res) => {
     const { username, channel_id } = req.body;
     try {
-        const formattedUsername = username.startsWith('@') ? username.substring(1) : username;
-        const userDetails = await getUserByUsername(formattedUsername);
+        const userDetails = await getUserByUsernameOrEmail(username);
         if (userDetails) {
             await addDutyUser(channel_id, `@${userDetails.username}`, 999);
         }

@@ -93,6 +93,21 @@ async function addComment(taskId, comment, authHeader) {
     }
 }
 
+async function setReviewers(taskId, reviewers, authHeader) {
+    const url = `${JIRA_API_URL}/tasks/${taskId}/reviewers`;
+    try {
+        const response = await axios.post(url, { reviewers }, {
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+            }
+        });
+        return (response.data);
+    } catch (error) {
+        logger.error('Ошибка при установке ревьюверов:', error);
+    }
+}
+
 module.exports = {
     getSubtasks,
     logTime,
@@ -100,4 +115,5 @@ module.exports = {
     getTaskParent,
     changeStatus,
     addComment,
+    setReviewers,
 };

@@ -43,13 +43,16 @@ class MattermostService {
 
     async postMessageInTreed(postId, message, fileIds = []) {
         try {
-            const originalPost = await this.client.getPost(postId);
-            return await this.postMessage(
-                originalPost.channel_id,
-                message,
-                originalPost.root_id || originalPost.id,
-                fileIds
-            );
+            if (postId !== null) {
+                const originalPost = await this.client.getPost(postId);
+                return await this.postMessage(
+                    originalPost.channel_id,
+                    message,
+                    originalPost.root_id || originalPost.id,
+                    fileIds
+                );
+            }
+            return null;
         } catch (error) {
             this._handleError('postMessageInTreed', error);
         }
@@ -66,6 +69,15 @@ class MattermostService {
 
     async getUserByUsername(username) {
         return this.client.getUserByUsername(username);
+    }
+
+    async getUserByEmail(email) {
+        try {
+            return this.client.getUserByEmail(email);
+        } catch (error) {
+            this._handleError('getUserByEmail', error);
+            return null;
+        }
     }
 
     async getProfilePictureUrl(userId) {
@@ -151,6 +163,19 @@ class MattermostService {
         return this.client.getPostThread(postId);
     }
 
+    async getUserByUsernameOrEmail(usernameOrEmail) {
+        const userName = usernameOrEmail.startsWith('@') ? usernameOrEmail.substring(1) : usernameOrEmail;
+        try {
+            return await this.getUserByUsername(userName);
+        } catch (errByUsername) {
+            try {
+                return await this.getUserByEmail(`${userName}@pravo.tech`);
+            } catch (errByEmail) {
+                return null;
+            }
+        }
+    }
+
     // Private helper methods
     async _getDefaultTeam() {
         const [team] = await this.client.getMyTeams();
@@ -209,6 +234,8 @@ module.exports = {
     getMe: (...args) => mattermostService.getMe(...args),
     getUser: (...args) => mattermostService.getUser(...args),
     getUserByUsername: (...args) => mattermostService.getUserByUsername(...args),
+    getUserByEmail: (...args) => mattermostService.getUserByEmail(...args),
+    getUserByUsernameOrEmail: (...args) => mattermostService.getUserByUsernameOrEmail(...args),
     getProfilePictureUrl: (...args) => mattermostService.getProfilePictureUrl(...args),
     setStatus: (...args) => mattermostService.setStatus(...args),
     getMyChannels: (...args) => mattermostService.getMyChannels(...args),

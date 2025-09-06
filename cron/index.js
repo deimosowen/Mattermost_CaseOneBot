@@ -1,4 +1,4 @@
-const CronJob = require('cron').CronJob;
+const { CronJob } = require('cron');
 const dayOffAPI = require('isdayoff')();
 const { wsClient } = require('../mattermost/client');
 const { postMessage } = require('../mattermost/utils');
@@ -11,40 +11,126 @@ const mattermostHelpers = require('../mattermost/fileHelper');
 const logger = require('../logger');
 const TaskType = require('../types/taskTypes');
 
-let jobs = {};
+const WS_PING_CHANNEL_ID = 'dutk7ninhtg7bgwhsht6ijfxpw';
+const WS_PING_TIMEOUT_MS = 5000;
+const CRON_TZ = 'UTC';
+
+const jobs = Object.create(null);
+
+/* ===========================
+ * Helpers
+ * =========================== */
+
+const jobKey = (type, id) => `${type}_${id}`;
+
+function createCronJob(schedule, callback) {
+    return new CronJob(schedule, callback, null, false, CRON_TZ);
+}
+
+function replaceCronJob(key, schedule, callback) {
+    try {
+        if (jobs[key]) {
+            jobs[key].stop();
+        }
+        const job = createCronJob(schedule, callback);
+        job.start();
+        jobs[key] = job;
+        return job;
+    } catch (error) {
+        logger.error(`Cron error: ${error.message}\nStack trace:\n${error.stack}`);
+        return null;
+    }
+}
+
+async function sendReminderOnce(reminder) {
+    let channel_id = reminder.channel_id;
+    let message = reminder.message;
+    let file_id;
+
+    const post = async () => {
+        try {
+            await postMessage(channel_id, message, null, [file_id]);
+        } catch (error) {
+            logger.error(`postMessage failed: ${error.message}\nStack trace:\n${error.stack}`);
+        }
+    };
+
+    try {
+        if (reminder.use_open_ai && isApiKeyExist) {
+            const messageFromAI = await sendMessage(reminder.prompt, null, null, usePersonality = false);
+            let messageFromAIText = messageFromAI.text;
+
+            if (reminder.is_generate_image) {
+                const prompt = `${reminder.generate_image_prompt}`;
+                const generateImage = await openAiHelpers.generateImages({ prompt });
+                const file = await mattermostHelpers.uploadFileBase64(generateImage.b64_json, channel_id);
+                if (file?.file_infos?.[0]?.id) {
+                    file_id = file.file_infos[0].id;
+                }
+            }
+
+            if (messageFromAIText.startsWith('\"') && messageFromAIText.endsWith('\"')) {
+                messageFromAIText = messageFromAIText.slice(1, -1);
+            }
+            message = reminder.template
+                ? reminder.template.replace('{messageFromAI}', messageFromAIText)
+                : messageFromAIText;
+        }
+    } catch (error) {
+        logger.error(`Reminder AI branch error: ${error.message}\nStack trace:\n${error.stack}`);
+    } finally {
+        await post();
+    }
+}
+
+async function shouldSendByWorkingDaysFlag(useWorkingDays) {
+    if (!useWorkingDays) return true;
+    try {
+        const isHoliday = await dayOffAPI.today();
+        return !isHoliday;
+    } catch (error) {
+        logger.error(`isdayoff error: ${error.message}\nStack trace:\n${error.stack}`);
+        return true;
+    }
+}
+
+/* ===========================
+ * Public API
+ * =========================== */
 
 const setCronJob = (id, schedule, taskCallback, type) => {
-    try {
-        const uniqueId = `${type}_${id}`;
-
-        if (jobs[uniqueId]) {
-            jobs[uniqueId].stop();
-        }
-
-        const task = new CronJob(schedule, taskCallback, null, true, 'UTC');
-        task.start();
-
-        jobs[uniqueId] = task;
-
-        return task;
-    } catch (error) {
-        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-    }
+    const key = jobKey(type, id);
+    return replaceCronJob(key, schedule, taskCallback);
 };
 
 const cancelCronJob = (id, type) => {
     try {
-        const uniqueId = `${type}_${id}`;
-
-        if (jobs[uniqueId]) {
-            jobs[uniqueId].stop();
-            delete jobs[uniqueId];
-            return true;
-        } else {
-            return false;
-        }
+        const key = jobKey(type, id);
+        const job = jobs[key];
+        if (!job) return false;
+        job.stop();
+        delete jobs[key];
+        return true;
     } catch (error) {
-        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        logger.error(`cancelCronJob error: ${error.message}\nStack trace:\n${error.stack}`);
+        return false;
+    }
+};
+
+const stopAllCronJobs = () => {
+    try {
+        Object.keys(jobs).forEach((key) => {
+            try {
+                jobs[key].stop();
+            } catch (e) {
+                logger.warn(`stopAllCronJobs: job "${key}" stop error: ${e?.message || e}`);
+            } finally {
+                delete jobs[key];
+            }
+        });
+        return true;
+    } catch (error) {
+        logger.error(`stopAllCronJobs error: ${error.message}\nStack trace:\n${error.stack}`);
         return false;
     }
 };
@@ -53,50 +139,15 @@ const loadCronJobsFromDb = async () => {
     const reminders = await getReminders();
     for (const reminder of reminders) {
         const taskCallback = async () => {
-            let channel_id = reminder.channel_id;
-            let message = reminder.message;
-            let file_id;
-
-            const sendReminder = async () => {
-                try {
-                    if (reminder.use_open_ai && isApiKeyExist) {
-                        const messageFromAI = await sendMessage(reminder.prompt, null, null, usePersonality = false);
-                        let messageFromAIText = messageFromAI.text;
-
-                        if (reminder.is_generate_image) {
-                            const prompt = `${reminder.generate_image_prompt}`;
-                            const generateImage = await openAiHelpers.generateImages({ prompt });
-                            const file = await mattermostHelpers.uploadFileBase64(generateImage.b64_json, channel_id);
-                            if (file) {
-                                file_id = file.file_infos[0].id;
-                            }
-                        }
-
-                        if (messageFromAIText.startsWith('\"') && messageFromAIText.endsWith('\"')) {
-                            messageFromAIText = messageFromAIText.slice(1, -1);
-                        }
-                        if (reminder.template) {
-                            message = reminder.template.replace('{messageFromAI}', messageFromAIText);
-                        } else {
-                            message = messageFromAIText;
-                        }
-                    }
-                } catch (error) {
-                    logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-                } finally {
-                    postMessage(channel_id, message, null, [file_id]);
+            try {
+                if (await shouldSendByWorkingDaysFlag(reminder.use_working_days)) {
+                    await sendReminderOnce(reminder);
                 }
-            };
-
-            if (reminder.use_working_days) {
-                const isHoliday = await dayOffAPI.today();
-                if (!isHoliday) {
-                    sendReminder();
-                }
-            } else {
-                sendReminder();
+            } catch (error) {
+                logger.error(`Reminder task error (id=${reminder.id}): ${error.message}\nStack trace:\n${error.stack}`);
             }
         };
+
         setCronJob(reminder.id, reminder.schedule, taskCallback, TaskType.REMINDER);
     }
 };
@@ -110,31 +161,35 @@ const loadDutyCronJobsFromDb = async () => {
 };
 
 const pingWebSocket = () => {
-    const CHANNEL_ID = "dutk7ninhtg7bgwhsht6ijfxpw";
     let pingReceived = false;
 
     try {
         const timeout = setTimeout(() => {
             if (!pingReceived) {
-                logger.error("WebSocket ping response not received in time.");
-                postMessage(CHANNEL_ID, "WebSocket ping failed. No response received.");
+                const msg = 'WebSocket ping response not received in time.';
+                logger.error(msg);
+                postMessage(WS_PING_CHANNEL_ID, msg);
             }
-        }, 5000);
+        }, WS_PING_TIMEOUT_MS);
 
         wsClient.getStatuses(() => {
             pingReceived = true;
             clearTimeout(timeout);
         });
-
     } catch (error) {
-        logger.error(`WebSocket ping failed: ${error.message}\nStack trace:\n${error.stack}`);
-        postMessage(CHANNEL_ID, `WebSocket ping failed: ${error.message}`);
+        const msg = `WebSocket ping failed: ${error.message}`;
+        logger.error(`${msg}\nStack trace:\n${error.stack}`);
+        postMessage(WS_PING_CHANNEL_ID, msg);
     }
 };
 
 const startPingCronJob = () => {
-    const pingCronJob = new CronJob('*/1 * * * *', pingWebSocket, null, true, 'UTC');
-    pingCronJob.start();
+    try {
+        const pingCronJob = new CronJob('*/1 * * * *', pingWebSocket, null, true, CRON_TZ);
+        pingCronJob.start();
+    } catch (error) {
+        logger.error(`startPingCronJob error: ${error.message}\nStack trace:\n${error.stack}`);
+    }
 };
 
 module.exports = {
@@ -143,5 +198,6 @@ module.exports = {
     startPingCronJob,
     setCronJob,
     cancelCronJob,
+    stopAllCronJobs,
     CronJob,
 };
