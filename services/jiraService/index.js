@@ -1,4 +1,4 @@
-const { getTask, changeStatus, addComment } = require('../../jira');
+const { getTask, changeStatus, addComment, setReviewers } = require('../../jira');
 const { JIRA_BOT_USERNAME, JIRA_BOT_PASSWORD } = require('../../config');
 
 class JiraService {
@@ -16,6 +16,10 @@ class JiraService {
 
     async addComment(taskKey, comment) {
         return await addComment(taskKey, comment, this.authHeader);
+    }
+
+    async setReviewers(taskKey, reviewers) {
+        return await setReviewers(taskKey, reviewers, this.authHeader);
     }
 }
 

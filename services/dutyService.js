@@ -3,7 +3,7 @@ const dayOffAPI = require('isdayoff')();
 const { getCurrentDuty: getDutyFromDB, getDutyUsers, getDutySchedule,
     setCurrentDuty, updateUserActivityStatus, addUnscheduledUser,
     deleteUnscheduledUser, getAllUnscheduledUsers } = require('../db/models/duty');
-const { postMessage, getUserByUsername } = require('../mattermost/utils');
+const { postMessage, getUserByUsernameOrEmail } = require('../mattermost/utils');
 const absenceService = require('./absenceService');
 const logger = require('../logger');
 const resources = require('../resources');
@@ -97,7 +97,7 @@ const getActualDutyList = async (channel_id) => {
 
         // Получаем email'ы пользователей из Mattermost
         const mattermostUsers = await Promise.all(
-            users.map(user => getUserByUsername(user.user_name.replace('@', '')))
+            users.map(user => getUserByUsernameOrEmail(user.user_name))
         );
         // Проверяем доступность
         const availability = await absenceService.checkEmployeeAvailabilityByDate({
