@@ -1,11 +1,10 @@
 const OpenAIClientFactory = require('./openAIClientFactory');
+const { createService: createDialogHistoryService } = require('./dialogHistoryService');
+const redisService = require('../services/redisService');
 const { v4: uuidv4 } = require('uuid');
 const { functions } = require('./functions');
 const logger = require('../logger');
 const resources = require('../resources');
-const { OPENAI_API_KEY, OPENAI_API_MODEL } = require('../config');
-
-const messageHistory = {};
 
 async function callFunction(functionCall, additionalParams = {}) {
     const { name, arguments: argsString } = functionCall;
@@ -22,14 +21,28 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
     const dialogId = parentMessageId || uuidv4();
     try {
         const client = OpenAIClientFactory.getClient();
+        const model = OpenAIClientFactory.getModel();
 
-        if (!messageHistory[dialogId]) {
-            messageHistory[dialogId] = [];
-        }
+        const dialogHistory = createDialogHistoryService(dialogId);
 
-        if (!parentMessageId && usePersonality) {
-            const systemMessage = { role: 'system', content: resources.question.personality };
-            messageHistory[dialogId].push(systemMessage);
+        if (!parentMessageId) {
+            if (usePersonality) {
+                const systemMessage = { role: 'system', content: resources.question.personality };
+                dialogHistory.addMessage(systemMessage);
+            }
+
+            const contextParams = await redisService.get(`openai:globalContext`);
+            if (contextParams.context && typeof contextParams.context === 'object') {
+                const contextString = Object.entries(contextParams.context)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('\n');
+
+                const contextMessage = {
+                    role: 'system',
+                    content: contextString
+                };
+                dialogHistory.addMessage(contextMessage);
+            }
         }
 
         let userMessage;
@@ -54,20 +67,20 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
                 content: content
             };
         }
-        messageHistory[dialogId].push(userMessage);
+        dialogHistory.addMessage(userMessage);
+
+        const history = dialogHistory.getHistory();
 
         const params = {
-            model: OPENAI_API_MODEL ?? 'gpt-4-turbo-preview',
-            messages: messageHistory[dialogId],
+            model: model ?? 'gpt-4-turbo-preview',
+            messages: history,
             functions: functions
         };
 
         let completion = await client.chat.completions.create(params);
-        logger.info(`usage: ${JSON.stringify(completion.usage)}`);
-
         let message = completion.choices[0]?.message;
-        let assistantMessage;
         let fileId;
+        let assistantMessage;
         if (message.function_call) {
             const additionalParams = { channel_id: post.channel_id, post_id: post.id, user_id: post.user_id };
             const result = await callFunction(message.function_call, additionalParams);
@@ -76,7 +89,7 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
                 name: message.function_call.name,
                 content: result.data,
             };
-            messageHistory[dialogId].push(functionResultMessage);
+            dialogHistory.addMessage(functionResultMessage);
             completion = await client.chat.completions.create(params);
             logger.info(`usage: ${JSON.stringify(completion.usage)}`);
 
@@ -88,7 +101,7 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
             role: 'assistant',
             content: message?.content || ''
         };
-        messageHistory[dialogId].push(assistantMessage);
+        dialogHistory.addMessage(assistantMessage);
 
         return {
             id: dialogId,
@@ -98,18 +111,13 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
         return {
-            id: dialogId
+            id: dialogId,
+            text: 'Что-то пошло не так.'
         }
     }
 }
 
-const isApiKeyExist = {
-    get value() {
-        return !!OPENAI_API_KEY;
-    }
-};
-
 module.exports = {
     sendMessage,
-    isApiKeyExist: isApiKeyExist.value
+    isApiKeyExist: OpenAIClientFactory.isApiKeyExist()
 };

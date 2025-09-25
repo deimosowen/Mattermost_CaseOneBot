@@ -1,9 +1,9 @@
 const express = require('express');
 const moment = require('moment');
-//const { getEventById } = require('../../calendar');
 const { getSubtasks, logTime } = require('../../jira/index');
 const { getUserNotifiedEvents, setNotifiedEventAsLogged } = require('../../db/models/calendars');
 const { JIRA_ROOT_TASK_ID } = require('../../config');
+const reviewManager = require('../../services/reviewService');
 const logger = require('../../logger');
 
 const router = express.Router();
@@ -11,26 +11,20 @@ const router = express.Router();
 router.get('/', async (req, res) => {
     const { user_id } = req.query;
     try {
-        res.render('jiraWorklog', { user_id, events: [] });
-        //переписать 
-        /*
-                let events = await getUserNotifiedEvents(user_id);
-                events = await Promise.all(events.map(async event => {
-                    const actualEvent = await getEventById(event.user_id, event.event_id);
-                    const startDate = moment(actualEvent.start.dateTime);
-                    const endDate = moment(actualEvent.end.dateTime);
-                    const duration = moment.duration(endDate.diff(startDate)).asMinutes();
-                    const timezoneOffset = moment.parseZone(actualEvent.start.dateTime).utcOffset();
-                    const adjustedStartDate = startDate.add(timezoneOffset, 'minutes');
-                    return {
-                        id: event.id,
-                        start_date: actualEvent.start.dateTime,
-                        summary: actualEvent.summary,
-                        start: adjustedStartDate.format('YYYY-MM-DD HH:mm'),
-                        duration: `${Math.round(duration)}`
-                    };
-                }));
-                res.render('jiraWorklog', { user_id, events });*/
+        let events = await getUserNotifiedEvents(user_id);
+        events = events.map(event => {
+            const startDate = moment(event.start_date);
+            const endDate = moment(event.end_date);
+            const duration = moment.duration(endDate.diff(startDate)).asMinutes();
+            const timezoneOffset = moment.parseZone(event.start_date).utcOffset();
+            const adjustedStartDate = startDate.add(timezoneOffset, 'minutes');
+            return {
+                ...event,
+                start: adjustedStartDate.format('YYYY-MM-DD HH:mm'),
+                duration: `${Math.round(duration)}`
+            };
+        });
+        res.render('jiraWorklog', { user_id, events });
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
@@ -67,6 +61,18 @@ router.post('/api/tasks', async (req, res) => {
         res.status(200).json(tasks);
     } catch (error) {
         res.status(500);
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    }
+});
+
+router.get('/api/review', async (req, res) => {
+    const { taskKey, userName } = req.query;
+    try {
+        await new Promise(resolve => setTimeout(resolve, 7000));
+        const result = await reviewManager.handleReviewCommand({ taskKey, userName });
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
 });

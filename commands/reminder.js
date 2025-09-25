@@ -1,8 +1,8 @@
 const cronValidator = require('cron-validator');
 const { addReminder } = require('../db/models/reminders');
-const { setCronJob } = require('../cron');
-const { postMessage, postMessageInTreed } = require('../mattermost/utils');
-const TaskType = require('../types/taskTypes');
+const { postMessageInTreed } = require('../mattermost/utils');
+const cronManager = require('../cron/cronManager');
+const CronServiceTypes = require('../cron/сronServiceTypes');
 
 module.exports = async ({ post_id, channel_id, channel_name, user_id, user_name, args }) => {
     const [schedule, message] = args;
@@ -23,8 +23,8 @@ module.exports = async ({ post_id, channel_id, channel_name, user_id, user_name,
     }
 
     const id = await addReminder(channel_id, channel_name, user_id, user_name, schedule, message);
-    const taskCallback = () => postMessage(channel_id, message);
-    const task = setCronJob(id, schedule, taskCallback, TaskType.REMINDER);
+    const reminderService = cronManager.get(CronServiceTypes.REMINDER);
+    const task = reminderService.addJob({ id, schedule, channel_id, message });
     const nextExecutionDate = task.nextDate().toFormat('yyyy-MM-dd HH:mm');
     postMessageInTreed(post_id, `Успешно добавлено. Следующее напоминание будет в ${nextExecutionDate} (UTC)`);
 };

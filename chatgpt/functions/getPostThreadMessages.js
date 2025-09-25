@@ -29,11 +29,5 @@ const getPostThreadMessages = async ({ post_id }) => {
 module.exports = {
     name: 'getPostThreadMessages',
     description: 'Возвращает все сообщения в треде (обсуждения)',
-    parameters: {
-        type: 'object',
-        properties: {
-            post_id: { type: 'string' },
-        },
-    },
     function: getPostThreadMessages,
 };

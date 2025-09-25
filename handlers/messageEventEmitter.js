@@ -12,7 +12,7 @@ messageEventEmitter.on('nonCommandMessage', (post, eventData) => {
 });
 
 messageEventEmitter.on('postDeleted', (post, eventData) => {
-    messageHandlers.handlePostDeleted(post, eventData);
+    messageHandlers.onDelete(post, eventData);
 });
 
 module.exports = messageEventEmitter;

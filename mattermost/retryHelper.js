@@ -1,6 +1,6 @@
 const logger = require('../logger');
 
-const retry = async (fn, args, retries = 5, delay = 1500) => {
+const retry = async (fn, args, retries = 3, delay = 1500) => {
     for (let i = 0; i < retries; i++) {
         try {
             return await fn(...args);
@@ -12,7 +12,7 @@ const retry = async (fn, args, retries = 5, delay = 1500) => {
     }
 };
 
-const withRetry = (fn, retries = 5, delay = 1500) => {
+const withRetry = (fn, retries = 3, delay = 1500) => {
     return async (...args) => {
         return retry(fn, args, retries, delay);
     };

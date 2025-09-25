@@ -26,7 +26,7 @@ const createClientProxy = (client) => {
         get: (target, propKey) => {
             const originalMethod = target[propKey];
             if (typeof originalMethod === 'function') {
-                return withRetry(originalMethod.bind(target), 5, 1500);
+                return withRetry(originalMethod.bind(target), 2, 1500);
             }
             return originalMethod;
         }

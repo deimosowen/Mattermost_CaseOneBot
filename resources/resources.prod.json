@@ -1,0 +1,5 @@
+{
+    "question": {
+        "prompt": "{username} пишет: {question}"
+    }
+}

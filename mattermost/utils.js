@@ -2,219 +2,263 @@ const moment = require('moment');
 const { client, wsClient, authUser } = require('./client');
 const fileHelper = require('./fileHelper');
 const logger = require('../logger');
+const { add } = require('winston');
 
-const downloadFile = async (file_id) => {
-    const file = await fileHelper.downloadFileById(file_id);
-    return file;
-}
-
-const uploadFile = async (file_buffer, file_name, channel_id) => {
-    const file = await fileHelper.uploadFile(file_buffer, file_name, channel_id);
-    return file;
-};
-
-const userTyping = async (post_id) => {
-    try {
-        const originalPost = await client.getPost(post_id);
-        const post = {
-            channel_id: originalPost.channel_id,
-            root_id: originalPost.root_id
-        };
-        wsClient.userTyping(post.channel_id, post.root_id);
-    } catch (error) {
-        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-    };
-}
-
-const postMessage = async (channel_id, message, root_id = null, file_ids = []) => {
-    try {
-        const post = {
-            channel_id,
-            root_id,
-            message,
-            file_ids
-        };
-        return await client.createPost(post);
-    } catch (error) {
-        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+class MattermostService {
+    constructor() {
+        this.client = client;
+        this.wsClient = wsClient;
     }
-};
 
-const postMessageInTreed = async (post_id, message, file_ids = []) => {
-    try {
-        const originalPost = await client.getPost(post_id);
-        const post = {
-            channel_id: originalPost.channel_id,
-            root_id: originalPost.root_id || originalPost.id,
-            message: message,
-            file_ids: file_ids
-        };
-        return await client.createPost(post);
-    } catch (error) {
-        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    // File operations
+    async downloadFile(fileId) {
+        return await fileHelper.downloadFileById(fileId);
     }
-};
 
-const getMe = async () => {
-    const me = await client.getMe();
-    return me;
-};
-
-const getUser = async (user_id) => {
-    const user = await client.getUser(user_id);
-    return user;
-}
-
-const getUserByUsername = async (username) => {
-    const user = await client.getUserByUsername(username);
-    return user;
-}
-
-const getMyChannels = async (team_id) => {
-    if (!team_id) {
-        const team = await getTeam();
-        team_id = team.id;
+    async uploadFile(fileBuffer, fileName, channelId) {
+        return await fileHelper.uploadFile(fileBuffer, fileName, channelId);
     }
-    const channels = await client.getMyChannels(team_id, false);
-    return channels;
-}
 
-const getProfilePictureUrl = async (user_id) => {
-    const url = await client.getProfilePictureUrl(user_id, 0);
-    return url;
-}
-
-const getPost = async (post_id) => {
-    const post = await client.getPost(post_id);
-    return post;
-}
-
-const deletePost = async (post_id) => {
-    const result = await client.deletePost(post_id);
-    return result;
-};
-
-const getChannel = async (team_id, channel_name) => {
-    if (!team_id) {
-        const team = await getTeam();
-        team_id = team.id;
+    // Message operations
+    async userTyping(postId) {
+        try {
+            const { channel_id, root_id } = await this.client.getPost(postId);
+            this.wsClient.userTyping(channel_id, root_id);
+        } catch (error) {
+            this._handleError('userTyping', error);
+        }
     }
-    const channel = await client.getChannelByName(team_id, channel_name);
-    return channel;
-}
 
-const getChannelById = async (channel_id) => {
-    try {
-        const channel = await client.getChannel(channel_id);
-        return channel;
-    } catch (error) {
-        return null;
+    async postMessage(channelId, message, rootId = null, fileIds = []) {
+        try {
+            return await this.client.createPost({
+                channel_id: channelId,
+                root_id: rootId,
+                message,
+                file_ids: fileIds
+            });
+        } catch (error) {
+            this._handleError('postMessage', error);
+        }
     }
-}
 
-const getChannelMembers = async (channel_id) => {
-    const members = await client.getChannelMembers(channel_id);
-    return members;
-}
-
-const getChannelMember = async (channel_id, user_id) => {
-    try {
-        const member = await client.getChannelMember(channel_id, user_id);
-        return member;
-    } catch (error) {
-        return null;
+    async postMessageInTreed(postId, message, fileIds = []) {
+        try {
+            if (postId !== null) {
+                const originalPost = await this.client.getPost(postId);
+                return await this.postMessage(
+                    originalPost.channel_id,
+                    message,
+                    originalPost.root_id || originalPost.id,
+                    fileIds
+                );
+            }
+            return null;
+        } catch (error) {
+            this._handleError('postMessageInTreed', error);
+        }
     }
-}
 
-const addToChannel = async (user_id, channel_id) => {
-    const result = await client.addToChannel(user_id, channel_id);
-    return result;
-}
+    // User operations
+    async getMe() {
+        return this.client.getMe();
+    }
 
-const getTeam = async () => {
-    const teams = await client.getMyTeams();
-    return teams[0];
-}
+    async getUser(userId) {
+        return this.client.getUser(userId);
+    }
 
-const getPostThread = async (post_id) => {
-    const posts = await client.getPostThread(post_id);
-    return posts;
-}
+    async getUserByUsername(username) {
+        return this.client.getUserByUsername(username);
+    }
 
-const setStatus = async (user_id, token, text, expires_at, dnd_mode) => {
-    try {
-        const userClient = await authUser(token);
-        const meInfo = await userClient.getMe();
+    async getUserByEmail(email) {
+        try {
+            return this.client.getUserByEmail(email);
+        } catch (error) {
+            this._handleError('getUserByEmail', error);
+            return null;
+        }
+    }
 
-        let currentStatus = meInfo.props.customStatus;
-        if (typeof currentStatus === 'string') {
+    async getProfilePictureUrl(userId) {
+        return this.client.getProfilePictureUrl(userId, 0);
+    }
+
+    async setStatus(userId, token, text, expiresAt, dndMode) {
+        try {
+            const userClient = await authUser(token);
+            const { props: { customStatus } } = await userClient.getMe();
+
+            const currentStatus = this._parseCustomStatus(customStatus);
+            if (this._isValidStatus(currentStatus)) {
+                return true;
+            }
+
+            await Promise.all([
+                dndMode && this._setDndMode(userClient, userId, expiresAt),
+                this._setCustomStatus(userClient, text, expiresAt)
+            ]);
+
+            return true;
+        } catch (error) {
+            this._handleError('setStatus', error);
+            return false;
+        }
+    }
+
+    // Channel operations
+    async getMyChannels(teamId = null) {
+        const resolvedTeamId = teamId || (await this._getDefaultTeam()).id;
+        return this.client.getMyChannels(resolvedTeamId, false);
+    }
+
+    async getTeam() {
+        const team = await this._getDefaultTeam();
+        return team;
+    }
+
+    async getChannel(teamId = null, channelName) {
+        const resolvedTeamId = teamId || (await this._getDefaultTeam()).id;
+        return this.client.getChannelByName(resolvedTeamId, channelName);
+    }
+
+    async getChannelById(channelId) {
+        try {
+            return await this.client.getChannel(channelId);
+        } catch {
+            return null;
+        }
+    }
+
+    async getChannelMembers(channelId) {
+        return this.client.getChannelMembers(channelId, 0, 100);
+    }
+
+    async getChannelMember(channelId, userId) {
+        try {
+            return await this.client.getChannelMember(channelId, userId);
+        } catch {
+            return null;
+        }
+    }
+
+    async addToChannel(userId, channelId) {
+        return this.client.addToChannel(userId, channelId);
+    }
+
+    async createDirectChannel(userIds) {
+        return this.client.createDirectChannel(userIds);
+    }
+
+    // Post operations
+    async getPost(postId) {
+        return this.client.getPost(postId);
+    }
+
+    async deletePost(postId) {
+        return this.client.deletePost(postId);
+    }
+
+    async getPostThread(postId) {
+        return this.client.getPostThread(postId);
+    }
+
+    async getUserByUsernameOrEmail(usernameOrEmail) {
+        const userName = usernameOrEmail.startsWith('@') ? usernameOrEmail.substring(1) : usernameOrEmail;
+        try {
+            return await this.getUserByUsername(userName);
+        } catch (errByUsername) {
             try {
-                currentStatus = JSON.parse(currentStatus);
-            } catch (parseError) {
-                logger.error('Ошибка при парсинге currentStatus:', parseError);
-                currentStatus = null;
+                return await this.getUserByEmail(`${userName}@pravo.tech`);
+            } catch (errByEmail) {
+                return null;
             }
         }
-
-        const currentExpiresAt = currentStatus && currentStatus.expires_at
-            ? moment.utc(currentStatus.expires_at)
-            : null;
-
-        const now = moment().utc();
-
-        if (currentStatus && currentExpiresAt && currentExpiresAt.isAfter(now)) {
-            return true;
-        }
-
-        if (dnd_mode) {
-            const dndEndTime = moment(expires_at).utc().unix();
-            await userClient.updateStatus({
-                user_id: user_id,
-                status: 'dnd',
-                manual: true,
-                dnd_end_time: dndEndTime
-            });
-        }
-
-        await userClient.updateCustomStatus({
-            emoji: 'calendar',
-            text: text,
-            duration: 'date_and_time',
-            expires_at: expires_at
-        });
-
-        return true;
-    } catch (error) {
-        logger.error('Ошибка при обновлении статуса:', error);
-        return false;
     }
-};
 
-const createDirectChannel = async (user_ids) => {
-    const channel = await client.createDirectChannel(user_ids);
-    return channel;
+    async addReaction(postId, emojiName) {
+        try {
+            const me = await this.getMe();
+            return await this.client.addReaction(me.id, postId, emojiName);
+        } catch (error) {
+            this._handleError('addReaction', error);
+            return null;
+        }
+    }
+
+    // Private helper methods
+    async _getDefaultTeam() {
+        const [team] = await this.client.getMyTeams();
+        return team;
+    }
+
+    _parseCustomStatus(status) {
+        if (typeof status !== 'string') return status;
+        try {
+            return JSON.parse(status);
+        } catch (error) {
+            this._handleError('parseCustomStatus', error);
+            return null;
+        }
+    }
+
+    _isValidStatus(status) {
+        if (!status?.expires_at) return false;
+        return moment.utc(status.expires_at).isAfter(moment().utc());
+    }
+
+    async _setDndMode(userClient, userId, expiresAt) {
+        const dndEndTime = moment(expiresAt).utc().unix();
+        return userClient.updateStatus({
+            user_id: userId,
+            status: 'dnd',
+            manual: true,
+            dnd_end_time: dndEndTime
+        });
+    }
+
+    async _setCustomStatus(userClient, text, expiresAt) {
+        return userClient.updateCustomStatus({
+            emoji: 'calendar',
+            text,
+            duration: 'date_and_time',
+            expires_at: expiresAt
+        });
+    }
+
+    _handleError(method, error) {
+        logger.error(`Error in ${method}:`, error);
+    }
 }
 
+// Create singleton instance
+const mattermostService = new MattermostService();
+
+// Export instance methods with the same interface as before
 module.exports = {
-    getMe,
-    postMessage,
-    postMessageInTreed,
-    getUser,
-    getUserByUsername,
-    getProfilePictureUrl,
-    getPost,
-    deletePost,
-    getChannel,
-    getChannelById,
-    getChannelMember,
-    getChannelMembers,
-    getMyChannels,
-    getPostThread,
-    getTeam,
-    addToChannel,
-    userTyping,
-    downloadFile,
-    uploadFile,
-    setStatus,
-    createDirectChannel,
+    downloadFile: (...args) => mattermostService.downloadFile(...args),
+    uploadFile: (...args) => mattermostService.uploadFile(...args),
+    userTyping: (...args) => mattermostService.userTyping(...args),
+    postMessage: (...args) => mattermostService.postMessage(...args),
+    postMessageInTreed: (...args) => mattermostService.postMessageInTreed(...args),
+    getMe: (...args) => mattermostService.getMe(...args),
+    getUser: (...args) => mattermostService.getUser(...args),
+    getUserByUsername: (...args) => mattermostService.getUserByUsername(...args),
+    getUserByEmail: (...args) => mattermostService.getUserByEmail(...args),
+    getUserByUsernameOrEmail: (...args) => mattermostService.getUserByUsernameOrEmail(...args),
+    getProfilePictureUrl: (...args) => mattermostService.getProfilePictureUrl(...args),
+    setStatus: (...args) => mattermostService.setStatus(...args),
+    getMyChannels: (...args) => mattermostService.getMyChannels(...args),
+    getChannel: (...args) => mattermostService.getChannel(...args),
+    getChannelById: (...args) => mattermostService.getChannelById(...args),
+    getChannelMembers: (...args) => mattermostService.getChannelMembers(...args),
+    getChannelMember: (...args) => mattermostService.getChannelMember(...args),
+    addToChannel: (...args) => mattermostService.addToChannel(...args),
+    createDirectChannel: (...args) => mattermostService.createDirectChannel(...args),
+    getPost: (...args) => mattermostService.getPost(...args),
+    deletePost: (...args) => mattermostService.deletePost(...args),
+    getPostThread: (...args) => mattermostService.getPostThread(...args),
+    getTeam: (...args) => mattermostService.getTeam(...args),
+    addReaction: (...args) => mattermostService.addReaction(...args),
 };

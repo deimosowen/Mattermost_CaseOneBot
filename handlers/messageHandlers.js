@@ -1,11 +1,11 @@
 const handleQuestion = require('./handleQuestion');
 const handleMessageForwarding = require('./handleMessageForwarding');
-const handlePostDeleted = require('./handlePostDeleted');
+const onDelete = require('./onDelete');
 const handleTaskInReview = require('./handleTaskInReview');
 
 module.exports = {
     handleMessageForwarding,
     handleQuestion,
-    handlePostDeleted,
+    onDelete,
     handleTaskInReview,
 };

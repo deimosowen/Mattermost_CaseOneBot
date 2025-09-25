@@ -1,6 +1,8 @@
 const moment = require('moment-timezone');
 const { getUser: getMattermostUser, postMessage, setStatus } = require('../../mattermost/utils');
-const { markEventAsNotified, checkIfEventWasNotified, markStatusAsSet, checkIfStatusWasSet, removeNotifiedEvents } = require('../../db/models/calendars');
+const { markEventAsNotified, checkIfEventWasNotified, markStatusAsSet,
+    checkIfStatusWasSet, removeNotifiedEvents,
+    removeUser, removeUserInfo, removeUserSettings } = require('../../db/models/calendars');
 const CacheService = require('../cacheService');
 const YandexService = require('./index');
 const YandexApiManager = require('./apiManager');
@@ -72,12 +74,17 @@ class CalendarManager {
      */
     async listAndNotifyEvents(user) {
         try {
-            const api = await YandexApiManager.getApiInstance(user.user_id);
-
             const mattermostUser = await this.getUserFromCache(user.user_id);
+            if (mattermostUser.delete_at > 0) {
+                await this.removeUserById(mattermostUser.id);
+                return;
+            }
+
             const timezone = mattermostUser.timezone.useAutomaticTimezone === 'true'
                 ? mattermostUser.timezone.automaticTimezone
                 : mattermostUser.timezone.manualTimezone;
+
+            const api = await YandexApiManager.getApiInstance(user.user_id);
 
             const now = moment().utc();
 
@@ -103,29 +110,20 @@ class CalendarManager {
      */
     async processEvent(user, event, now, timezone) {
         const eventStartTime = event.start;
-        const nowTime = now.clone().set({
-            year: 0,
-            month: 0,
-            date: 0,
-        });
-        const eventTime = eventStartTime.clone().set({
-            year: 0,
-            month: 0,
-            date: 0,
-        });
+        const eventTime = eventStartTime.clone();
 
-        if (eventTime.isAfter(nowTime) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
+        if (eventTime.isAfter(now) && !(await checkIfEventWasNotified(user.user_id, event.id))) {
             const message = this.createEventMessage(event, timezone);
             await postMessage(user.channel_id, message);
             await markEventAsNotified(user.user_id, event);
         }
-        if (user.mattermost_token && eventStartTime.isSameOrBefore(now) && !(await checkIfStatusWasSet(user.user_id, event.id))) {
-            const statusText = user.event_summary || event.summary;
-            const status = await setStatus(user.user_id, user.mattermost_token, statusText, event.end, user.dnd_mode);
-            if (status) {
-                await markStatusAsSet(user.user_id, event.id);
-            }
-        }
+        /*  if (user.mattermost_token && eventStartTime.isSameOrBefore(now) && !(await checkIfStatusWasSet(user.user_id, event.id))) {
+              const statusText = user.event_summary || event.summary;
+              const status = await setStatus(user.user_id, user.mattermost_token, statusText, event.end, user.dnd_mode);
+              if (status) {
+                  await markStatusAsSet(user.user_id, event.id);
+              }
+          }*/
     }
 
     /**
@@ -187,6 +185,20 @@ class CalendarManager {
         try {
             const api = await YandexApiManager.getApiInstance(userId);
             return await api.getEventById(eventId);
+        } catch (error) {
+            logger.error(error);
+        }
+    }
+
+    /**
+     * Удаления юзера по ID
+     * @param {String} userId 
+     */
+    async removeUserById(userId) {
+        try {
+            await removeUser(userId);
+            await removeUserInfo(userId);
+            await removeUserSettings(userId);
         } catch (error) {
             logger.error(error);
         }

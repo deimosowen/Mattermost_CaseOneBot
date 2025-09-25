@@ -30,7 +30,7 @@ module.exports = async (post, eventData) => {
 };
 
 async function fillTemplate(currentMapping, post, eventData) {
-    let template = currentMapping.message;
+    let template = currentMapping.message || '{post_link}';
     const matches = Array.from(template.matchAll(/\{(.*?)\}/g));
     for (let match of matches) {
         const paramName = match[1];

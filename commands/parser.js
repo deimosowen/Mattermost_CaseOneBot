@@ -25,9 +25,49 @@ function parseMeetCommand(message) {
     return [command, userString, summary, duration];
 }
 
+function parseReviewCommand(message) {
+    const parts = message.trim().split(/\s+/);
+    const command = parts.shift();
+
+    const codePrefixes = ['CASEM', 'REN'];
+    const codePattern = new RegExp(`^(?:${codePrefixes.join('|')})-\\d+$`, 'i');
+
+    // 1) Код задачи
+    let taskCode = null;
+    const codeIndex = parts.findIndex(p => codePattern.test(p));
+    if (codeIndex !== -1) {
+        taskCode = parts[codeIndex].toUpperCase();
+        parts.splice(codeIndex, 1); // удаляем только если нашли
+    }
+
+    // 2) PR/URL
+    let prLink = null;
+    let urlIndex = parts.findIndex(p => /^https?:\/\/\S+/i.test(p));
+    if (urlIndex !== -1) {
+        const m = parts[urlIndex].match(/^https?:\/\/\S+/i);
+        prLink = m ? m[0] : null;
+        parts.splice(urlIndex, 1); // исключаем из дальнейшего разбора
+    }
+
+    // 3) Ревьюверы: поддержка нескольких упоминаний и разделения запятыми
+    const tokens = parts
+        .flatMap(p => p.split(','))
+        .map(t => t.trim())
+        .filter(Boolean);
+
+    const reviewers = Array.from(new Set(
+        tokens.filter(t => /^@[\w.\-]+$/i.test(t))
+    ));
+
+    const reviewer = reviewers.length ? reviewers.join(' ') : null;
+
+    return [command, taskCode, prLink, reviewer];
+}
+
 const commandParsers = {
     '!meet': parseMeetCommand,
-    '!reop': parseSpaceFirstSeparatedCommand
+    '!reop': parseSpaceFirstSeparatedCommand,
+    '!review': parseReviewCommand
 };
 
 function parseCommand(message) {

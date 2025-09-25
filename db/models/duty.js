@@ -120,6 +120,11 @@ const deleteUnscheduledUser = async (id) => {
     return db.run('DELETE FROM duty_unscheduled_list WHERE id = ?', id);
 };
 
+// Получение всех внеочередных пользователей
+const getAllUnscheduledUsers = async (channel_id) => {
+    return db.all('SELECT * FROM duty_unscheduled_list WHERE channel_id = ? ORDER BY id ASC', channel_id);
+};
+
 module.exports = {
     getDutySchedules,
     setDutySchedule,
@@ -138,4 +143,5 @@ module.exports = {
     deleteUnscheduledUser,
     removeDutyUser,
     updateDutyUsersOrder,
+    getAllUnscheduledUsers,
 };

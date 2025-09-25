@@ -1,16 +1,16 @@
 const axios = require('axios');
 const OpenAIClientFactory = require('./openAIClientFactory');
-const { OPENAI_SESSION_TOKEN } = require('../config');
+const { OPENAI_SESSION_TOKEN, OPENAI_DALLE_API_KEY } = require('../config');
 const logger = require('../logger');
 
 async function generateImages({ prompt }) {
     try {
-        const client = OpenAIClientFactory.getClient();
+        const client = OpenAIClientFactory.createClient('https://api.openai.com/v1', OPENAI_DALLE_API_KEY);
         const params = {
             model: 'dall-e-3',
             prompt: prompt,
             response_format: 'b64_json',
-            size: '1024x1024',
+            size: '1792x1024',
         };
         const completion = await client.images.generate(params);
         return completion.data[0];
