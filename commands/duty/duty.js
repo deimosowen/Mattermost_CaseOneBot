@@ -1,10 +1,9 @@
 const cronValidator = require('cron-validator');
 const { setDutySchedule, addDutyUser, getDutySchedule, setCurrentDuty,
     getCurrentDuty, deleteDutySchedule, deleteAllDutyUsers, deleteCurrentDuty } = require('../../db/models/duty');
-const { setCronJob, cancelCronJob } = require('../../cron');
-const { createDutyCallback } = require('../../services/dutyService');
+const cronManager = require('../../cron/cronManager');
+const CronServiceTypes = require('../../cron/сronServiceTypes');
 const { postMessage } = require('../../mattermost/utils');
-const TaskType = require('../../types/taskTypes');
 const logger = require('../../logger');
 const resources = require('../../resources');
 
@@ -27,9 +26,11 @@ module.exports = async ({ channel_id, args }) => {
             return;
         }
 
+        const dutyService = cronManager.get(CronServiceTypes.DUTY);
+
         const dutySchedule = await getDutySchedule(channel_id);
         if (dutySchedule) {
-            cancelCronJob(dutySchedule.id, TaskType.DUTY);
+            dutyService.removeJob(dutySchedule.id);
             await deleteDutySchedule(channel_id);
             await deleteAllDutyUsers(channel_id);
             await deleteCurrentDuty(channel_id);
@@ -46,8 +47,7 @@ module.exports = async ({ channel_id, args }) => {
             await setCurrentDuty(channel_id, userList[0]);
         }
 
-        const taskCallback = createDutyCallback(channel_id);
-        setCronJob(id, schedule, taskCallback, TaskType.DUTY);
+        dutyService.addJob({ id, schedule, channel_id });
 
         postMessage(channel_id, resources.duty.setSuccess);
     } catch (error) {

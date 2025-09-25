@@ -2,6 +2,7 @@ const moment = require('moment');
 const { client, wsClient, authUser } = require('./client');
 const fileHelper = require('./fileHelper');
 const logger = require('../logger');
+const { add } = require('winston');
 
 class MattermostService {
     constructor() {
@@ -176,6 +177,16 @@ class MattermostService {
         }
     }
 
+    async addReaction(postId, emojiName) {
+        try {
+            const me = await this.getMe();
+            return await this.client.addReaction(me.id, postId, emojiName);
+        } catch (error) {
+            this._handleError('addReaction', error);
+            return null;
+        }
+    }
+
     // Private helper methods
     async _getDefaultTeam() {
         const [team] = await this.client.getMyTeams();
@@ -249,4 +260,5 @@ module.exports = {
     deletePost: (...args) => mattermostService.deletePost(...args),
     getPostThread: (...args) => mattermostService.getPostThread(...args),
     getTeam: (...args) => mattermostService.getTeam(...args),
+    addReaction: (...args) => mattermostService.addReaction(...args),
 };

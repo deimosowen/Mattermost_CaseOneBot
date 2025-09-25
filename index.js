@@ -5,17 +5,13 @@ require('moment/locale/ru');
 const logger = require('./logger');
 
 const { initializeMattermost } = require('./mattermost');
-const {
-    loadCronJobsFromDb,
-    loadDutyCronJobsFromDb,
-    startPingCronJob,
-    stopAllCronJobs,
-} = require('./cron');
 const { initializeServer, shutdownServer } = require('./server');
 const CalendarManager = require('./services/yandexService/calendar');
 const ReviewManager = require('./services/reviewService');
 const RedisService = require('./services/redisService');
 const runMigrations = require('./db/migrations');
+
+const CronManager = require('./cron/cronManager');
 
 /* ===== Настройки времени ===== */
 moment.locale('ru');
@@ -59,7 +55,7 @@ async function shutdown(exitCode = 0) {
     try {
         // Параллельно глушим внешние компоненты
         await Promise.allSettled([
-            maybeAwait(stopAllCronJobs && stopAllCronJobs()),
+            maybeAwait(CronManager.stopAll()),
             maybeAwait(shutdownServer && shutdownServer()),
             maybeAwait(RedisService.shutdown()),
         ]);
@@ -109,10 +105,7 @@ async function main() {
 
     // Cron-задачи из БД
     logger.info('Загрузка cron-задач…');
-    await Promise.all([
-        maybeAwait(loadCronJobsFromDb().catch((e) => logger.error('loadCronJobsFromDb:', e))),
-        maybeAwait(loadDutyCronJobsFromDb().catch((e) => logger.error('loadDutyCronJobsFromDb:', e))),
-    ]);
+    maybeAwait(CronManager.startAll());
     logger.info('Cron-задачи загружены.');
 
     // HTTP/WS-сервер
@@ -123,7 +116,6 @@ async function main() {
     // Сервисы домена
     CalendarManager.init();
     ReviewManager.init();
-    startPingCronJob();
 
     logger.info('Бот успешно запущен.');
 }
