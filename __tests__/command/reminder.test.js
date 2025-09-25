@@ -17,7 +17,7 @@ jest.mock('../../db/models/reminders', () => ({
     addReminder: jest.fn(),
 }));
 
-jest.mock('../../cron/CronManager', () => ({
+jest.mock('../../cron/cronManager', () => ({
     get: jest.fn(),
 }));
 
