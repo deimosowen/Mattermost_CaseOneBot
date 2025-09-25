@@ -1,8 +1,8 @@
 const { deleteReminder } = require('../db/models/reminders');
-const { cancelCronJob } = require('../cron');
+const cronManager = require('../cron/cronManager');
+const CronServiceTypes = require('../cron/сronServiceTypes');
 const { postMessageInTreed } = require('../mattermost/utils');
 const logger = require('../logger');
-const TaskType = require('../types/taskTypes');
 
 module.exports = async ({ post_id, channel_id, user_id, args }) => {
     const [id] = args;
@@ -16,7 +16,8 @@ module.exports = async ({ post_id, channel_id, user_id, args }) => {
         const changes = await deleteReminder(id, channel_id, user_id);
 
         if (changes > 0) {
-            cancelCronJob(id, TaskType.REMINDER);
+            const reminderService = cronManager.get(CronServiceTypes.REMINDER);
+            reminderService.removeJob(id);
             postMessageInTreed(post_id, `Напоминание \`${id}\` успешно удалено.`);
         } else {
             postMessageInTreed(post_id, `Не удалось найти напоминание \`${id}\` для удаления.`);

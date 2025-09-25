@@ -17,6 +17,7 @@ const {
 } = require('../db/models/reviewTask');
 
 const JiraService = require('../services/jiraService');
+const GitlabService = require('../services/gitlabService');
 const JiraStatusType = require('../types/jiraStatusTypes');
 const { isToDoStatus, isInProgressStatus } = require('../services/jiraService/jiraHelper');
 const { INREVIEW_CHANNEL_IDS } = require('../config');
@@ -93,6 +94,35 @@ async function getReviewer(reviewer, task) {
     return mentions.length ? mentions.join(', ') : null;
 }
 
+/** Возвращает Url PR/merge request, если он есть */
+function getMergeRequestUrl(task, mergeRequest) {
+    if (mergeRequest) {
+        return mergeRequest;
+    } else if (task.pullRequests && task.pullRequests.length === 1) {
+        return task.pullRequests[0].url;
+    }
+    return null;
+}
+
+/**
+ * Парсит GitLab URL и возвращает проект и IID MR
+ * @param {string} url - ссылка на Merge Request
+ * @returns {{ project: string, mrIid: number } | null}
+ */
+function parseGitlabMrUrl(url) {
+    const regex = /\/([^/]+)\/-\/merge_requests\/(\d+)$/;
+    const match = url.match(regex);
+
+    if (!match) {
+        return null;
+    }
+
+    return {
+        project: match[1],
+        mrIid: parseInt(match[2], 10),
+    };
+}
+
 /** Сборка первичного сообщения при переводе в INREVIEW */
 async function prepareMessage(task, mergeRequest, user_name, reviewer) {
     let msg = `**${JiraStatusType.INREVIEW.toUpperCase()}** [${task.key}](https://jira.parcsis.org/browse/${task.key}) ${task.summary}`;
@@ -100,9 +130,6 @@ async function prepareMessage(task, mergeRequest, user_name, reviewer) {
     // PR/merge-request ссылка
     if (mergeRequest) {
         msg += `\n[${mergeRequest}](${mergeRequest})`;
-    } else if (task.pullRequests && task.pullRequests.length === 1) {
-        const pullUrl = task.pullRequests[0].url;
-        msg += `\n[${pullUrl}](${pullUrl})`;
     }
 
     msg += `\nАвтор: ${user_name}`;
@@ -215,7 +242,8 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
         // 2) Определить ключ задачи и получить актуальные данные из Jira
         const key = taskKey || reviewTask.task_key;
         const task = await JiraService.fetchTask(key);
-        const message = await prepareMessage(task, mergeRequest, user_name, reviewer);
+        const mergeRequestLink = getMergeRequestUrl(task, mergeRequest);
+        const message = await prepareMessage(task, mergeRequestLink, user_name, reviewer);
         let taskStatus = task.status;
 
         // 3) Обработать все целевые каналы
@@ -248,6 +276,19 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
             const post = await postMessage(channelId, message);
             const reviewerResolved = await getReviewer(reviewer, task);
 
+            let gitlabMergeRequestId = null;
+            const mergeRequestData = mergeRequestLink ? parseGitlabMrUrl(mergeRequestLink) : null;
+            if (mergeRequestData) {
+                const project = await GitlabService.getProjectByName(mergeRequestData.project);
+                if (project) {
+                    gitlabMergeRequestId = await GitlabService.addMergeRequest({
+                        project_id: project.project_id,
+                        mr_iid: mergeRequestData.mrIid,
+                        status: GitlabService.STATUSES.NEW,
+                    });
+                }
+            }
+
             const reviewTaskId = await addReviewTask({
                 channel_id: channelId,
                 post_id: post.id,
@@ -255,6 +296,7 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
                 task_key: key,
                 merge_request_url: mergeRequest || null,
                 reviewer: reviewerResolved,
+                gitlab_merge_request_id: gitlabMergeRequestId,
             });
 
             await addTaskNotification(reviewTaskId);

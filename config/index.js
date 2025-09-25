@@ -28,4 +28,6 @@ module.exports = {
     REDIS_HOST: process.env.REDIS_HOST,
     REDIS_PORT: process.env.REDIS_PORT,
     REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+    GITLAB_BASE_URL: process.env.GITLAB_BASE_URL,
+    GITLAB_API_TOKEN: process.env.GITLAB_API_TOKEN,
 };

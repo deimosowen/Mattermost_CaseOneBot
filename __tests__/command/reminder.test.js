@@ -1,10 +1,8 @@
 const reminderCommand = require('../../commands/reminder');
-const { postMessage, postMessageInTreed } = require('../../mattermost/utils');
+const { postMessageInTreed } = require('../../mattermost/utils');
 const cronValidator = require('cron-validator');
 const { addReminder } = require('../../db/models/reminders');
-const { setCronJob } = require('../../cron');
-const TaskType = require('../../types/taskTypes');
-
+const cronManager = require('../../cron/cronManager');
 
 jest.mock('../../mattermost/utils', () => ({
     postMessage: jest.fn(),
@@ -19,52 +17,64 @@ jest.mock('../../db/models/reminders', () => ({
     addReminder: jest.fn(),
 }));
 
-jest.mock('../../cron', () => ({
-    setCronJob: jest.fn(),
+jest.mock('../../cron/CronManager', () => ({
+    get: jest.fn(),
 }));
 
 describe('reminder command', () => {
+    let reminderServiceMock;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+
+        reminderServiceMock = {
+            addJob: jest.fn().mockReturnValue({
+                nextDate: () => ({ toFormat: jest.fn(() => '2023-11-01 12:00') }),
+            }),
+        };
+
+        cronManager.get.mockReturnValue(reminderServiceMock);
+    });
 
     it('should notify if cron schedule is missing', async () => {
-        const mockData = {
-            post_id: 'testPostId',
-            args: []
-        };
+        const mockData = { post_id: 'testPostId', args: [] };
 
         await reminderCommand(mockData);
 
-        expect(postMessageInTreed).toHaveBeenCalledWith('testPostId', 'Ошибка: параметр [cron-расписание] отсутствует.');
+        expect(postMessageInTreed).toHaveBeenCalledWith(
+            'testPostId',
+            'Ошибка: параметр [cron-расписание] отсутствует.'
+        );
     });
 
     it('should notify if cron schedule is invalid', async () => {
-        const mockData = {
-            post_id: 'testPostId',
-            args: ['invalidCron', 'message']
-        };
+        const mockData = { post_id: 'testPostId', args: ['invalidCron', 'message'] };
+
+        cronValidator.isValidCron.mockReturnValueOnce(false);
 
         await reminderCommand(mockData);
 
-        expect(postMessageInTreed).toHaveBeenCalledWith('testPostId', 'Ошибка: параметр [cron-расписание] "invalidCron" является недопустимым.');
+        expect(postMessageInTreed).toHaveBeenCalledWith(
+            'testPostId',
+            'Ошибка: параметр [cron-расписание] "invalidCron" является недопустимым.'
+        );
     });
 
     it('should notify if message is missing', async () => {
         cronValidator.isValidCron.mockReturnValueOnce(true);
-        const mockData = {
-            post_id: 'testPostId',
-            args: ['* * * * *']
-        };
+        const mockData = { post_id: 'testPostId', args: ['* * * * *'] };
 
         await reminderCommand(mockData);
 
-        expect(postMessageInTreed).toHaveBeenCalledWith('testPostId', 'Ошибка: сообщение отсутствует.');
+        expect(postMessageInTreed).toHaveBeenCalledWith(
+            'testPostId',
+            'Ошибка: сообщение отсутствует.'
+        );
     });
 
     it('should set a new reminder', async () => {
         cronValidator.isValidCron.mockReturnValueOnce(true);
         addReminder.mockReturnValueOnce('123');
-        setCronJob.mockReturnValueOnce({
-            nextDate: () => ({ toFormat: jest.fn(() => '2023-11-01 12:00') })
-        });
 
         const mockData = {
             post_id: 'testPostId',
@@ -72,13 +82,35 @@ describe('reminder command', () => {
             channel_name: 'Test Channel Name',
             user_id: 'testUserID',
             user_name: 'TestUserName',
-            args: ['* * * * *', 'Test message']
+            args: ['* * * * *', 'Test message'],
         };
 
         await reminderCommand(mockData);
 
-        expect(addReminder).toHaveBeenCalledWith('testChannel', expect.anything(), expect.anything(), expect.anything(), '* * * * *', 'Test message');
-        expect(setCronJob).toHaveBeenCalledWith('123', '* * * * *', expect.any(Function), TaskType.REMINDER);
-        expect(postMessageInTreed).toHaveBeenCalledWith('testPostId', 'Успешно добавлено. Следующее напоминание будет в 2023-11-01 12:00 (UTC)');
+        // проверяем запись в БД
+        expect(addReminder).toHaveBeenCalledWith(
+            'testChannel',
+            'Test Channel Name',
+            'testUserID',
+            'TestUserName',
+            '* * * * *',
+            'Test message'
+        );
+
+        // проверяем вызов addJob
+        expect(reminderServiceMock.addJob).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: '123',
+                channel_id: 'testChannel',
+                schedule: '* * * * *',
+                message: 'Test message',
+            })
+        );
+
+        // проверяем, что сообщение об успехе отправлено
+        expect(postMessageInTreed).toHaveBeenCalledWith(
+            'testPostId',
+            'Успешно добавлено. Следующее напоминание будет в 2023-11-01 12:00 (UTC)'
+        );
     });
 });

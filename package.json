@@ -1,6 +1,6 @@
 {
   "name": "mattermost_caseonebot",
-  "version": "2.1.10",
+  "version": "2.1.15",
   "description": "",
   "type": "commonjs",
   "main": "index.js",
@@ -16,6 +16,7 @@
   "author": "Denis Ushanev",
   "license": "ISC",
   "dependencies": {
+    "@gitbeaker/rest": "^43.5.0",
     "@mattermost/client": "^9.1.0",
     "@mattermost/types": "^9.1.0",
     "axios": "^1.4.0",

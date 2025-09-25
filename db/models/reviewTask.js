@@ -10,10 +10,19 @@ const getReviewTaskByKey = async (task_key) => {
     }
 }
 
+const getReviewTaskByGitlabMergeRequestId = async (gitlab_merge_request_id) => {
+    try {
+        const row = await db.get(`SELECT * FROM review_task WHERE gitlab_merge_request_id = ?`, [gitlab_merge_request_id]);
+        return row || null;
+    } catch (err) {
+        throw err;
+    }
+}
+
 const getReviewTaskByPostId = async (post_id) => {
     try {
-        const rows = await db.get(`SELECT * FROM review_task WHERE post_id = ?`, [post_id]);
-        return rows || null;
+        const row = await db.get(`SELECT * FROM review_task WHERE post_id = ?`, [post_id]);
+        return row || null;
     } catch (err) {
         throw err;
     }
@@ -40,9 +49,9 @@ const getNotClosedReviewTasks = async () => {
 const addReviewTask = async (task) => {
     return new Promise((resolve, reject) => {
         db.run(
-            `INSERT INTO review_task (channel_id, post_id, user_id, task_key, merge_request_url, reviewer)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [task.channel_id, task.post_id, task.user_id, task.task_key, task.merge_request_url, task.reviewer],
+            `INSERT INTO review_task (channel_id, post_id, user_id, task_key, merge_request_url, reviewer, gitlab_merge_request_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [task.channel_id, task.post_id, task.user_id, task.task_key, task.merge_request_url, task.reviewer, task.gitlab_merge_request_id],
             function (err) {
                 if (err) reject(err);
                 else resolve(this.lastID);
@@ -134,4 +143,5 @@ module.exports = {
     getTaskNotifications,
     addTaskNotification,
     deleteTaskReview,
+    getReviewTaskByGitlabMergeRequestId,
 }
