@@ -1,6 +1,6 @@
 {
   "name": "mattermost_caseonebot",
-  "version": "2.1.15",
+  "version": "2.2.1",
   "description": "",
   "type": "commonjs",
   "main": "index.js",
