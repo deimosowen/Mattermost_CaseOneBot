@@ -1,5 +1,5 @@
 const moment = require('moment');
-const dayOffAPI = require('isdayoff')();
+const dayOffService = require('../services/dayOffService');
 const { CronJob } = require('cron');
 
 const {
@@ -92,7 +92,7 @@ class ReviewManager {
         await this.actualizeReviewTasks();
 
         // 2) В выходные/праздники — не уведомляем
-        if (await this.isHoliday()) {
+        if (await dayOffService.isTodayHoliday()) {
             return;
         }
 
@@ -192,17 +192,6 @@ class ReviewManager {
             }
         } catch (error) {
             logger.error(error);
-        }
-    }
-
-    /** Проверка, является ли день выходным */
-    async isHoliday() {
-        try {
-            const isHoliday = await dayOffAPI.today();
-            return isHoliday;
-        } catch (error) {
-            logger.error(`Error in isHoliday: ${error.message}\nStack trace:\n${error.stack}`);
-            return false;
         }
     }
 }

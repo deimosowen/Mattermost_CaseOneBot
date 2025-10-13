@@ -4,10 +4,10 @@ const {
     addProject,
     getMergeRequestById,
     addMergeRequest: addMergeRequestToDb,
-    updateMergeRequestStatus, } = require('../db/models/gitlab');
-const cache = require('../services/cacheService');
-const config = require('../config');
-const logger = require('../logger');
+    updateMergeRequestStatus, } = require('../../db/models/gitlab');
+const cache = require('../cacheService');
+const config = require('../../config');
+const logger = require('../../logger');
 
 const STATUSES = {
     NEW: "new",
@@ -136,6 +136,27 @@ class GitlabService {
             };
         } catch (error) {
             logger.error(`Ошибка при получении статуса MR ${mrIid}: ${error.message}`);
+        }
+    }
+
+    /**
+     * Получиние MR по ID.
+     */
+    async getMergeRequestById(projectId, mrIid) {
+        try {
+            const mr = await this.client.MergeRequests.show(projectId, mrIid);
+            if (!mr) {
+                return null;
+            }
+
+            return {
+                id: mr.id,
+                iid: mr.iid,
+                title: mr.title,
+                hasConflicts: mr.has_conflicts,
+            }
+        } catch (error) {
+            logger.error(`Ошибка при получении MR ${mrIid} в проекте ${projectId}: ${error.message}`);
         }
     }
 

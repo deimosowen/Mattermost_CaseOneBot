@@ -9,6 +9,7 @@ const calendarController = require('./controllers/calendarController');
 const dutyController = require('./controllers/dutyController');
 const inviteController = require('./controllers/inviteController');
 const jiraController = require('./controllers/jiraController');
+const featureController = require('./controllers/featureController');
 
 let app;
 let server;
@@ -33,6 +34,7 @@ function buildApp() {
     app.use('/duty', dutyController);
     app.use('/invite', inviteController);
     app.use('/jira', jiraController);
+    app.use('/feature', featureController);
 
     // healthcheck для оркестраторов / мониторинга
     app.get('/healthz', (_req, res) => res.status(200).send('ok'));
