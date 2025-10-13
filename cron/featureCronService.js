@@ -16,7 +16,7 @@ class FeatureCronService extends BaseCronService {
     async loadJobsFromDb() {
         this.createJob('feature_polling', this.shedule, async () => {
             const feature_merge_requests = await getFeaturesWithOpenMRs();
-            if (!features.length) {
+            if (!feature_merge_requests.length) {
                 return;
             }
 
