@@ -187,6 +187,26 @@ class MattermostService {
         }
     }
 
+    async pinPost(postId) {
+        try {
+            await this.client.pinPost(postId);
+            return true;
+        } catch (error) {
+            this._handleError('pinPost', error);
+            return false;
+        }
+    }
+
+    async unpinPost(postId) {
+        try {
+            await this.client.unpinPost(postId);
+            return true;
+        } catch (error) {
+            this._handleError('unpinPost', error);
+            return false;
+        }
+    }
+
     // Private helper methods
     async _getDefaultTeam() {
         const [team] = await this.client.getMyTeams();
@@ -261,4 +281,6 @@ module.exports = {
     getPostThread: (...args) => mattermostService.getPostThread(...args),
     getTeam: (...args) => mattermostService.getTeam(...args),
     addReaction: (...args) => mattermostService.addReaction(...args),
+    pinPost: (...args) => mattermostService.pinPost(...args),
+    unpinPost: (...args) => mattermostService.unpinPost(...args),
 };

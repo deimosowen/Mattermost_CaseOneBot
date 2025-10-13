@@ -1,42 +1,38 @@
 const BaseCronService = require('./baseCronService');
-const { getMergeRequestsByOpenStatuses } = require('../db/models/gitlab');
-const { getReviewTaskByGitlabMergeRequestId } = require('../db/models/reviewTask');
+const { getReviewTaskWithNotClosedMRs } = require('../db/models/reviewTask');
 const { postMessageInTreed, addReaction } = require('../mattermost/utils');
 const GitlabService = require('../services/gitlabService');
 const logger = require('../logger');
 
-class GitlabCronService extends BaseCronService {
+class ReviewCronService extends BaseCronService {
     constructor() {
-        super('GitlabCron');
+        super('ReviewCron');
         this.gitlab = GitlabService;
-        this.shedule = '*/5 * * * *';
+        this.shedule = '* * * * *';
         this.statuses = GitlabService.STATUSES;
         this.reaction = 'heavy_check_mark';
     }
 
     async loadJobsFromDb() {
-        this.createJob('mr_polling', this.shedule, async () => {
-            const mergeRequests = await getMergeRequestsByOpenStatuses();
-            if (!mergeRequests.length) {
+        this.createJob('review_polling', this.shedule, async () => {
+            const reviewTasks = await getReviewTaskWithNotClosedMRs();
+            if (!reviewTasks.length) {
                 return;
             }
 
-            for (const mergeRequest of mergeRequests) {
+            for (const reviewTask of reviewTasks) {
                 try {
-                    const mr = await this.gitlab.getMergeRequestStatus(mergeRequest.project_id, mergeRequest.mr_iid);
+                    const mr = await this.gitlab.getMergeRequestStatus(reviewTask.project_id, reviewTask.mr_iid);
                     if (!mr) continue;
 
-                    if (mr.status !== mergeRequest.status) {
-                        await this.gitlab.updateReviewTaskStatus(mergeRequest.id, mr.status);
+                    if (mr.status !== reviewTask.mr_status) {
+                        await this.gitlab.updateReviewTaskStatus(reviewTask.gitlab_merge_request_id, mr.status);
 
-                        const reviewTask = await getReviewTaskByGitlabMergeRequestId(mergeRequest.id);
-                        if (reviewTask) {
-                            const message = this._formatStatusMessage(mr.status);
-                            await postMessageInTreed(reviewTask.post_id, message);
+                        const message = this._formatStatusMessage(mr.status);
+                        await postMessageInTreed(reviewTask.post_id, message);
 
-                            if (mr.status === this.statuses.APPROVED) {
-                                await addReaction(reviewTask.post_id, this.reaction);
-                            }
+                        if (mr.status === this.statuses.APPROVED) {
+                            await addReaction(reviewTask.post_id, this.reaction);
                         }
                     }
                 } catch (error) {
@@ -66,4 +62,4 @@ class GitlabCronService extends BaseCronService {
     }
 }
 
-module.exports = GitlabCronService;
+module.exports = ReviewCronService;

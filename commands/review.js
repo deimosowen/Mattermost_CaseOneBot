@@ -20,6 +20,7 @@ const JiraService = require('../services/jiraService');
 const GitlabService = require('../services/gitlabService');
 const JiraStatusType = require('../types/jiraStatusTypes');
 const { isToDoStatus, isInProgressStatus } = require('../services/jiraService/jiraHelper');
+const { parseGitlabMrUrl } = require('../services/gitlabService/gitlabHelper');
 const { INREVIEW_CHANNEL_IDS } = require('../config');
 const logger = require('../logger');
 
@@ -102,25 +103,6 @@ function getMergeRequestUrl(task, mergeRequest) {
         return task.pullRequests[0].url;
     }
     return null;
-}
-
-/**
- * Парсит GitLab URL и возвращает проект и IID MR
- * @param {string} url - ссылка на Merge Request
- * @returns {{ project: string, mrIid: number } | null}
- */
-function parseGitlabMrUrl(url) {
-    const regex = /\/([^/]+)\/-\/merge_requests\/(\d+)$/;
-    const match = url.match(regex);
-
-    if (!match) {
-        return null;
-    }
-
-    return {
-        project: match[1],
-        mrIid: parseInt(match[2], 10),
-    };
 }
 
 /** Сборка первичного сообщения при переводе в INREVIEW */

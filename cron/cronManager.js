@@ -1,16 +1,18 @@
-const GitlabCronService = require('./gitlabCronService');
+const ReviewCronService = require('./reviewCronService');
 const DutyCronService = require('./dutyCronService');
 const ReminderCronService = require('./reminderCronService');
 const PingCronService = require('./pingCronService');
+const FeatureCronService = require('./featureCronService');
 const logger = require('../logger');
 
 class CronManager {
     constructor() {
         this.services = {};
         this._register(new ReminderCronService());
-        this._register(new GitlabCronService());
+        this._register(new ReviewCronService());
         this._register(new DutyCronService());
         this._register(new PingCronService());
+        this._register(new FeatureCronService());
     }
 
     get(name) {
