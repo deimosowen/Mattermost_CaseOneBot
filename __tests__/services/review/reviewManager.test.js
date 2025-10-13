@@ -12,6 +12,7 @@ const {
     JiraService,
     JiraStatusType,
     reviewCommand,
+    DayOffService,
 } = require('./reviewManager.setup');
 
 // Экспортируется СИНГЛТОН: new ReviewManager()
@@ -22,9 +23,6 @@ describe('ReviewManager.checkTasksStatus', () => {
         // 04:30Z — до окна
         jest.setSystemTime(new Date('2025-09-06T04:30:00Z'));
 
-        // чтобы не упереться в выходной, замокаем метод isHoliday()
-        jest.spyOn(reviewManager, 'isHoliday').mockResolvedValue(false);
-
         await reviewManager.checkTasksStatus();
 
         expect(getReviewTasksByStatus).not.toHaveBeenCalled();
@@ -34,7 +32,8 @@ describe('ReviewManager.checkTasksStatus', () => {
 
     test('праздничный/выходной день — выходим без действий', async () => {
         jest.setSystemTime(new Date('2025-09-06T06:30:00Z')); // после 05:00
-        jest.spyOn(reviewManager, 'isHoliday').mockResolvedValue(true);
+        DayOffService.isHoliday.mockResolvedValue(true); // день выходной
+        DayOffService.isTodayHoliday.mockResolvedValue(true); // день выходной
 
         await reviewManager.checkTasksStatus();
 
@@ -45,7 +44,6 @@ describe('ReviewManager.checkTasksStatus', () => {
 
     test('после 05:00, уведомления за сегодня ещё не было, updated_at — вчера → шлём уведомление и фиксируем', async () => {
         jest.setSystemTime(new Date('2025-09-06T10:00:00Z'));
-        jest.spyOn(reviewManager, 'isHoliday').mockResolvedValue(false);
 
         const task = {
             id: 101,
@@ -77,7 +75,6 @@ describe('ReviewManager.checkTasksStatus', () => {
 
     test('после 05:00, если в Jira статус уже не INREVIEW — обновляем статус и не шлём уведомление', async () => {
         jest.setSystemTime(new Date('2025-09-06T10:00:00Z'));
-        jest.spyOn(reviewManager, 'isHoliday').mockResolvedValue(false);
 
         const task = {
             id: 102,
@@ -104,7 +101,6 @@ describe('ReviewManager.checkTasksStatus', () => {
 
     test('если за сегодня уже было уведомление — пропускаем', async () => {
         jest.setSystemTime(new Date('2025-09-06T11:00:00Z'));
-        jest.spyOn(reviewManager, 'isHoliday').mockResolvedValue(false);
 
         const task = {
             id: 103,

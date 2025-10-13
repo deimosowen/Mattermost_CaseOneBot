@@ -7,6 +7,11 @@ jest.mock('../../../db/models/reviewTask', () => ({
     updateReviewTaskStatus: jest.fn(),
 }));
 
+jest.mock('../../../services/dayOffService', () => ({
+    isHoliday: jest.fn(),
+    isTodayHoliday: jest.fn(),
+}));
+
 jest.mock('../../../mattermost/utils', () => ({
     postMessageInTreed: jest.fn(),
     getUserByEmail: jest.fn(),
@@ -49,6 +54,7 @@ const {
 const { postMessageInTreed, getUserByEmail } = require('../../../mattermost/utils');
 const reviewCommand = require('../../../commands/review');
 const JiraService = require('../../../services/jiraService');
+const DayOffService = require('../../../services/dayOffService');
 const JiraStatusType = require('../../../types/jiraStatusTypes');
 const logger = require('../../../logger');
 
@@ -70,6 +76,8 @@ beforeEach(() => {
     // Дефолтные заглушки
     JiraService.fetchTask.mockResolvedValue({ status: JiraStatusType.INREVIEW });
     JiraService.changeTaskStatus.mockResolvedValue(true);
+    DayOffService.isHoliday.mockResolvedValue(false);
+    DayOffService.isTodayHoliday.mockResolvedValue(false);
 
     postMessageInTreed.mockResolvedValue({ id: 'post-in-thread' });
 
@@ -102,4 +110,5 @@ module.exports = {
     // other
     reviewCommand,
     logger,
+    DayOffService,
 };
