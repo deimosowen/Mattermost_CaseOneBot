@@ -5,6 +5,10 @@ const getFeatureReadyById = async (id) => {
     return db.get('SELECT * FROM feature_ready WHERE id = ?', id);
 }
 
+const getFeatureReadyByPostId = async (postId) => {
+    return db.get('SELECT * FROM feature_ready WHERE mattermost_post_id = ?', postId);
+}
+
 const getFeaturesWithOpenMRs = async () => {
     return db.all(`
         SELECT 
@@ -51,18 +55,10 @@ const addFeatureReady = async (data, mrs, mattermostPostId) => {
                 [mr.data.project]
             );
 
-            let gmr = await db.get(
-                'SELECT id FROM gitlab_merge_requests WHERE project_id = ? AND mr_iid = ?',
-                [project.project_id, mr.data.mrIid]
+            const gmr = await db.runAsync(
+                'INSERT INTO gitlab_merge_requests (project_id, mr_iid, status) VALUES (?, ?, ?)',
+                [project.project_id, mr.data.mrIid, 'NEW']
             );
-
-            if (!gmr) {
-                const gmrRes = await db.runAsync(
-                    'INSERT INTO gitlab_merge_requests (project_id, mr_iid, status) VALUES (?, ?, ?)',
-                    [project.project_id, mr.data.mrIid, 'NEW']
-                );
-                gmr = { id: gmrRes.lastID };
-            }
 
             await db.runAsync(
                 'INSERT INTO feature_merge_requests (feature_id, merge_request_id, role) VALUES (?, ?, ?)',
@@ -78,8 +74,26 @@ const addFeatureReady = async (data, mrs, mattermostPostId) => {
     }
 }
 
+const deleteFeatureReady = async (featureId) => {
+    await db.transaction(async () => {
+        const mrs = await db.all(`SELECT merge_request_id FROM feature_merge_requests WHERE feature_id = ?`, [featureId]);
+        const mrIds = mrs.map(m => m.merge_request_id);
+
+        await db.runAsync(`DELETE FROM feature_merge_requests WHERE feature_id = ?`, [featureId]);
+
+        await db.runAsync(`DELETE FROM feature_ready WHERE id = ?`, [featureId]);
+
+        for (const mrId of mrIds) {
+            await db.runAsync(`DELETE FROM gitlab_merge_requests WHERE id = ?`, [mrId]);
+        }
+    });
+};
+
+
 module.exports = {
     getFeatureReadyById,
+    getFeatureReadyByPostId,
     getFeaturesWithOpenMRs,
-    addFeatureReady
+    addFeatureReady,
+    deleteFeatureReady,
 }

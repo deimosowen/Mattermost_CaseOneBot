@@ -4,9 +4,9 @@ const { postMessageInTreed, addReaction } = require('../mattermost/utils');
 const GitlabService = require('../services/gitlabService');
 const logger = require('../logger');
 
-class FeatureCronService extends BaseCronService {
+class FeatureReadyCronService extends BaseCronService {
     constructor() {
-        super('FeatureCron');
+        super('FeatureReadyCron');
         this.gitlab = GitlabService;
         this.shedule = '* * * * *';
         this.statuses = GitlabService.STATUSES;
@@ -14,7 +14,7 @@ class FeatureCronService extends BaseCronService {
     }
 
     async loadJobsFromDb() {
-        this.createJob('feature_polling', this.shedule, async () => {
+        this.createJob('featureReady_polling', this.shedule, async () => {
             const feature_merge_requests = await getFeaturesWithOpenMRs();
             if (!feature_merge_requests.length) {
                 return;
@@ -36,7 +36,7 @@ class FeatureCronService extends BaseCronService {
                         }
                     }
                 } catch (error) {
-                    logger.error(`[GitlabCron] Ошибка polling MR ${mergeRequest.mr_iid}: ${error.message}`);
+                    logger.error(`[${this.name}] Ошибка polling MR ${mergeRequest.mr_iid}: ${error.message}`);
                 }
             }
         });
@@ -61,4 +61,4 @@ class FeatureCronService extends BaseCronService {
     }
 }
 
-module.exports = FeatureCronService;
+module.exports = FeatureReadyCronService;

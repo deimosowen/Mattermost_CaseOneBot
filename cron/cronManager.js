@@ -2,7 +2,7 @@ const ReviewCronService = require('./reviewCronService');
 const DutyCronService = require('./dutyCronService');
 const ReminderCronService = require('./reminderCronService');
 const PingCronService = require('./pingCronService');
-const FeatureCronService = require('./featureCronService');
+const FeatureReadyCronService = require('./featureReadyCronService');
 const logger = require('../logger');
 
 class CronManager {
@@ -12,7 +12,7 @@ class CronManager {
         this._register(new ReviewCronService());
         this._register(new DutyCronService());
         this._register(new PingCronService());
-        this._register(new FeatureCronService());
+        this._register(new FeatureReadyCronService());
     }
 
     get(name) {
