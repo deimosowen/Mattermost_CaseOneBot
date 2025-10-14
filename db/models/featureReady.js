@@ -62,7 +62,7 @@ const addFeatureReady = async (data, mrs, mattermostPostId) => {
 
             await db.runAsync(
                 'INSERT INTO feature_merge_requests (feature_id, merge_request_id, role) VALUES (?, ?, ?)',
-                [featureId, gmr.id, mr.tag]
+                [featureId, gmr.lastID, mr.tag]
             );
         }
 

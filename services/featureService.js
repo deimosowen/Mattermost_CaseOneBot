@@ -70,7 +70,7 @@ class FeatureServices {
                     results.hasConflicts = true;
                 }
             } catch (err) {
-                logger.error(`Ошибка проверки конфликтов (${pr.url}): ${err.message}`);
+                logger.error(err);
                 results.details.push({
                     tag: mr.tag,
                     url: mr.url,
