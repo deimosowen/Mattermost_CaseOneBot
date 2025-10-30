@@ -10,6 +10,9 @@ const getFeatureReadyByPostId = async (postId) => {
 }
 
 const getFeaturesWithOpenMRs = async () => {
+    const { FINAL_STATUSES } = require('../../services/gitlabService');
+    const placeholders = FINAL_STATUSES.map(() => '?').join(',');
+
     return db.all(`
         SELECT 
             fr.*,
@@ -21,8 +24,8 @@ const getFeaturesWithOpenMRs = async () => {
         FROM feature_ready fr
         JOIN feature_merge_requests fmr ON fr.id = fmr.feature_id
         JOIN gitlab_merge_requests gmr ON fmr.merge_request_id = gmr.id
-        WHERE gmr.status != 'MERGED'
-    `);
+        WHERE gmr.status NOT IN (${placeholders})
+    `, FINAL_STATUSES);
 };
 
 const addFeatureReady = async (data, mrs, mattermostPostId) => {

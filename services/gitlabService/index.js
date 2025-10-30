@@ -19,6 +19,11 @@ const STATUSES = {
     CLOSED: "closed",
 };
 
+const FINAL_STATUSES = [
+    STATUSES.MERGED,
+    STATUSES.CLOSED,
+];
+
 const STATE_MAP = {
     merged: "merged",
     closed: "closed",
@@ -156,7 +161,7 @@ class GitlabService {
                 hasConflicts: mr.has_conflicts,
             }
         } catch (error) {
-            logger.error(`Ошибка при получении MR ${mrIid} в проекте ${projectId}: ${error.message}`);
+            logger.error(error);
         }
     }
 
@@ -170,6 +175,13 @@ class GitlabService {
         catch (error) {
             logger.error(`Ошибка при обновлении статуса MR ${id}: ${error.message}`);
         }
+    }
+
+    /**
+     * Проверяет, является ли статус финальным (не требует дальнейшего отслеживания).
+     */
+    isFinalStatus(status) {
+        return FINAL_STATUSES.includes(status);
     }
 
     // --- приватные методы ---
@@ -224,3 +236,4 @@ class GitlabService {
 
 module.exports = new GitlabService();
 module.exports.STATUSES = STATUSES;
+module.exports.FINAL_STATUSES = FINAL_STATUSES;

@@ -25,18 +25,17 @@ class FeatureReadyCronService extends BaseCronService {
                     const mr = await this.gitlab.getMergeRequestStatus(merge_request.project_id, merge_request.mr_iid);
                     if (!mr) continue;
 
-                    if (mr.status === this.gitlab.STATUSES.MERGED) {
+                    // Проверяем, изменился ли статус MR на финальный статус
+                    if (this.gitlab.isFinalStatus(mr.status) && merge_request.mr_status !== mr.status) {
                         await this.gitlab.updateReviewTaskStatus(merge_request.merge_request_id, mr.status);
 
                         const message = this._formatStatusMessage(merge_request.role, mr.status);
                         await postMessageInTreed(merge_request.mattermost_post_id, message);
 
-                        if (mr.status === this.statuses.APPROVED) {
-                            await addReaction(reviewTask.post_id, this.reaction);
-                        }
+                        await addReaction(merge_request.mattermost_post_id, this.reaction);
                     }
                 } catch (error) {
-                    logger.error(`[${this.name}] Ошибка polling MR ${mergeRequest.mr_iid}: ${error.message}`);
+                    logger.error(error);
                 }
             }
         });

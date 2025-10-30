@@ -63,7 +63,7 @@
                                                 <label for="mergeTaskId" class="form-label text-muted">Задачи на
                                                     влитие</label>
                                                 <input type="text" class="form-control" id="mergeTaskId"
-                                                    name="mergeTaskId" placeholder="CASEM-XXXXX" required>
+                                                    name="mergeTaskId" placeholder="CASEM-XXXXX">
                                             </div>
                                             <div class="mb-3">
                                                 <label for="description"
@@ -72,7 +72,8 @@
                                                     placeholder="Комментарий" rows="3"></textarea>
                                             </div>
                                             <div class="mb-3">
-                                                <button type="submit" class="btn btn-success w-100">Отправить</button>
+                                                <button type="submit" class="btn btn-success w-100"
+                                                    id="submitButton">Отправить</button>
                                             </div>
                                         </form>
                         </div>
@@ -139,6 +140,14 @@
                     if (hasError) {
                         e.preventDefault();
                         e.stopPropagation();
+                    } else {
+                        // Блокируем кнопку отправки после валидации
+                        const submitButton = form.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            submitButton.textContent = 'Отправка...';
+                            submitButton.classList.add('disabled');
+                        }
                     }
                 });
             }
@@ -236,6 +245,21 @@
                     'frontPullRequestUrl',
                     'aqaPullRequestUrl'
                 ]);
+
+                // Дополнительная защита от повторной отправки
+                const form = document.querySelector('form[action="/feature/ready"]');
+                const submitButton = document.getElementById('submitButton');
+
+                if (form && submitButton) {
+                    form.addEventListener('submit', function (e) {
+                        // Проверяем, не заблокирована ли уже кнопка
+                        if (submitButton.disabled) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return false;
+                        }
+                    });
+                }
             });
         </script>
 
