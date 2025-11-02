@@ -34,7 +34,7 @@ const getActiveReviewQueue = async (channel_id) => {
         const rows = await db.all(`
             SELECT * FROM review_queue 
             WHERE channel_id = ? 
-            AND (is_disabled = 0 OR return_date IS NULL OR return_date <= ?)
+            AND (is_disabled = 0 OR (return_date IS NOT NULL AND return_date <= ?))
             ORDER BY order_number ASC
         `, [channel_id, currentDate]);
         return rows || [];
