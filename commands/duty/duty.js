@@ -47,7 +47,7 @@ module.exports = async ({ channel_id, args }) => {
             await setCurrentDuty(channel_id, userList[0]);
         }
 
-        dutyService.addJob({ id, schedule, channel_id });
+        dutyService.addJob({ id, cron_schedule: schedule, channel_id, use_working_days: false });
 
         postMessage(channel_id, resources.duty.setSuccess);
     } catch (error) {

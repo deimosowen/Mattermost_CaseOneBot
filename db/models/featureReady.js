@@ -1,12 +1,39 @@
 const db = require('../index.js');
 const logger = require('../../logger');
 
+/**
+ * Парсит merge_tasks из JSON строки в массив
+ * @param {string|null} mergeTasksJson - JSON строка или null
+ * @returns {string[]} - Массив ID задач
+ */
+const parseMergeTasks = (mergeTasksJson) => {
+    if (!mergeTasksJson) {
+        return [];
+    }
+    try {
+        const parsed = JSON.parse(mergeTasksJson);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+        logger.warn(`Failed to parse merge_tasks JSON: ${mergeTasksJson}`, err);
+        // Для обратной совместимости: если это не JSON, пытаемся разбить как строку
+        return String(mergeTasksJson).split(/[,\s;]+/).filter(Boolean);
+    }
+};
+
 const getFeatureReadyById = async (id) => {
-    return db.get('SELECT * FROM feature_ready WHERE id = ?', id);
+    const feature = await db.get('SELECT * FROM feature_ready WHERE id = ?', id);
+    if (feature && feature.merge_tasks) {
+        feature.merge_tasks_parsed = parseMergeTasks(feature.merge_tasks);
+    }
+    return feature;
 }
 
 const getFeatureReadyByPostId = async (postId) => {
-    return db.get('SELECT * FROM feature_ready WHERE mattermost_post_id = ?', postId);
+    const feature = await db.get('SELECT * FROM feature_ready WHERE mattermost_post_id = ?', postId);
+    if (feature && feature.merge_tasks) {
+        feature.merge_tasks_parsed = parseMergeTasks(feature.merge_tasks);
+    }
+    return feature;
 }
 
 const getFeaturesWithOpenMRs = async () => {
@@ -36,6 +63,20 @@ const addFeatureReady = async (data, mrs, mattermostPostId) => {
         description
     } = data;
 
+    // Преобразуем mergeTaskId в JSON строку для структурированного хранения
+    let mergeTasksJson = null;
+    if (mergeTaskId) {
+        if (Array.isArray(mergeTaskId)) {
+            const normalizedIds = mergeTaskId
+                .map(id => String(id).trim())
+                .filter(Boolean);
+            mergeTasksJson = normalizedIds.length > 0 ? JSON.stringify(normalizedIds) : null;
+        } else if (String(mergeTaskId).trim()) {
+            // Если строка, создаем массив из одного элемента
+            mergeTasksJson = JSON.stringify([String(mergeTaskId).trim()]);
+        }
+    }
+
     await db.execAsync('BEGIN TRANSACTION');
 
     try {
@@ -46,7 +87,7 @@ const addFeatureReady = async (data, mrs, mattermostPostId) => {
             taskId,
             taskName || null,
             description || null,
-            mergeTaskId || null,
+            mergeTasksJson,
             mattermostPostId || null
         ]);
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const moment = require('moment');
 const cronstrue = require('cronstrue');
-const { rotateDuty } = require('../../services/dutyService');
+const { rotateDuty, changeNextDuty } = require('../../services/dutyService');
 const { getDutySchedule, getDutyUsers,
     getCurrentDuty, updateUserActivityStatus,
     getUnscheduledList, removeDutyUser, addDutyUser,
@@ -74,6 +74,18 @@ router.post('/update-status', async (req, res) => {
         res.redirect(`/duty?channel_id=${channel_id}`);
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    }
+});
+
+router.post('/change-next', async (req, res) => {
+    try {
+        const { channel_id } = req.body;
+        const nextDuty = await changeNextDuty(channel_id);
+        postMessage(channel_id, nextDuty);
+        res.redirect(`/duty?channel_id=${channel_id}`);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.redirect(`/duty?channel_id=${req.body.channel_id}`);
     }
 });
 

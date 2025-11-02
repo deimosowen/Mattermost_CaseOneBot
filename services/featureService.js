@@ -19,9 +19,9 @@ class FeatureServices {
             await pinPost(post.id);
 
             const mergeRequests = [
-                { tag: '@c1-back', url: data.backPullRequestUrl, data: parseGitlabMrUrl(data.backPullRequestUrl), saveToDB: true },
-                { tag: '@c1-front', url: data.frontPullRequestUrl, data: parseGitlabMrUrl(data.frontPullRequestUrl), saveToDB: true },
-                { tag: '@c1-aqa', url: data.aqaPullRequestUrl, data: parseGitlabMrUrl(data.aqaPullRequestUrl), saveToDB: true }
+                { tag: '@c1-back', url: data.backPullRequestUrl, data: parseGitlabMrUrl(data.backPullRequestUrl) },
+                { tag: '@c1-front', url: data.frontPullRequestUrl, data: parseGitlabMrUrl(data.frontPullRequestUrl) },
+                { tag: '@c1-aqa', url: data.aqaPullRequestUrl, data: parseGitlabMrUrl(data.aqaPullRequestUrl) }
             ].filter(p => p.url);
 
             await this._saveToDatabase(data, mergeRequests, post.id);
@@ -45,16 +45,13 @@ class FeatureServices {
     }
 
     async _saveToDatabase(data, mergeRequests, postId) {
-        const savedMergeRequests = mergeRequests.filter(mr => mr.saveToDB);
-        await addFeatureReady(data, savedMergeRequests, postId);
+        await addFeatureReady(data, mergeRequests, postId);
     }
 
     async _checkMergeConflicts(mergeRequests) {
         const results = { hasConflicts: false, details: [] };
 
-        const savedMergeRequests = mergeRequests.filter(mr => mr.saveToDB);
-
-        for (const mr of savedMergeRequests) {
+        for (const mr of mergeRequests) {
             try {
                 const { project, mrIid } = mr.data;
                 const projectInfo = await GitlabService.getProjectByName(project);

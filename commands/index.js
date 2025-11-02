@@ -21,6 +21,7 @@ const sendAs = require('./sendAs');
 const jira = require('./jira');
 const reop = require('./reop');
 const review = require('./review');
+const reviewSettings = require('./review/reviewSettings');
 const removeMessage = require('./removeMessage');
 
 const commands = {
@@ -48,7 +49,8 @@ const commands = {
     '!forward-remove': forwardRemove,
     '!forward-help': forwardHelp,
     '!reop': reop,
-    '!review': review
+    '!review': review,
+    '!review-settings': reviewSettings
 };
 
 module.exports = commands;

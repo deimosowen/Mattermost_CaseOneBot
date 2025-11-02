@@ -109,6 +109,15 @@
                 }
 
                 form.addEventListener('submit', (e) => {
+                    const submitButton = form.querySelector('button[type="submit"]');
+
+                    // Проверяем, не заблокирована ли уже кнопка (защита от повторной отправки)
+                    if (submitButton && submitButton.disabled) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+
                     let hasError = false;
 
                     fieldIds.forEach(id => {
@@ -141,13 +150,14 @@
                         e.preventDefault();
                         e.stopPropagation();
                     } else {
-                        // Блокируем кнопку отправки после валидации
-                        const submitButton = form.querySelector('button[type="submit"]');
+                        // Блокируем кнопку отправки после успешной валидации
+                        // Форма продолжит отправку автоматически
                         if (submitButton) {
                             submitButton.disabled = true;
                             submitButton.textContent = 'Отправка...';
                             submitButton.classList.add('disabled');
                         }
+                        // НЕ вызываем preventDefault - позволяем форме отправиться
                     }
                 });
             }
@@ -245,21 +255,6 @@
                     'frontPullRequestUrl',
                     'aqaPullRequestUrl'
                 ]);
-
-                // Дополнительная защита от повторной отправки
-                const form = document.querySelector('form[action="/feature/ready"]');
-                const submitButton = document.getElementById('submitButton');
-
-                if (form && submitButton) {
-                    form.addEventListener('submit', function (e) {
-                        // Проверяем, не заблокирована ли уже кнопка
-                        if (submitButton.disabled) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            return false;
-                        }
-                    });
-                }
             });
         </script>
 
