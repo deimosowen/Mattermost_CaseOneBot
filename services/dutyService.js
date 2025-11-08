@@ -90,8 +90,9 @@ const getActualDutyList = async (channel_id) => {
         let users = await getDutyUsers(channel_id);
 
         // Обновляем статусы пользователей, которые уже должны вернуться
+        const currentDateMoment = moment(currentDate);
         const usersToReactivate = users.filter(user =>
-            user.return_date && moment(user.return_date).isBefore(currentDate)
+            user.return_date && moment(user.return_date).isSameOrBefore(currentDateMoment, 'day')
         );
         if (usersToReactivate.length > 0) {
             await Promise.all(usersToReactivate.map(user =>

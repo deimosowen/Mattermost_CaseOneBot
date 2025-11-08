@@ -1,15 +1,16 @@
 const { getChannelMembers, getUser } = require('../mattermost/utils');
 const absenceService = require('./absenceService');
 const cacheService = require('./cacheService');
-const { 
-    getChannelReviewSettings, 
-    setChannelReviewSettings 
+const {
+    getChannelReviewSettings,
+    setChannelReviewSettings
 } = require('../db/models/reviewSettings');
-const { 
-    getActiveReviewQueue, 
-    setCurrentReviewer, 
+const {
+    getActiveReviewQueue,
+    getReviewQueue,
+    setCurrentReviewer,
     getCurrentReviewer,
-    updateReviewerActivityStatus 
+    updateReviewerActivityStatus
 } = require('../db/models/reviewQueue');
 const { updateReviewTaskReviewer } = require('../db/models/reviewTask');
 const logger = require('../logger');
@@ -33,7 +34,7 @@ class ReviewDistributionService {
     async getNextReviewer(channel_id) {
         try {
             const settings = await getChannelReviewSettings(channel_id);
-            
+
             if (!settings || !settings.is_enabled) {
                 return null;
             }
@@ -62,7 +63,7 @@ class ReviewDistributionService {
         try {
             // Получаем активных ревьюеров (не в отпуске)
             const activeReviewers = await this._getActiveReviewersWithAvailabilityCheck(channel_id);
-            
+
             if (activeReviewers.length === 0) {
                 logger.warn(`[ReviewDistributionService] Нет активных ревьюеров в канале ${channel_id}`);
                 return null;
@@ -70,7 +71,7 @@ class ReviewDistributionService {
 
             // Получаем текущего ревьюера
             const currentReviewer = await getCurrentReviewer(channel_id);
-            
+
             if (!currentReviewer) {
                 // Если нет текущего ревьюера, берем первого из списка
                 const nextReviewer = activeReviewers[0];
@@ -78,14 +79,42 @@ class ReviewDistributionService {
                 return nextReviewer;
             }
 
-            // Находим следующего ревьюера в очереди
+            // Находим текущего ревьюера в списке активных
             const currentIndex = activeReviewers.findIndex(r => r.user_id === currentReviewer.user_id);
-            const nextIndex = (currentIndex + 1) % activeReviewers.length;
-            const nextReviewer = activeReviewers[nextIndex];
-            
+
+            let nextReviewer;
+
+            if (currentIndex !== -1) {
+                // Текущий ревьюер найден в активных - используем обычную ротацию
+                const nextIndex = (currentIndex + 1) % activeReviewers.length;
+                nextReviewer = activeReviewers[nextIndex];
+            } else {
+                // Текущий ревьюер не найден в активных (например, ушел в отпуск)
+                // Находим его order_number из полной очереди
+                const allReviewers = await getReviewQueue(channel_id);
+                const currentReviewerInQueue = allReviewers.find(r => r.user_id === currentReviewer.user_id);
+
+                if (currentReviewerInQueue) {
+                    // Ищем первого активного ревьюера с order_number больше текущего
+                    const nextActiveReviewer = activeReviewers.find(
+                        r => r.order_number > currentReviewerInQueue.order_number
+                    );
+
+                    if (nextActiveReviewer) {
+                        nextReviewer = nextActiveReviewer;
+                    } else {
+                        // Если нет ревьюера с большим order_number, берем первого (циклическая ротация)
+                        nextReviewer = activeReviewers[0];
+                    }
+                } else {
+                    // Если текущий ревьюер не найден даже в полной очереди, берем первого активного
+                    nextReviewer = activeReviewers[0];
+                }
+            }
+
             // Обновляем текущего ревьюера
             await setCurrentReviewer(channel_id, nextReviewer.user_id);
-            
+
             return nextReviewer;
         } catch (error) {
             logger.error(`[ReviewDistributionService] Ошибка получения ревьюера из очереди: ${error.message}`);
@@ -112,16 +141,16 @@ class ReviewDistributionService {
     _getCachedAvailability(email, date) {
         const cacheKey = this._getCacheKey(email, date);
         const cached = cacheService.get(cacheKey);
-        
+
         if (cached && cached.expires > Date.now()) {
             return cached.value;
         }
-        
+
         // Удаляем устаревший кэш
         if (cached) {
             cacheService.delete(cacheKey);
         }
-        
+
         return null;
     }
 
@@ -176,10 +205,10 @@ class ReviewDistributionService {
             if (result && Object.keys(result).length > 0) {
                 Object.keys(result).forEach(email => {
                     const isAvailable = result[email]?.[currentDateISO];
-                    
+
                     // Сохраняем в кэш (по умолчанию доступен, если не указано иначе)
                     this._setCachedAvailability(email, date, isAvailable !== false);
-                    
+
                     // Добавляем к результату
                     availability[email] = result[email];
                 });
@@ -213,10 +242,10 @@ class ReviewDistributionService {
         try {
             const currentDate = moment().format('YYYY-MM-DD');
             const currentDateISO = moment(currentDate).toISOString();
-            
+
             // Получаем всех ревьюеров из очереди
             const allReviewers = await getActiveReviewQueue(channel_id);
-            
+
             if (allReviewers.length === 0) {
                 return [];
             }
@@ -232,7 +261,7 @@ class ReviewDistributionService {
 
             // Обновляем статусы ревьюеров и фильтруем доступных
             const availableReviewers = [];
-            
+
             for (let i = 0; i < allReviewers.length; i++) {
                 const reviewer = allReviewers[i];
                 const mattermostUser = mattermostUsers[i];
@@ -264,7 +293,7 @@ class ReviewDistributionService {
     async assignReviewerForTask(channel_id, task_key) {
         try {
             const nextReviewer = await this.getNextReviewer(channel_id);
-            
+
             if (!nextReviewer) {
                 return null;
             }
@@ -276,7 +305,7 @@ class ReviewDistributionService {
             });
 
             logger.info(`[ReviewDistributionService] Назначен ревьюер ${nextReviewer.user_name} для задачи ${task_key}`);
-            
+
             return nextReviewer;
         } catch (error) {
             logger.error(`[ReviewDistributionService] Ошибка назначения ревьюера: ${error.message}`);
