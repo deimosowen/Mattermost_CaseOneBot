@@ -36,7 +36,9 @@ class FeatureServices {
                 this._syncAutoResolvedFlag(mergeRequests, conflictResults);
 
                 const conflictMessage = this._buildConflictAlert(conflictResults);
-                await postMessageInTreed(post.id, conflictMessage);
+                if (conflictMessage) {
+                    await postMessageInTreed(post.id, conflictMessage);
+                }
             }
 
             return { status: 'success' };
