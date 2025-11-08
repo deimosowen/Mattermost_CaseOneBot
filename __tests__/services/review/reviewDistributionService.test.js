@@ -185,6 +185,95 @@ describe('ReviewDistributionService', () => {
             expect(updateReviewerActivityStatus).toHaveBeenCalledWith(2, true, currentDate);
         });
 
+        test('правильно находит следующего ревьюера когда текущий ушел в отпуск', async () => {
+            getChannelReviewSettings.mockResolvedValueOnce({
+                is_enabled: true,
+                review_type: 'queue',
+            });
+
+            // Текущий ревьюер - user-2 (order_number = 1), но он ушел в отпуск
+            const currentReviewer = { user_id: 'user-2' };
+            
+            // Активные ревьюеры (без user-2, который в отпуске)
+            const activeReviewers = [
+                { id: 1, user_id: 'user-1', user_name: 'john.doe', order_number: 0 },
+                { id: 3, user_id: 'user-3', user_name: 'bob.wilson', order_number: 2 },
+            ];
+
+            // Полная очередь (включая user-2 в отпуске)
+            const allReviewers = [
+                { id: 1, user_id: 'user-1', user_name: 'john.doe', order_number: 0 },
+                { id: 2, user_id: 'user-2', user_name: 'jane.smith', order_number: 1 }, // В отпуске
+                { id: 3, user_id: 'user-3', user_name: 'bob.wilson', order_number: 2 },
+            ];
+
+            getCurrentReviewer.mockResolvedValueOnce(currentReviewer);
+            getActiveReviewQueue.mockResolvedValueOnce(activeReviewers);
+            getReviewQueue.mockResolvedValueOnce(allReviewers);
+            getUser
+                .mockResolvedValueOnce({ id: 'user-1', username: 'john.doe', email: 'john@example.com' })
+                .mockResolvedValueOnce({ id: 'user-3', username: 'bob.wilson', email: 'bob@example.com' });
+
+            const currentDate = moment().format('YYYY-MM-DD');
+            const currentDateISO = moment(currentDate).toISOString();
+            absenceService.checkEmployeeAvailabilityByDate.mockResolvedValueOnce({
+                'john@example.com': { [currentDateISO]: true },
+                'bob@example.com': { [currentDateISO]: true },
+            });
+
+            const result = await reviewDistributionService.getNextReviewer(channelId);
+
+            // Должен вернуть user-3 (следующий по order_number после user-2), а не user-1 (первого в списке)
+            expect(result).toEqual(activeReviewers[1]); // bob.wilson
+            expect(result.user_id).toBe('user-3');
+            expect(setCurrentReviewer).toHaveBeenCalledWith(channelId, 'user-3');
+            expect(getReviewQueue).toHaveBeenCalledWith(channelId);
+        });
+
+        test('циклически переходит к первому когда текущий в отпуске был последним', async () => {
+            getChannelReviewSettings.mockResolvedValueOnce({
+                is_enabled: true,
+                review_type: 'queue',
+            });
+
+            // Текущий ревьюер - user-3 (order_number = 2, последний), но он ушел в отпуск
+            const currentReviewer = { user_id: 'user-3' };
+            
+            // Активные ревьюеры (без user-3, который в отпуске)
+            const activeReviewers = [
+                { id: 1, user_id: 'user-1', user_name: 'john.doe', order_number: 0 },
+                { id: 2, user_id: 'user-2', user_name: 'jane.smith', order_number: 1 },
+            ];
+
+            // Полная очередь (включая user-3 в отпуске)
+            const allReviewers = [
+                { id: 1, user_id: 'user-1', user_name: 'john.doe', order_number: 0 },
+                { id: 2, user_id: 'user-2', user_name: 'jane.smith', order_number: 1 },
+                { id: 3, user_id: 'user-3', user_name: 'bob.wilson', order_number: 2 }, // В отпуске
+            ];
+
+            getCurrentReviewer.mockResolvedValueOnce(currentReviewer);
+            getActiveReviewQueue.mockResolvedValueOnce(activeReviewers);
+            getReviewQueue.mockResolvedValueOnce(allReviewers);
+            getUser
+                .mockResolvedValueOnce({ id: 'user-1', username: 'john.doe', email: 'john@example.com' })
+                .mockResolvedValueOnce({ id: 'user-2', username: 'jane.smith', email: 'jane@example.com' });
+
+            const currentDate = moment().format('YYYY-MM-DD');
+            const currentDateISO = moment(currentDate).toISOString();
+            absenceService.checkEmployeeAvailabilityByDate.mockResolvedValueOnce({
+                'john@example.com': { [currentDateISO]: true },
+                'jane@example.com': { [currentDateISO]: true },
+            });
+
+            const result = await reviewDistributionService.getNextReviewer(channelId);
+
+            // Должен вернуть первого (циклическая ротация), так как user-3 был последним
+            expect(result).toEqual(activeReviewers[0]); // john.doe
+            expect(result.user_id).toBe('user-1');
+            expect(setCurrentReviewer).toHaveBeenCalledWith(channelId, 'user-1');
+        });
+
         test('возвращает null если нет активных ревьюеров', async () => {
             getChannelReviewSettings.mockResolvedValueOnce({
                 is_enabled: true,
