@@ -30,8 +30,13 @@ All notable changes to this project will be documented in this file.
   - Support for Back-End, Front-End, and AQA Merge Request links
   - Merge task IDs field (supports multiple tasks)
   - Optional description/comment field
-- **Automatic conflict detection**: Checks Merge Request conflicts in GitLab when feature is submitted
+- **Automatic conflict detection and resolution**: Checks Merge Request conflicts in GitLab when feature is submitted
   - Displays conflict warnings in Mattermost thread if conflicts are detected
+  - **Automatic conflict resolution for Back-End MRs**: Automatically resolves `FrontendVersion` conflicts in `.csproj` files
+    - Only processes conflicts in `Sites/CaseMap.Core/CaseMap.Core.csproj` and `Sites/CaseMapStart.Core/CaseMapStart.Core.csproj`
+    - Only resolves conflicts if conflict is exclusively in `FrontendVersion` property
+    - Automatically chooses version from current branch (not develop) and commits the resolution
+    - Sends notification in Mattermost thread about resolved conflicts
 - **Mattermost integration**:
   - Creates formatted message in dedicated channel
   - Automatically pins the post
@@ -96,6 +101,11 @@ All notable changes to this project will be documented in this file.
   - Correct handling of users on vacation
   - Cyclic transitions
   - Filtering and reactivation of users
+- **Tests for conflictResolver**: Added 18 tests covering conflict resolution scenarios
+  - Conflict detection in specific properties
+  - Automatic conflict resolution logic
+  - File update and error handling
+  - Multiple file processing
 
 ### Technical Details
 
@@ -112,6 +122,10 @@ All notable changes to this project will be documented in this file.
 - Added `db/models/featureReady.js` for database operations
 - Integrated Tom Select for Jira task autocomplete in `server/views/featureForm.ejs`
 - Added URL validation and form submission protection in Feature Ready form
+- Created `services/gitlabService/conflictResolver.js` for automatic conflict resolution
+- Added GitLab API methods for file operations (`getFileContent`, `updateFile`, `getMergeRequestInfo`)
+- Fixed `merge_tasks` storage: now saves as JSON instead of string to prevent `[object Object]` issue
+- Added automatic closing of merge tasks in Jira when corresponding MR is merged
 
 ---
 

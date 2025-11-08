@@ -232,6 +232,69 @@ class GitlabService {
             d.notes?.some(n => !n.system && n.body?.trim().length > 0)
         );
     }
+
+    /**
+     * Получение содержимого файла из ветки MR
+     * @param {number} projectId - ID проекта
+     * @param {string} filePath - Путь к файлу
+     * @param {string} ref - Ветка (source_branch из MR)
+     * @returns {Promise<string|null>} - Содержимое файла
+     */
+    async getFileContent(projectId, filePath, ref) {
+        try {
+            const file = await this.client.RepositoryFiles.show(projectId, filePath, ref);
+            if (file && file.content) {
+                return Buffer.from(file.content, 'base64').toString('utf-8');
+            }
+            return null;
+        } catch (error) {
+            logger.error(`Ошибка при получении содержимого файла ${filePath}: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Обновление файла в репозитории
+     * @param {number} projectId - ID проекта
+     * @param {string} filePath - Путь к файлу
+     * @param {string} branch - Ветка
+     * @param {string} content - Новое содержимое файла
+     * @param {string} commitMessage - Сообщение коммита
+     * @returns {Promise<boolean>} - Успешно ли обновлен файл
+     */
+    async updateFile(projectId, filePath, branch, content, commitMessage) {
+        try {
+            const contentBase64 = Buffer.from(content, 'utf-8').toString('base64');
+            await this.client.RepositoryFiles.edit(projectId, filePath, branch, {
+                content: contentBase64,
+                commit_message: commitMessage,
+            });
+            return true;
+        } catch (error) {
+            logger.error(`Ошибка при обновлении файла ${filePath}: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * Получение информации о MR (включая source_branch)
+     * @param {number} projectId - ID проекта
+     * @param {number} mrIid - IID MR
+     * @returns {Promise<Object|null>} - Информация о MR
+     */
+    async getMergeRequestInfo(projectId, mrIid) {
+        try {
+            const mr = await this.client.MergeRequests.show(projectId, mrIid);
+            return mr ? {
+                source_branch: mr.source_branch,
+                target_branch: mr.target_branch,
+                has_conflicts: mr.has_conflicts,
+            } : null;
+        } catch (error) {
+            logger.error(`Ошибка при получении информации о MR ${mrIid}: ${error.message}`);
+            return null;
+        }
+    }
 }
 
 module.exports = new GitlabService();
