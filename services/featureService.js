@@ -32,6 +32,9 @@ class FeatureServices {
                 // Пытаемся автоматически разрешить конфликты для бэка
                 await this._tryResolveBackendConflicts(mergeRequests, post.id);
 
+                // Синхронизируем флаг autoResolved из mergeRequests в conflictResults.details
+                this._syncAutoResolvedFlag(mergeRequests, conflictResults);
+
                 const conflictMessage = this._buildConflictAlert(conflictResults);
                 await postMessageInTreed(post.id, conflictMessage);
             }
@@ -84,6 +87,22 @@ class FeatureServices {
         }
 
         return results;
+    }
+
+    /**
+     * Синхронизирует флаг autoResolved из mergeRequests в conflictResults.details
+     * @param {Array} mergeRequests - Массив merge requests с установленным autoResolved
+     * @param {Object} conflictResults - Результаты проверки конфликтов
+     */
+    _syncAutoResolvedFlag(mergeRequests, conflictResults) {
+        for (const mr of mergeRequests) {
+            if (mr.autoResolved) {
+                const detail = conflictResults.details.find(d => d.tag === mr.tag || d.url === mr.url);
+                if (detail) {
+                    detail.autoResolved = true;
+                }
+            }
+        }
     }
 
     _buildConflictAlert(conflictResults) {
