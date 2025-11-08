@@ -9,6 +9,7 @@ const logger = require('../logger');
 class FeatureServices {
     constructor() {
         this.channelId = FEATURE_IS_READY_CHANNEL_ID;
+        this.autoResolvedConflicts = false;
     }
 
     async handleFeatureReady(data) {
@@ -29,11 +30,13 @@ class FeatureServices {
 
             const conflictResults = await this._checkMergeConflicts(mergeRequests);
             if (conflictResults.hasConflicts) {
-                // Пытаемся автоматически разрешить конфликты для бэка
-                await this._tryResolveBackendConflicts(mergeRequests, post.id);
+                if (this.autoResolvedConflicts === true) {
+                    // Пытаемся автоматически разрешить конфликты для бэка
+                    await this._tryResolveBackendConflicts(mergeRequests, post.id);
 
-                // Синхронизируем флаг autoResolved из mergeRequests в conflictResults.details
-                this._syncAutoResolvedFlag(mergeRequests, conflictResults);
+                    // Синхронизируем флаг autoResolved из mergeRequests в conflictResults.details
+                    this._syncAutoResolvedFlag(mergeRequests, conflictResults);
+                }
 
                 const conflictMessage = this._buildConflictAlert(conflictResults);
                 if (conflictMessage) {
