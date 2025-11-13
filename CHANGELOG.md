@@ -2,6 +2,74 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.6]
+
+### Added
+
+#### TeamCity Build Notifications System
+- **New feature**: Automatic notifications about TeamCity build statuses in Mattermost
+- **Web UI for configuration**: Added web interface for managing build notification settings
+  - Access via `/teamcity` endpoint
+  - Create, edit, and delete notification configurations
+  - View all active notification settings in a table
+- **Build monitoring**: Automatic monitoring of TeamCity builds via cron job
+  - Checks build status every 5 minutes
+  - Sends notifications when builds complete
+  - Tracks last processed build to avoid duplicate notifications
+- **Notification filtering**: Configurable notification triggers
+  - `all` - notify about all builds (successful and failed)
+  - `success` - notify only about successful builds
+  - `failure` - notify only about failed builds
+- **Build information in notifications**:
+  - Build status (successful/failed)
+  - Link to build in TeamCity
+  - Build completion time (in UTC)
+  - Test statistics (passed, failed, ignored, muted tests)
+- **Post ID tracking**: Saves Mattermost post ID for each notification
+  - Enables future thread updates and additional information
+  - Stored in `post_id` field for each notification configuration
+- **TeamCity API integration**: 
+  - Service for interacting with TeamCity REST API
+  - Automatic retrieval of build details and test statistics
+  - Support for Basic authentication
+- **Date handling**: All dates stored and displayed in UTC format
+  - Uses `moment-timezone` for date operations
+  - Explicit UTC indication in all date displays
+
+### Changed
+
+#### Performance Optimization
+- **Optimized build checking**: Smart checking logic to reduce API load
+  - Skips checking if build was recently checked
+  - Updates check time even for unfinished builds
+  - Prevents unnecessary API calls
+
+### Database
+
+#### New Migrations
+- **20251113120000-teamcity-build-notifications.js**: Creation of table for TeamCity build notifications
+  - `teamcity_build_notifications` - notification settings with build configuration, channel, and filtering options
+  - Includes `post_id` field for tracking Mattermost post IDs
+
+### Technical Details
+
+- Created `services/teamcityService.js` for TeamCity API integration
+- Added `cron/teamcityBuildCronService.js` for automatic build status monitoring
+- Implemented `db/models/teamcityBuildNotifications.js` for database operations
+- Added `server/controllers/teamcityController.js` with endpoints for UI management
+- Created `server/views/teamcitySettings.ejs` and `server/views/teamcityForm.ejs` for web interface
+- Integrated TeamCity cron service into `cron/cronManager.js`
+- Added TeamCity configuration variables to `config/index.js`:
+  - `TEAMCITY_BASE_URL` - TeamCity server URL
+  - `TEAMCITY_USERNAME` - Username for API authentication
+  - `TEAMCITY_PASSWORD` - Password for API authentication
+- Test statistics parsing from TeamCity API with multiple fallback methods:
+  - Primary: Statistics from build properties
+  - Fallback: Parsing from statusText
+  - Final fallback: API queries with locators
+
+---
+
 ## [2.2.5]
 
 ### Added

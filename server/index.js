@@ -11,6 +11,7 @@ const inviteController = require('./controllers/inviteController');
 const jiraController = require('./controllers/jiraController');
 const featureController = require('./controllers/featureController');
 const gitlabController = require('./controllers/gitlabController');
+const teamcityController = require('./controllers/teamcityController');
 
 let app;
 let server;
@@ -37,6 +38,7 @@ function buildApp() {
     app.use('/jira', jiraController);
     app.use('/feature', featureController);
     app.use('/gitlab', gitlabController);
+    app.use('/teamcity', teamcityController);
 
     // healthcheck для оркестраторов / мониторинга
     app.get('/healthz', (_req, res) => res.status(200).send('ok'));

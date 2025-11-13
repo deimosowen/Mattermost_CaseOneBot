@@ -111,7 +111,7 @@ class FeatureServices {
     }
 
     _buildConflictAlert(conflictResults) {
-        const conflicted = conflictResults.details.filter(d => d.hasConflicts && !d.autoResolved);
+        const conflicted = conflictResults.details.filter(d => d.hasConflicts);
         if (!conflicted.length) {
             return null;
         }

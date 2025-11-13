@@ -203,6 +203,14 @@ function resolveConflict(fileContent, property) {
 
 /**
  * Пытается автоматически разрешить конфликты для указанного MR
+ * 
+ * Логика разрешения конфликтов:
+ * 1. Берем содержимое файла из target ветки (чтобы получить все последние изменения)
+ * 2. Заменяем FrontendVersion на версию из source ветки (вашей ветки)
+ * 3. Коммитим обновленный файл в source ветку
+ * 
+ * Это эквивалентно "подлить target в source, но оставить FrontendVersion из source"
+ * 
  * @param {Object} mrData - Данные о merge request { project, mrIid, tag, url }
  * @returns {Promise<{resolved: boolean, files: string[]}>} - Результат разрешения конфликтов
  */
@@ -232,10 +240,10 @@ async function tryResolveBackendConflicts(mrData) {
         const targetBranch = mrInfo.target_branch;
         const filesToUpdate = []; // Собираем все файлы для обновления
 
-        // Сначала проверяем все файлы и собираем те, которые нужно обновить
+        // Проверяем все файлы и собираем те, которые нужно обновить
         for (const filePath of CONFLICT_CONFIG.allowedFiles) {
             try {
-                // Получаем содержимое файла напрямую из обеих веток
+                // Получаем содержимое файла из обеих веток
                 const [sourceContent, targetContent] = await Promise.all([
                     GitlabService.getFileContent(projectInfo.project_id, filePath, sourceBranch),
                     GitlabService.getFileContent(projectInfo.project_id, filePath, targetBranch)
@@ -248,41 +256,33 @@ async function tryResolveBackendConflicts(mrData) {
 
                 // Если содержимое одинаковое, конфликта нет
                 if (sourceContent === targetContent) {
-                    logger.info(`[ConflictResolver] ${filePath}: Содержимое в обеих ветках идентично, конфликта нет, пропускаем`);
+                    logger.info(`[ConflictResolver] ${filePath}: Содержимое идентично, конфликта нет, пропускаем`);
                     continue;
                 }
 
-                logger.info(`[ConflictResolver] ${filePath}: Получено содержимое из source (${sourceContent.length} символов) и target (${targetContent.length} символов)`);
-
-                // Извлекаем версию FrontendVersion из source ветки (вашей ветки)
+                // Извлекаем версии FrontendVersion
                 const versionPattern = new RegExp(`<${CONFLICT_CONFIG.conflictProperty}>([\\s\\S]*?)<\/${CONFLICT_CONFIG.conflictProperty}>`, 'g');
-                const sourceVersionMatch = [...sourceContent.matchAll(versionPattern)];
-                const targetVersionMatch = [...targetContent.matchAll(versionPattern)];
+                const sourceVersionMatch = sourceContent.match(versionPattern);
+                const targetVersionMatch = targetContent.match(versionPattern);
 
-                if (sourceVersionMatch.length === 0) {
-                    logger.warn(`[ConflictResolver] ${filePath}: Не найдено ${CONFLICT_CONFIG.conflictProperty} в source ветке`);
+                if (!sourceVersionMatch || !targetVersionMatch) {
+                    logger.info(`[ConflictResolver] ${filePath}: FrontendVersion не найден в одной из веток, пропускаем`);
                     continue;
                 }
 
-                if (targetVersionMatch.length === 0) {
-                    logger.warn(`[ConflictResolver] ${filePath}: Не найдено ${CONFLICT_CONFIG.conflictProperty} в target ветке`);
-                    continue;
-                }
-
-                const sourceVersion = sourceVersionMatch[0][1].trim();
-                const targetVersion = targetVersionMatch[0][1].trim();
+                const sourceVersion = sourceVersionMatch[1].trim();
+                const targetVersion = targetVersionMatch[1].trim();
 
                 logger.info(`[ConflictResolver] ${filePath}: Версия из source (ваша ветка): "${sourceVersion}", версия из target: "${targetVersion}"`);
 
-                // Проверяем, что версии действительно отличаются
+                // Если версии одинаковые, конфликта нет
                 if (sourceVersion === targetVersion) {
-                    logger.info(`[ConflictResolver] ${filePath}: Версии FrontendVersion в обеих ветках одинаковые ("${sourceVersion}"), конфликта нет, пропускаем`);
+                    logger.info(`[ConflictResolver] ${filePath}: Версии FrontendVersion одинаковые, конфликта нет, пропускаем`);
                     continue;
                 }
 
-                // Проверяем, что конфликт только в FrontendVersion
-                // Убираем FrontendVersion из обоих файлов и нормализуем содержимое для сравнения
-                // Агрессивная нормализация: убираем все пробелы, переводы строк и табуляции
+                // Проверяем, что отличия только в FrontendVersion
+                // Убираем FrontendVersion из обоих файлов и сравниваем остальное
                 const normalize = (text) => {
                     return text
                         .replace(versionPattern, '') // Убираем FrontendVersion
@@ -293,55 +293,48 @@ async function tryResolveBackendConflicts(mrData) {
                 const sourceWithoutVersion = normalize(sourceContent);
                 const targetWithoutVersion = normalize(targetContent);
 
-                logger.info(`[ConflictResolver] ${filePath}: Сравнение содержимого без FrontendVersion: source длина=${sourceWithoutVersion.length}, target длина=${targetWithoutVersion.length}`);
-
                 if (sourceWithoutVersion !== targetWithoutVersion) {
-                    // Логируем первые различия для диагностики
-                    const minLen = Math.min(sourceWithoutVersion.length, targetWithoutVersion.length);
-                    for (let i = 0; i < minLen; i++) {
-                        if (sourceWithoutVersion[i] !== targetWithoutVersion[i]) {
-                            logger.info(`[ConflictResolver] ${filePath}: Первое различие на позиции ${i}: "${sourceWithoutVersion.substring(Math.max(0, i - 20), i + 20)}" vs "${targetWithoutVersion.substring(Math.max(0, i - 20), i + 20)}"`);
-                            break;
-                        }
-                    }
-                    if (sourceWithoutVersion.length !== targetWithoutVersion.length) {
-                        logger.info(`[ConflictResolver] ${filePath}: Длины отличаются: source=${sourceWithoutVersion.length}, target=${targetWithoutVersion.length}`);
-                    }
-                    logger.info(`[ConflictResolver] ${filePath}: Конфликт не только в ${CONFLICT_CONFIG.conflictProperty}, есть другие различия. Автоматическое разрешение невозможно, пропускаем`);
+                    logger.info(`[ConflictResolver] ${filePath}: Отличия не только в FrontendVersion, есть другие изменения. Автоматическое разрешение невозможно, пропускаем`);
                     continue;
                 }
 
-                logger.info(`[ConflictResolver] ${filePath}: Обнаружен конфликт только в ${CONFLICT_CONFIG.conflictProperty}. Начинаем разрешение конфликта.`);
+                // Конфликт только в FrontendVersion - разрешаем
+                // Логика: берем все изменения из target ветки (чтобы получить последние изменения),
+                // но оставляем FrontendVersion из source ветки (вашей ветки)
+                logger.info(`[ConflictResolver] ${filePath}: Отличия только в FrontendVersion. Берем содержимое из target ветки и заменяем FrontendVersion на "${sourceVersion}" (из вашей ветки)`);
 
-                // Берем содержимое из target ветки и заменяем FrontendVersion на версию из source (вашей ветки)
-                logger.info(`[ConflictResolver] ${filePath}: Заменяем версию "${targetVersion}" на "${sourceVersion}" (из вашей ветки)`);
-
-                // Заменяем версию в target ветке на версию из source
+                // Берем содержимое из target ветки (все последние изменения) и заменяем FrontendVersion на версию из source
                 let resolvedContent = targetContent.replace(
                     versionPattern,
                     `<${CONFLICT_CONFIG.conflictProperty}>${sourceVersion}</${CONFLICT_CONFIG.conflictProperty}>`
                 );
 
-                // Проверяем, что замена действительно произошла
-                const resolvedVersionMatch = [...resolvedContent.matchAll(versionPattern)];
-                const resolvedVersion = resolvedVersionMatch.length > 0 ? resolvedVersionMatch[0][1].trim() : null;
-
-                logger.info(`[ConflictResolver] ${filePath}: Проверка замены - ожидаем: "${sourceVersion}", получено: "${resolvedVersion}"`);
-
-                if (resolvedVersion !== sourceVersion) {
-                    logger.error(`[ConflictResolver] ${filePath}: ОШИБКА! Замена не произошла. Ожидалось: "${sourceVersion}", получено: "${resolvedVersion}"`);
+                // Проверяем, что замена произошла
+                const resolvedVersionMatch = resolvedContent.match(versionPattern);
+                if (!resolvedVersionMatch || resolvedVersionMatch[1].trim() !== sourceVersion) {
+                    logger.error(`[ConflictResolver] ${filePath}: ОШИБКА! Замена не произошла`);
                     continue;
                 }
 
-                logger.info(`[ConflictResolver] ${filePath}: ✓ Замена FrontendVersion успешна: "${targetVersion}" -> "${sourceVersion}"`);
-
-                // Нормализуем конец файла - всегда добавляем новую строку в конце
+                // Нормализуем конец файла
                 resolvedContent = resolvedContent.replace(/[\r\n\s]+$/, '') + '\n';
 
-                // Добавляем файл в список для обновления
-                // resolvedContent содержит содержимое из target ветки с версией FrontendVersion из source ветки
+                // Проверяем, отличается ли resolvedContent от текущего файла в source ветке
+                // Нормализуем оба для сравнения (убираем различия в пробелах в конце)
+                const normalizedSource = (sourceContent || '').replace(/[\r\n\s]+$/, '').trim();
+                const normalizedResolved = resolvedContent.replace(/[\r\n\s]+$/, '').trim();
+
+                if (normalizedResolved === normalizedSource) {
+                    // Если содержимое идентично, значит конфликт уже разрешен в source ветке
+                    // (файл в source уже содержит правильную версию FrontendVersion)
+                    // Но GitLab может еще не пересчитать конфликты
+                    // Коммит идентичного содержимого не поможет - GitLab не создаст коммит с изменениями
+                    logger.warn(`[ConflictResolver] ${filePath}: Разрешенное содержимое идентично текущему в source ветке. Конфликт уже разрешен в source, но GitLab может еще не пересчитать статус. Пропускаем файл - коммит идентичного содержимого не поможет.`);
+                    continue;
+                }
+
+                logger.info(`[ConflictResolver] ${filePath}: ✓ Конфликт разрешен: "${targetVersion}" -> "${sourceVersion}". Файл будет обновлен в source ветке.`);
                 filesToUpdate.push({ filePath, content: resolvedContent });
-                logger.info(`[ConflictResolver] ${filePath}: Конфликт разрешен, файл подготовлен для коммита`);
             } catch (error) {
                 logger.error(`[ConflictResolver] Ошибка при разрешении конфликта в ${filePath}: ${error.message}`);
             }

@@ -99,6 +99,11 @@ YANDEX_REDIRECT_URI=your_yandex_redirect_uri
 REDIS_HOST=your_redis_host
 REDIS_PORT=your_redis_port
 REDIS_PASSWORD=your_redis_password
+GITLAB_BASE_URL=your_gitlab_base_url
+GITLAB_API_TOKEN=your_gitlab_api_token
+TEAMCITY_BASE_URL=your_teamcity_base_url
+TEAMCITY_USERNAME=your_teamcity_username
+TEAMCITY_PASSWORD=your_teamcity_password
 ```
 
 - `API_BASE_URL`: Your Mattermost server URL.
@@ -131,6 +136,11 @@ REDIS_PASSWORD=your_redis_password
 - `REDIS_HOST`: Hostname of the Redis server.
 - `REDIS_PORT`: Redis server port.
 - `REDIS_PASSWORD`: Redis password.
+- `GITLAB_BASE_URL`: Base URL of your GitLab instance.
+- `GITLAB_API_TOKEN`: GitLab API token for authentication.
+- `TEAMCITY_BASE_URL`: Base URL of your TeamCity server (e.g., `https://ci.pravo.tech`).
+- `TEAMCITY_USERNAME`: Username for TeamCity API authentication.
+- `TEAMCITY_PASSWORD`: Password for TeamCity API authentication.
 
 4. Launch the bot:  
    `node index.js`
