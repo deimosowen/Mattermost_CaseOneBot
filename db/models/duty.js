@@ -125,6 +125,11 @@ const getAllUnscheduledUsers = async (channel_id) => {
     return db.all('SELECT * FROM duty_unscheduled_list WHERE channel_id = ? ORDER BY id ASC', channel_id);
 };
 
+// Получение всех каналов с текущими дежурствами
+const getAllChannelsWithCurrentDuty = async () => {
+    return db.all('SELECT DISTINCT channel_id FROM duty_current');
+};
+
 module.exports = {
     getDutySchedules,
     setDutySchedule,
@@ -144,4 +149,5 @@ module.exports = {
     removeDutyUser,
     updateDutyUsersOrder,
     getAllUnscheduledUsers,
+    getAllChannelsWithCurrentDuty,
 };

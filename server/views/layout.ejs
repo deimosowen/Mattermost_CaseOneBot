@@ -5,36 +5,129 @@
     <title>
         <%= blocks.title %>
     </title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css"
         rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <style>
+        .github-corner {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            color: #6c757d;
+            font-size: 2rem;
+            transition: color 0.3s ease, transform 0.3s ease;
+            text-decoration: none;
+        }
+        .github-corner:hover {
+            color: #212529;
+            transform: scale(1.1);
+        }
+        [data-bs-theme="dark"] .github-corner {
+            color: #adb5bd;
+        }
+        [data-bs-theme="dark"] .github-corner:hover {
+            color: #ffffff;
+        }
+        .app-version {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            color: #6c757d;
+            font-size: 0.875rem;
+            font-weight: 500;
+            user-select: none;
+        }
+        [data-bs-theme="dark"] .app-version {
+            color: #adb5bd;
+        }
+    </style>
 </head>
 
-<body class="d-flex flex-column justify-content-center min-vh-100">
-    <nav class="navbar fixed-top">
+<body class="d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg fixed-top shadow-sm" id="mainNavbar">
         <div class="container-fluid">
-            <a></a>
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-robot"></i> CaseOneBot
+            </a>
 
-            <div class="d-flex">
-                <div class="form-check form-switch ms-auto mt-3 me-3">
-                    <label class="form-check-label ms-3" for="themeSwitch">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor"
-                            class="bi bi-brightness-high" viewBox="0 0 16 16">
-                            <path
-                                d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z">
-                            </path>
-                        </svg>
-                    </label>
-                    <input class="form-check-input" type="checkbox" id="themeSwitch" onchange="toggleTheme()">
-                </div>
+            <div class="d-flex align-items-center">
+                <% if (isAuthenticated && user) { %>
+                    <div class="dropdown me-3">
+                        <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center"
+                            type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <% if (user.photo) { %>
+                                <img src="<%= user.photo %>" alt="<%= user.displayName %>" class="rounded-circle me-2"
+                                    style="width: 32px; height: 32px; object-fit: cover;">
+                                <% } else { %>
+                                    <i class="bi bi-person-circle me-2" style="font-size: 1.5rem;"></i>
+                                    <% } %>
+                                        <span class="d-none d-md-inline">
+                                            <%= user.displayName %>
+                                        </span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li>
+                                <h6 class="dropdown-header">
+                                    <% if (user.email) { %>
+                                        <%= user.email %>
+                                            <% } else { %>
+                                                <%= user.username %>
+                                                    <% } %>
+                                </h6>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <form action="/auth/logout" method="post" class="m-0">
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-box-arrow-right me-2"></i>Выйти
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                    <% } else { %>
+                        <a href="/auth/yandex" class="btn btn-primary btn-sm me-3">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Войти
+                        </a>
+                        <% } %>
+
+                            <div class="form-check form-switch">
+                                <label class="form-check-label" for="themeSwitch">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor"
+                                        class="bi bi-brightness-high" viewBox="0 0 16 16">
+                                        <path
+                                            d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z">
+                                        </path>
+                                    </svg>
+                                </label>
+                                <input class="form-check-input" type="checkbox" id="themeSwitch"
+                                    onchange="toggleTheme()">
+                            </div>
             </div>
         </div>
     </nav>
-    <section class="container">
+    <section class="container mt-5 pt-4">
         <%- body %>
     </section>
+
+    <div class="app-version" title="Версия приложения">
+        v<%= appVersion %>
+    </div>
+
+    <a href="https://github.com/deimosowen/Mattermost_CaseOneBot" 
+       target="_blank" 
+       rel="noopener noreferrer" 
+       class="github-corner"
+       title="GitHub проекта">
+        <i class="bi bi-github"></i>
+    </a>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
@@ -47,11 +140,29 @@
             localStorage.setItem('theme', theme);
         }
 
+        function updateNavbarTheme(theme) {
+            const navbar = document.getElementById('mainNavbar');
+            if (theme === 'dark') {
+                navbar.className = 'navbar navbar-expand-lg fixed-top shadow-sm navbar-dark bg-dark';
+            } else {
+                navbar.className = 'navbar navbar-expand-lg fixed-top shadow-sm navbar-light bg-body-tertiary';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const currentTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', currentTheme);
             document.getElementById('themeSwitch').checked = currentTheme === 'dark';
+            updateNavbarTheme(currentTheme);
         });
+
+        // Обновляем навбар при изменении темы
+        const originalToggleTheme = toggleTheme;
+        toggleTheme = function() {
+            originalToggleTheme();
+            const theme = document.getElementById('themeSwitch').checked ? 'dark' : 'light';
+            updateNavbarTheme(theme);
+        };
     </script>
 </body>
 

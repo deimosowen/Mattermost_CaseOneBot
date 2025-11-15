@@ -1,4 +1,4 @@
-const { postMessage } = require('../../mattermost/utils');
+const { postMessageInTreed } = require('../../mattermost/utils');
 const { getForwardMessageByMessageId } = require('../../db/models/forward');
 
 module.exports = async function handleForwardDeletion(post) {
@@ -12,9 +12,8 @@ module.exports = async function handleForwardDeletion(post) {
 ${post.message}
 \`\`\``;
 
-    await postMessage(
-        forwardMessage.channel_id,
-        message,
+    await postMessageInTreed(
         forwardMessage.send_message_id,
+        message
     );
 };

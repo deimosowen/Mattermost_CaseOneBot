@@ -1,15 +1,45 @@
 const db = require('../index.js');
 const logger = require('../../logger');
 
+/**
+ * Парсит merge_tasks из JSON строки в массив
+ * @param {string|null} mergeTasksJson - JSON строка или null
+ * @returns {string[]} - Массив ID задач
+ */
+const parseMergeTasks = (mergeTasksJson) => {
+    if (!mergeTasksJson) {
+        return [];
+    }
+    try {
+        const parsed = JSON.parse(mergeTasksJson);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+        logger.warn(`Failed to parse merge_tasks JSON: ${mergeTasksJson}`, err);
+        // Для обратной совместимости: если это не JSON, пытаемся разбить как строку
+        return String(mergeTasksJson).split(/[,\s;]+/).filter(Boolean);
+    }
+};
+
 const getFeatureReadyById = async (id) => {
-    return db.get('SELECT * FROM feature_ready WHERE id = ?', id);
+    const feature = await db.get('SELECT * FROM feature_ready WHERE id = ?', id);
+    if (feature && feature.merge_tasks) {
+        feature.merge_tasks_parsed = parseMergeTasks(feature.merge_tasks);
+    }
+    return feature;
 }
 
 const getFeatureReadyByPostId = async (postId) => {
-    return db.get('SELECT * FROM feature_ready WHERE mattermost_post_id = ?', postId);
+    const feature = await db.get('SELECT * FROM feature_ready WHERE mattermost_post_id = ?', postId);
+    if (feature && feature.merge_tasks) {
+        feature.merge_tasks_parsed = parseMergeTasks(feature.merge_tasks);
+    }
+    return feature;
 }
 
 const getFeaturesWithOpenMRs = async () => {
+    const { FINAL_STATUSES } = require('../../services/gitlabService');
+    const placeholders = FINAL_STATUSES.map(() => '?').join(',');
+
     return db.all(`
         SELECT 
             fr.*,
@@ -21,8 +51,8 @@ const getFeaturesWithOpenMRs = async () => {
         FROM feature_ready fr
         JOIN feature_merge_requests fmr ON fr.id = fmr.feature_id
         JOIN gitlab_merge_requests gmr ON fmr.merge_request_id = gmr.id
-        WHERE gmr.status != 'MERGED'
-    `);
+        WHERE gmr.status NOT IN (${placeholders})
+    `, FINAL_STATUSES);
 };
 
 const addFeatureReady = async (data, mrs, mattermostPostId) => {
@@ -32,6 +62,20 @@ const addFeatureReady = async (data, mrs, mattermostPostId) => {
         mergeTaskId,
         description
     } = data;
+
+    // Преобразуем mergeTaskId в JSON строку для структурированного хранения
+    let mergeTasksJson = null;
+    if (mergeTaskId) {
+        if (Array.isArray(mergeTaskId)) {
+            const normalizedIds = mergeTaskId
+                .map(id => String(id).trim())
+                .filter(Boolean);
+            mergeTasksJson = normalizedIds.length > 0 ? JSON.stringify(normalizedIds) : null;
+        } else if (String(mergeTaskId).trim()) {
+            // Если строка, создаем массив из одного элемента
+            mergeTasksJson = JSON.stringify([String(mergeTaskId).trim()]);
+        }
+    }
 
     await db.execAsync('BEGIN TRANSACTION');
 
@@ -43,7 +87,7 @@ const addFeatureReady = async (data, mrs, mattermostPostId) => {
             taskId,
             taskName || null,
             description || null,
-            mergeTaskId || null,
+            mergeTasksJson,
             mattermostPostId || null
         ]);
 
@@ -96,4 +140,5 @@ module.exports = {
     getFeaturesWithOpenMRs,
     addFeatureReady,
     deleteFeatureReady,
+    parseMergeTasks,
 }

@@ -48,48 +48,66 @@
                                                             <% } %>
                                             </td>
                                             <td class="text-end align-middle">
-                                                <form action="/duty/update-status" method="post"
-                                                    id="statusForm-<%= employee.id %>">
-                                                    <input type="hidden" name="id" value="<%= employee.id %>">
-                                                    <input type="hidden" name="username"
-                                                        value="<%= employee.username %>">
-                                                    <input type="hidden" name="channel_id" value="<%= channel_id %>">
-                                                    <% if (employee.status==='Активный' ) { %>
-                                                        <input type="hidden" name="status" value="1">
-                                                        <input type="hidden" name="return_date" value="">
-                                                        <div class="btn-group">
-                                                            <button type="submit"
-                                                                class="btn btn-outline-danger btn-sm">Отключить</button>
-                                                            <button type="button"
-                                                                class="btn btn-outline-danger dropdown-toggle dropdown-toggle-split btn-sm"
-                                                                data-bs-toggle="dropdown" aria-expanded="false"
-                                                                data-bs-reference="parent">
-                                                                <span class="visually-hidden">Отключить</span>
-                                                            </button>
-                                                            <ul class="dropdown-menu">
-                                                                <li><a class="dropdown-item" href="#"
-                                                                        data-bs-toggle="modal"
-                                                                        data-bs-username="<%= employee.name %>"
-                                                                        data-bs-target="#disableUntilDateModal">Отключить
-                                                                        до
-                                                                        даты</a>
-                                                                </li>
-                                                                <li><button type="button"
-                                                                        class="dropdown-item text-danger"
-                                                                        onclick="deleteUser('<%= employee.id %>')">Удалить</button>
-                                                                </li>
-                                                            </ul>
-                                                        </div>
-                                                        <% } else if (employee.status==='Отключен' ) { %>
-                                                            <input type="hidden" name="status" value="0">
-                                                            <button type="submit"
-                                                                class="btn btn-outline-primary btn-sm">Включить</button>
-                                                            <% } else if (employee.status==='Текущий' ) { %>
-                                                                <input type="hidden" name="status" value="-1">
-                                                                <button type="submit"
-                                                                    class="btn btn-outline-warning btn-sm">Сдвинуть</button>
-                                                                <% } %>
-                                                </form>
+                                                <% if (employee.status==='Текущий' ) { %>
+                                                    <form action="/duty/change-next" method="post"
+                                                        style="display: inline;">
+                                                        <input type="hidden" name="channel_id"
+                                                            value="<%= channel_id %>">
+                                                        <button type="submit"
+                                                            class="btn btn-outline-light btn-sm me-2">Сменить</button>
+                                                    </form>
+                                                    <form action="/duty/update-status" method="post"
+                                                        style="display: inline;" id="statusForm-<%= employee.id %>">
+                                                        <input type="hidden" name="id" value="<%= employee.id %>">
+                                                        <input type="hidden" name="username"
+                                                            value="<%= employee.username %>">
+                                                        <input type="hidden" name="channel_id"
+                                                            value="<%= channel_id %>">
+                                                        <input type="hidden" name="status" value="-1">
+                                                        <button type="submit"
+                                                            class="btn btn-outline-warning btn-sm">Сдвинуть</button>
+                                                    </form>
+                                                    <% } else { %>
+                                                        <form action="/duty/update-status" method="post"
+                                                            id="statusForm-<%= employee.id %>">
+                                                            <input type="hidden" name="id" value="<%= employee.id %>">
+                                                            <input type="hidden" name="username"
+                                                                value="<%= employee.username %>">
+                                                            <input type="hidden" name="channel_id"
+                                                                value="<%= channel_id %>">
+                                                            <% if (employee.status==='Активный' ) { %>
+                                                                <input type="hidden" name="status" value="1">
+                                                                <input type="hidden" name="return_date" value="">
+                                                                <div class="btn-group">
+                                                                    <button type="submit"
+                                                                        class="btn btn-outline-danger btn-sm">Отключить</button>
+                                                                    <button type="button"
+                                                                        class="btn btn-outline-danger dropdown-toggle dropdown-toggle-split btn-sm"
+                                                                        data-bs-toggle="dropdown" aria-expanded="false"
+                                                                        data-bs-reference="parent">
+                                                                        <span class="visually-hidden">Отключить</span>
+                                                                    </button>
+                                                                    <ul class="dropdown-menu">
+                                                                        <li><a class="dropdown-item" href="#"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-username="<%= employee.name %>"
+                                                                                data-bs-target="#disableUntilDateModal">Отключить
+                                                                                до
+                                                                                даты</a>
+                                                                        </li>
+                                                                        <li><button type="button"
+                                                                                class="dropdown-item text-danger"
+                                                                                onclick="deleteUser('<%= employee.id %>')">Удалить</button>
+                                                                        </li>
+                                                                    </ul>
+                                                                </div>
+                                                                <% } else if (employee.status==='Отключен' ) { %>
+                                                                    <input type="hidden" name="status" value="0">
+                                                                    <button type="submit"
+                                                                        class="btn btn-outline-primary btn-sm">Включить</button>
+                                                                    <% } %>
+                                                        </form>
+                                                        <% } %>
 
                                             </td>
                                         </tr>
@@ -154,6 +172,23 @@
             document.addEventListener('DOMContentLoaded', function () {
                 fetchCronDescription();
 
+                // Блокировка всех кнопок после отправки форм
+                const forms = document.querySelectorAll('form');
+                forms.forEach(form => {
+                    form.addEventListener('submit', function (e) {
+                        // Блокируем все кнопки submit на странице
+                        const allSubmitButtons = document.querySelectorAll('form button[type="submit"]');
+                        allSubmitButtons.forEach(button => {
+                            button.disabled = true;
+                            const originalText = button.textContent;
+                            button.dataset.originalText = originalText;
+                            if (originalText !== 'Добавление...') {
+                                button.textContent = 'Отправка...';
+                            }
+                        });
+                    });
+                });
+
                 const sortable = new Sortable(document.getElementById('sortableTableBody'), {
                     animation: 150,
                     handle: 'tr',
@@ -197,6 +232,18 @@
                     const returnDate = document.getElementById('returnDate').value;
                     const form = relatedTarget.closest('form');
                     form.querySelector('input[name="return_date"]').value = returnDate;
+
+                    // Блокируем все кнопки перед отправкой
+                    const allSubmitButtons = document.querySelectorAll('form button[type="submit"]');
+                    allSubmitButtons.forEach(button => {
+                        button.disabled = true;
+                        const originalText = button.textContent;
+                        button.dataset.originalText = originalText;
+                        if (originalText !== 'Добавление...') {
+                            button.textContent = 'Отправка...';
+                        }
+                    });
+
                     form.submit();
                 });
             });
@@ -211,6 +258,18 @@
                 if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
                     const form = document.getElementById(`statusForm-${userId}`);
                     form.action = '/duty/delete-user';
+
+                    // Блокируем все кнопки перед отправкой
+                    const allSubmitButtons = document.querySelectorAll('form button[type="submit"]');
+                    allSubmitButtons.forEach(button => {
+                        button.disabled = true;
+                        const originalText = button.textContent;
+                        button.dataset.originalText = originalText;
+                        if (originalText !== 'Добавление...') {
+                            button.textContent = 'Отправка...';
+                        }
+                    });
+
                     form.submit();
                 }
             }

@@ -8,7 +8,7 @@ const router = express.Router();
 
 async function checkMemberExistence(req, res, next) {
     try {
-        const user_id = req.query.user_id || req.body.user_id;
+        const user_id = req.query.user_id || req.user?.mattermostUserId;
         const isMember = await isMemberExist(user_id);
         if (!isMember) {
             return res.status(403).send('You shall not pass! 🧙');

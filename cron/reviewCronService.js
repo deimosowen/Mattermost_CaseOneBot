@@ -2,6 +2,7 @@ const BaseCronService = require('./baseCronService');
 const { getReviewTaskWithNotClosedMRs } = require('../db/models/reviewTask');
 const { postMessageInTreed, addReaction } = require('../mattermost/utils');
 const GitlabService = require('../services/gitlabService');
+const reviewDistributionService = require('../services/reviewDistributionService');
 const logger = require('../logger');
 
 class ReviewCronService extends BaseCronService {
@@ -11,6 +12,7 @@ class ReviewCronService extends BaseCronService {
         this.shedule = '* * * * *';
         this.statuses = GitlabService.STATUSES;
         this.reaction = 'heavy_check_mark';
+        this.autoAssignment = false;
     }
 
     async loadJobsFromDb() {
@@ -36,10 +38,52 @@ class ReviewCronService extends BaseCronService {
                         }
                     }
                 } catch (error) {
-                    logger.error(`[GitlabCron] Ошибка polling MR ${mergeRequest.mr_iid}: ${error.message}`);
+                    logger.error(`[GitlabCron] Ошибка polling MR ${reviewTask.mr_iid}: ${error.message}`);
                 }
             }
         });
+
+        // Добавляем задачу для автоматического распределения ревьюеров
+        if (this.autoAssignment) {
+            this.createJob('review_auto_assignment', this.shedule, async () => {
+                await this._processAutoReviewAssignment();
+            });
+        }
+    }
+
+    /**
+     * Обрабатывает автоматическое назначение ревьюеров для задач без назначенного ревьюера
+     */
+    async _processAutoReviewAssignment() {
+        try {
+            const reviewTasks = await getReviewTaskWithNotClosedMRs();
+
+            for (const reviewTask of reviewTasks) {
+                // Проверяем, есть ли уже назначенный ревьюер
+                if (reviewTask.reviewer) {
+                    continue;
+                }
+
+                // Получаем настройки канала
+                const channelSettings = await reviewDistributionService.getChannelSettings(reviewTask.channel_id);
+
+                if (!channelSettings || !channelSettings.is_enabled) {
+                    continue;
+                }
+
+                // Автоматически назначаем ревьюера
+                const assignedReviewer = await reviewDistributionService.assignReviewerForTask(
+                    reviewTask.channel_id,
+                    reviewTask.task_key
+                );
+
+                if (assignedReviewer) {
+                    logger.debug(`[ReviewCron] Автоматически назначен ревьюер ${assignedReviewer.user_name} для задачи ${reviewTask.task_key}`);
+                }
+            }
+        } catch (error) {
+            logger.error(`[ReviewCron] Ошибка автоматического назначения ревьюеров: ${error.message}`);
+        }
     }
 
     _formatStatusMessage(mrStatus) {

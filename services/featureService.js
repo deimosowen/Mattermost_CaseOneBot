@@ -2,12 +2,14 @@ const GitlabService = require('./gitlabService');
 const { addFeatureReady } = require('../db/models/featureReady');
 const { postMessage, postMessageInTreed, pinPost } = require('../mattermost/utils');
 const { parseGitlabMrUrl } = require('../services/gitlabService/gitlabHelper');
+const { tryResolveBackendConflicts: resolveConflicts } = require('../services/gitlabService/conflictResolver');
 const { FEATURE_IS_READY_CHANNEL_ID } = require('../config');
 const logger = require('../logger');
 
 class FeatureServices {
     constructor() {
         this.channelId = FEATURE_IS_READY_CHANNEL_ID;
+        this.autoResolvedConflicts = false;
     }
 
     async handleFeatureReady(data) {
@@ -28,8 +30,18 @@ class FeatureServices {
 
             const conflictResults = await this._checkMergeConflicts(mergeRequests);
             if (conflictResults.hasConflicts) {
+                if (this.autoResolvedConflicts === true) {
+                    // Пытаемся автоматически разрешить конфликты для бэка
+                    await this._tryResolveBackendConflicts(mergeRequests, post.id);
+
+                    // Синхронизируем флаг autoResolved из mergeRequests в conflictResults.details
+                    this._syncAutoResolvedFlag(mergeRequests, conflictResults);
+                }
+
                 const conflictMessage = this._buildConflictAlert(conflictResults);
-                await postMessageInTreed(post.id, conflictMessage);
+                if (conflictMessage) {
+                    await postMessageInTreed(post.id, conflictMessage);
+                }
             }
 
             return { status: 'success' };
@@ -82,6 +94,22 @@ class FeatureServices {
         return results;
     }
 
+    /**
+     * Синхронизирует флаг autoResolved из mergeRequests в conflictResults.details
+     * @param {Array} mergeRequests - Массив merge requests с установленным autoResolved
+     * @param {Object} conflictResults - Результаты проверки конфликтов
+     */
+    _syncAutoResolvedFlag(mergeRequests, conflictResults) {
+        for (const mr of mergeRequests) {
+            if (mr.autoResolved) {
+                const detail = conflictResults.details.find(d => d.tag === mr.tag || d.url === mr.url);
+                if (detail) {
+                    detail.autoResolved = true;
+                }
+            }
+        }
+    }
+
     _buildConflictAlert(conflictResults) {
         const conflicted = conflictResults.details.filter(d => d.hasConflicts);
         if (!conflicted.length) {
@@ -95,6 +123,44 @@ class FeatureServices {
             ``,
             ...lines
         ].join('\n');
+    }
+
+    /**
+     * Пытается автоматически разрешить конфликты для бэка
+     * @param {Array} mergeRequests - Массив merge requests
+     * @param {string} postId - ID поста в Mattermost
+     */
+    async _tryResolveBackendConflicts(mergeRequests, postId) {
+        let resolvedAny = false;
+        const allResolvedFiles = [];
+
+        for (const mr of mergeRequests) {
+            try {
+                const result = await resolveConflicts({
+                    project: mr.data.project,
+                    mrIid: mr.data.mrIid,
+                    tag: mr.tag,
+                    url: mr.url
+                });
+
+                if (result.resolved && result.files.length > 0) {
+                    resolvedAny = true;
+                    allResolvedFiles.push(...result.files);
+
+                    // Помечаем MR как автоматически разрешенный
+                    mr.autoResolved = true;
+                }
+            } catch (error) {
+                logger.error(`[FeatureService] Ошибка при попытке разрешения конфликтов для ${mr.tag}: ${error.message}`);
+            }
+        }
+
+        // Отправляем сообщение о разрешенных конфликтах
+        if (resolvedAny) {
+            const filesList = allResolvedFiles.map(f => `- ${f}`).join('\n');
+            const message = `✅ Автоматически разрешены конфликты FrontendVersion в файлах:\n${filesList}`;
+            await postMessageInTreed(postId, message);
+        }
     }
 
     _buildFeatureReadyMessage(data) {

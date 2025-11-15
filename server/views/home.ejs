@@ -1,0 +1,106 @@
+<% layout('layout') -%>
+<% block('title', 'CaseOneBot - Главная' ); -%>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-10">
+        <div class="text-center mb-5">
+            <h1 class="display-4 mb-3">
+                <i class="bi bi-robot"></i> CaseOneBot
+            </h1>
+            <p class="lead text-muted">
+                Бот для автоматизации работы в Mattermost
+            </p>
+        </div>
+
+        <% if (isAuthenticated && user) { %>
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h3 class="card-title mb-4">
+                        <i class="bi bi-check-circle text-success me-2"></i>Добро пожаловать, <%= user.displayName %>!
+                    </h3>
+                    <p class="text-muted">Выберите раздел для работы:</p>
+                    
+                    <div class="row g-3 mt-2">
+                        <% availablePages.forEach(page => { %>
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <a href="<%= page.url %>" class="text-decoration-none">
+                                    <div class="card h-100 border hover-shadow border-<%= page.color || 'primary' %> border-opacity-25">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <div class="bg-<%= page.color || 'primary' %> bg-opacity-10 rounded p-2 me-3">
+                                                    <i class="bi <%= page.icon %> text-<%= page.color || 'primary' %>" style="font-size: 1.5rem;"></i>
+                                                </div>
+                                                <h5 class="card-title mb-0">
+                                                    <%= page.title %>
+                                                </h5>
+                                            </div>
+                                            <p class="card-text text-muted small mb-0"><%= page.description %></p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        <% }); %>
+                    </div>
+                </div>
+            </div>
+        <% } else { %>
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <h3 class="card-title mb-4">
+                        <i class="bi bi-shield-lock me-2"></i>Требуется авторизация
+                    </h3>
+                    <p class="card-text text-muted mb-4">
+                        Для доступа к функциям бота необходимо авторизоваться через Яндекс
+                    </p>
+                    <a href="/auth/yandex" class="btn btn-primary btn-lg">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Войти через Яндекс
+                    </a>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-info-circle me-2"></i>О боте
+                    </h5>
+                    <p class="card-text">
+                        CaseOneBot — это бот для автоматизации работы в Mattermost, который помогает:
+                    </p>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Управлять календарем и получать уведомления о событиях
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Организовывать дежурства и автоматически ротировать их
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Приглашать пользователей в каналы
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Учитывать время в Jira
+                        </li>
+                    </ul>
+                    <p class="text-muted small mt-3 mb-0">
+                        <a href="https://github.com/deimosowen/Mattermost_CaseOneBot" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-github me-1"></i>Исходный код на GitHub
+                        </a>
+                    </p>
+                </div>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<style>
+    .hover-shadow {
+        transition: box-shadow 0.2s ease-in-out;
+    }
+    .hover-shadow:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+</style>
+

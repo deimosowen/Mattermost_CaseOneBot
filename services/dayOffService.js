@@ -27,7 +27,7 @@ class DayOffService {
         try {
             // Проверка кеша
             const cached = cache.get(cacheKey);
-            if (cached && cached.expires > Date.now()) {
+            if (cached) {
                 return cached.value;
             }
 

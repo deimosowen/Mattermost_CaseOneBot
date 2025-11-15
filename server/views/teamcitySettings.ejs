@@ -1,0 +1,125 @@
+<% layout('layout') -%>
+    <% block('title', 'Настройки уведомлений TeamCity' ); -%>
+
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card shadow">
+                        <div class="card-body">
+                            <% if (status==='success' ) { %>
+                                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                    <strong>Операция выполнена успешно!</strong>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                        aria-label="Close"></button>
+                                </div>
+                                <% } else if (status==='error' ) { %>
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        <strong>Произошла ошибка.</strong>
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                            aria-label="Close"></button>
+                                    </div>
+                                    <% } %>
+
+                                        <div class="d-flex justify-content-between align-items-center mb-4">
+                                            <h1 class="h4 mb-0">Настройки уведомлений TeamCity</h1>
+                                            <a href="/teamcity/form" class="btn btn-primary btn-sm">
+                                                <i class="bi bi-plus-circle"></i> Добавить настройку
+                                            </a>
+                                        </div>
+
+                                        <% if (!notifications || notifications.length===0) { %>
+                                            <div class="alert alert-info">
+                                                <p class="mb-0">Нет настроек уведомлений. <a
+                                                        href="/teamcity/form">Создайте первую настройку</a></p>
+                                            </div>
+                                            <% } else { %>
+                                                <div class="table-responsive">
+                                                    <table class="table table-hover">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Конфигурация билда</th>
+                                                                <th>Канал</th>
+                                                                <th class="text-center">Уведомлять</th>
+                                                                <th class="text-center">Статус</th>
+                                                                <th>Последний билд</th>
+                                                                <th class="text-end">Действия</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <% notifications.forEach(notif=> { %>
+                                                                <tr>
+                                                                    <td>
+                                                                        <div>
+                                                                            <strong>
+                                                                                <%= notif.build_config_name ||
+                                                                                    notif.build_config_id %>
+                                                                            </strong>
+                                                                            <br>
+                                                                            <small class="text-muted">
+                                                                                <%= notif.build_config_id %>
+                                                                            </small>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <%= notif.channel_name || notif.channel_id %>
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        <% const notifyOnLabels={ 'all' : 'Все билды'
+                                                                            , 'success' : 'Успешные' , 'failure'
+                                                                            : 'Неуспешные' }; %>
+                                                                            <span class="badge bg-info">
+                                                                                <%= notifyOnLabels[notif.notify_on] ||
+                                                                                    notif.notify_on %>
+                                                                            </span>
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        <% if (notif.is_enabled===1 ||
+                                                                            notif.is_enabled===true) { %>
+                                                                            <span
+                                                                                class="badge bg-success">Включено</span>
+                                                                            <% } else { %>
+                                                                                <span
+                                                                                    class="badge bg-secondary">Отключено</span>
+                                                                                <% } %>
+                                                                    </td>
+                                                                    <td>
+                                                                        <% if (notif.last_build_id &&
+                                                                            notif.last_checked_at) { %>
+                                                                            <small class="text-muted">
+                                                                                <%= notif.last_checked_at %> UTC
+                                                                            </small>
+                                                                            <% } else { %>
+                                                                                <small class="text-muted">Еще не
+                                                                                    проверялось</small>
+                                                                                <% } %>
+                                                                    </td>
+                                                                    <td class="text-end">
+                                                                        <div class="">
+                                                                            <a href="/teamcity/form?id=<%= notif.id %>"
+                                                                                class="btn btn-outline-primary">
+                                                                                <i class="bi bi-pencil"></i>
+                                                                            </a>
+                                                                            <form method="POST"
+                                                                                action="/teamcity/delete"
+                                                                                style="display: inline;"
+                                                                                onsubmit="return confirm('Вы уверены, что хотите удалить эту настройку?');">
+                                                                                <input type="hidden" name="id"
+                                                                                    value="<%= notif.id %>">
+                                                                                <button type="submit"
+                                                                                    class="btn btn-outline-danger">
+                                                                                    <i class="bi bi-trash"></i>
+                                                                                </button>
+                                                                            </form>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                <% }); %>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>

@@ -31,4 +31,8 @@ module.exports = {
     REDIS_PASSWORD: process.env.REDIS_PASSWORD,
     GITLAB_BASE_URL: process.env.GITLAB_BASE_URL,
     GITLAB_API_TOKEN: process.env.GITLAB_API_TOKEN,
+    TEAMCITY_BASE_URL: process.env.TEAMCITY_BASE_URL,
+    TEAMCITY_USERNAME: process.env.TEAMCITY_USERNAME,
+    TEAMCITY_PASSWORD: process.env.TEAMCITY_PASSWORD,
+    ALLOWED_EMAIL_DOMAINS: process.env.ALLOWED_EMAIL_DOMAINS ? process.env.ALLOWED_EMAIL_DOMAINS.split(",").map(d => d.trim()) : [],
 };

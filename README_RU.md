@@ -2,6 +2,24 @@
 
 CaseOneBot — многофункциональный бот для Mattermost. Сначала он служил простым планировщиком напоминаний, но теперь умеет вести дежурства, приглашать в каналы, работать с Яндекс Календарем и Jira и использовать функции ChatGPT. Бот помогает автоматизировать рутину и улучшить совместную работу.
 
+## Веб-интерфейс
+
+Бот предоставляет веб-интерфейс для управления различными функциями. Доступ к интерфейсу требует авторизации через Яндекс OAuth.
+
+### Авторизация
+- Авторизация выполняется автоматически при первом обращении к защищенным страницам
+- Доступ разрешен только пользователям с email доменами, указанными в `ALLOWED_EMAIL_DOMAINS`
+- Сессии хранятся в SQLite базе данных
+
+### Доступные страницы
+- `/` - Главная страница с информацией о боте и быстрым доступом к функциям
+- `/duty/list` - Список всех дежурств по каналам
+- `/calendar/settings` - Настройки интеграции с Яндекс.Календарем
+- `/feature` - Форма для отметки фичи как готовой к релизу
+- `/teamcity` - Настройка уведомлений о сборках TeamCity
+- `/invite` - Приглашение пользователей в каналы Mattermost
+- `/jira` - Учет времени в Jira
+
 ## Основные команды
 
 ### Напоминания
@@ -89,6 +107,14 @@ YANDEX_REDIRECT_URI=your_yandex_redirect_uri
 REDIS_HOST=your_redis_host
 REDIS_PORT=your_redis_port
 REDIS_PASSWORD=your_redis_password
+GITLAB_BASE_URL=your_gitlab_base_url
+GITLAB_API_TOKEN=your_gitlab_api_token
+TEAMCITY_BASE_URL=your_teamcity_base_url
+TEAMCITY_USERNAME=your_teamcity_username
+TEAMCITY_PASSWORD=your_teamcity_password
+ALLOWED_EMAIL_DOMAINS=pravo.tech
+SESSION_SECRET=your_session_secret_key
+NODE_ENV=production
 ```
 
 - `API_BASE_URL`: URL вашего сервера Mattermost.
@@ -121,6 +147,14 @@ REDIS_PASSWORD=your_redis_password
 - `REDIS_HOST`: хост Redis.
 - `REDIS_PORT`: порт Redis.
 - `REDIS_PASSWORD`: пароль Redis.
+- `GITLAB_BASE_URL`: базовый URL вашего GitLab.
+- `GITLAB_API_TOKEN`: токен API GitLab для аутентификации.
+- `TEAMCITY_BASE_URL`: базовый URL вашего сервера TeamCity (например, `https://ci.pravo.tech`).
+- `TEAMCITY_USERNAME`: имя пользователя для аутентификации в TeamCity API.
+- `TEAMCITY_PASSWORD`: пароль для аутентификации в TeamCity API.
+- `ALLOWED_EMAIL_DOMAINS`: разрешенные домены email для авторизации через Яндекс OAuth (через запятую, по умолчанию `pravo.tech`).
+- `SESSION_SECRET`: секретный ключ для подписи сессий (обязательно измените в production).
+- `NODE_ENV`: окружение запуска (`production` или `development`, влияет на уровни логирования).
 4. Запустите бота командой `node index.js`.
 
 ## Содействие
