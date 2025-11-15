@@ -13,7 +13,7 @@ module.exports = async ({ channel_id }) => {
             return;
         }
         const dutyService = cronManager.get(CronServiceTypes.DUTY);
-        dutyService.removeJob(id);
+        dutyService.removeJob(dutySchedule.id);
 
         await deleteDutySchedule(channel_id);
         await deleteAllDutyUsers(channel_id);

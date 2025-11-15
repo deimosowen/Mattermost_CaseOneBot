@@ -1,0 +1,319 @@
+<% layout('layout') -%>
+    <% block('title', 'Feature is ready' ); -%>
+
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-12 col-md-8 mx-auto">
+                    <div class="card shadow">
+                        <div class="card-body">
+                            <% if (status==='success' ) { %>
+                                <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+                                    <strong>✅ Данные успешно отправлены!</strong>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                        aria-label="Close"></button>
+                                </div>
+                                <% } else if (status==='error' ) { %>
+                                    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                                        <strong>❌ Произошла ошибка при отправке данных.</strong>
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                            aria-label="Close"></button>
+                                    </div>
+                                    <% } %>
+                                        <div class="d-flex flex-column align-items-center">
+                                            <h1 class="card-title text-center">Feature is ready</h1>
+                                        </div>
+                                        <form action="/feature/ready" method="post">
+                                            <div class="mb-3">
+                                                <label for="taskId" class="form-label text-muted">Задача</label>
+                                                <input type="text" id="taskId" name="taskId" placeholder="CASEM-XXXXX"
+                                                    required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="taskName" class="form-label text-muted">Название
+                                                    задачи</label>
+                                                <input type="text" class="form-control" id="taskName" name="taskName"
+                                                    placeholder="Название задачи" required readonly>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="backPullRequestUrl" class="form-label text-muted">Ссылка на
+                                                    Back Merge
+                                                    Request
+                                                </label>
+                                                <input type="text" class="form-control" id="backPullRequestUrl"
+                                                    name="backPullRequestUrl"
+                                                    placeholder="https://gitlab.pravo.tech/caseone/CasePro/-/merge_requests/12345">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="frontPullRequestUrl" class="form-label text-muted">Ссылка на
+                                                    Front Merge
+                                                    Request</label>
+                                                <input type="text" class="form-control" id="frontPullRequestUrl"
+                                                    name="frontPullRequestUrl"
+                                                    placeholder="https://gitlab.pravo.tech/caseone/CasePro.Frontend/-/merge_requests/12345">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="aqaPullRequestUrl" class="form-label text-muted">Ссылка на
+                                                    AQA Merge
+                                                    Request</label>
+                                                <input type="text" class="form-control" id="aqaPullRequestUrl"
+                                                    name="aqaPullRequestUrl"
+                                                    placeholder="https://gitlab.pravo.tech/qa/CasePro.Autotest/-/merge_requests/12345">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="mergeTaskId" class="form-label text-muted">Задачи на
+                                                    влитие</label>
+                                                <input type="text" class="form-control" id="mergeTaskId"
+                                                    name="mergeTaskId" placeholder="CASEM-XXXXX">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="description"
+                                                    class="form-label text-muted">Комментарий</label>
+                                                <textarea class="form-control" id="description" name="description"
+                                                    placeholder="Комментарий" rows="3"></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <button type="submit" class="btn btn-success w-100"
+                                                    id="submitButton">Отправить</button>
+                                            </div>
+                                        </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/css/tom-select.bootstrap5.min.css"
+            rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/js/tom-select.complete.min.js"></script>
+
+        <script>
+            function isValidUrl(value) {
+                if (!value) {
+                    return true;
+                }
+                try {
+                    const url = new URL(value);
+                    return ['http:', 'https:'].includes(url.protocol);
+                } catch {
+                    return false;
+                }
+            }
+
+            /**
+             * Валидация полей URL перед отправкой формы.
+             */
+            function attachUrlValidation(formSelector, fieldIds) {
+                const form = document.querySelector(formSelector);
+                if (!form) {
+                    return;
+                }
+
+                form.addEventListener('submit', (e) => {
+                    const submitButton = form.querySelector('button[type="submit"]');
+
+                    // Проверяем, не заблокирована ли уже кнопка (защита от повторной отправки)
+                    if (submitButton && submitButton.disabled) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+
+                    let hasError = false;
+
+                    fieldIds.forEach(id => {
+                        const input = document.getElementById(id);
+                        if (!input) {
+                            return;
+                        }
+
+                        const value = input.value.trim();
+                        const errorText = 'Введите корректную ссылку (начинающуюся с https://)';
+                        let feedback = input.parentElement.querySelector('.invalid-feedback');
+
+                        if (!feedback) {
+                            feedback = document.createElement('div');
+                            feedback.className = 'invalid-feedback';
+                            input.parentElement.appendChild(feedback);
+                        }
+
+                        if (value && !isValidUrl(value)) {
+                            hasError = true;
+                            input.classList.add('is-invalid');
+                            feedback.textContent = errorText;
+                        } else {
+                            input.classList.remove('is-invalid');
+                            feedback.textContent = '';
+                        }
+                    });
+
+                    if (hasError) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    } else {
+                        // Блокируем кнопку отправки после успешной валидации
+                        // Форма продолжит отправку автоматически
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            submitButton.textContent = 'Отправка...';
+                            submitButton.classList.add('disabled');
+                        }
+                        // НЕ вызываем preventDefault - позволяем форме отправиться
+                    }
+                });
+            }
+
+            /**
+             * Инициализация Tom Select с асинхронным поиском задач.
+             * @param {string} selector - CSS-селектор input-поля.
+             * @param {Object} [options] - Дополнительные настройки.
+             * @param {Function} [options.onSelect] - Колбэк при выборе задачи.
+             * @param {string} [options.apiUrl] - URL API для поиска.
+             */
+            function initTaskSelect(selector, {
+                maxItems = 1,
+                onSelect = null,
+                apiUrl = '/jira/api/tasks/search'
+            } = {}) {
+                return new TomSelect(selector, {
+                    maxItems: maxItems,
+                    valueField: 'id',
+                    labelField: 'label',
+                    searchField: ['id', 'name'],
+                    create: false,
+                    preload: false,
+                    maxOptions: 15,
+                    placeholder: 'Введите ID задачи',
+                    loadThrottle: 300,
+                    render: {
+                        option: (item, escape) => `
+                <div>
+                    <strong>${escape(item.id)}</strong>
+                    ${item.name ? ` — <span class="text-muted">${escape(item.name)}</span>` : ''}
+                </div>`,
+                        item: (item, escape) => `<div>${escape(item.id)}</div>`
+                    },
+
+                    /**
+                     * Асинхронная загрузка списка задач.
+                     */
+                    load: async (query, callback) => {
+                        if (query.length < 2) return callback();
+                        try {
+                            const res = await fetch(`${apiUrl}?q=${encodeURIComponent(query)}`);
+                            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                            const data = await res.json();
+
+                            const options = data.map(t => ({
+                                id: t.id,
+                                name: t.name,
+                                label: `${t.id}${t.name ? ' — ' + t.name : ''}`,
+                                backUrl: t.backUrl,
+                                frontUrl: t.frontUrl,
+                                aqaUrl: t.aqaUrl
+                            }));
+
+                            callback(options);
+                        } catch (err) {
+                            console.error(`[TomSelect:${selector}] Ошибка загрузки задач:`, err);
+                            callback();
+                        }
+                    },
+
+                    /**
+                     * Событие выбора элемента.
+                     */
+                    onChange(value) {
+                        if (!value || typeof onSelect !== 'function') return;
+
+                        // получаем объект выбранного элемента напрямую из TomSelect
+                        const item = this.options[value];
+                        if (item) {
+                            onSelect(item);
+                        }
+                    }
+                });
+            }
+
+            // === Инициализация полей ===
+            document.addEventListener('DOMContentLoaded', () => {
+                initTaskSelect('#taskId', {
+                    onSelect: (task) => {
+                        if (!task) return;
+                        document.getElementById('taskName').value = task.name || '';
+                        document.getElementById('backPullRequestUrl').value = task.backUrl || '';
+                        document.getElementById('frontPullRequestUrl').value = task.frontUrl || '';
+                        document.getElementById('aqaPullRequestUrl').value = task.aqaUrl || '';
+                    }
+                });
+
+                initTaskSelect('#mergeTaskId', {
+                    maxItems: 3,
+                });
+
+                attachUrlValidation('form[action="/feature/ready"]', [
+                    'backPullRequestUrl',
+                    'frontPullRequestUrl',
+                    'aqaPullRequestUrl'
+                ]);
+            });
+        </script>
+
+        <style>
+            /* === Tom Select: Dark Mode Fixes (final) === */
+            [data-bs-theme="dark"] .ts-control,
+            body.dark .ts-control {
+                background-color: #212529 !important;
+                color: #f8f9fa !important;
+                border-color: #495057 !important;
+            }
+
+            [data-bs-theme="dark"] .ts-control:focus,
+            body.dark .ts-control:focus {
+                border-color: #0d6efd !important;
+                box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+            }
+
+            [data-bs-theme="dark"] .ts-control input,
+            body.dark .ts-control input {
+                color: #f8f9fa !important;
+                /* яркий текст при вводе */
+                caret-color: #0d6efd !important;
+                /* голубой курсор */
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown,
+            body.dark .ts-dropdown {
+                background-color: #212529 !important;
+                border-color: #343a40 !important;
+                color: #f8f9fa !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option {
+                background-color: transparent !important;
+                color: #dee2e6 !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option:hover,
+            [data-bs-theme="dark"] .ts-dropdown .option.active,
+            body.dark .ts-dropdown .option.active {
+                background-color: #495057 !important;
+                color: #ffffff !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option span.text-muted {
+                color: #adb5bd !important;
+            }
+
+            /* Убираем ядовитую жёлтую подсветку совпадений */
+            [data-bs-theme="dark"] .ts-dropdown mark,
+            body.dark .ts-dropdown mark {
+                background-color: transparent !important;
+                color: #0d6efd !important;
+                font-weight: 600;
+            }
+
+            /* Выбранный элемент в поле */
+            [data-bs-theme="dark"] .ts-wrapper.single .ts-control>.item {
+                color: #e9ecef !important;
+            }
+        </style>

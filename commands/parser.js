@@ -64,10 +64,17 @@ function parseReviewCommand(message) {
     return [command, taskCode, prLink, reviewer];
 }
 
+function parseReviewSettingsCommand(message) {
+    // Разделяем по пробелам, сохраняя все аргументы
+    const parts = message.trim().split(/\s+/);
+    return parts;
+}
+
 const commandParsers = {
     '!meet': parseMeetCommand,
     '!reop': parseSpaceFirstSeparatedCommand,
-    '!review': parseReviewCommand
+    '!review': parseReviewCommand,
+    '!review-settings': parseReviewSettingsCommand
 };
 
 function parseCommand(message) {

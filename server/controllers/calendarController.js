@@ -1,4 +1,5 @@
 const express = require('express');
+const { getUserByEmail } = require('../../mattermost/utils');
 const { getUserSettings, updateUserSettings } = require('../../db/models/calendars');
 const yandexService = require('../../services/yandexService');
 const logger = require('../../logger');
@@ -6,15 +7,20 @@ const logger = require('../../logger');
 const router = express.Router();
 
 router.get('/settings', async (req, res) => {
-    const { user_id } = req.query;
+    const user_id = req.query.user_id || req.user?.mattermostUserId;
+
+    if (!user_id) {
+        return res.status(400).send('User ID is required');
+    }
+
     const credentials = yandexService.getCredentials();
-    const isAuthenticated = await yandexService.isAuthenticated(user_id);
+    const yandexAuth = await yandexService.isAuthenticated(user_id);
     const settings = await getUserSettings(user_id);
 
     res.render('calendarSettings', {
         user_id: user_id,
         credentials: credentials,
-        isAuthenticated: isAuthenticated,
+        yandexAuth: yandexAuth, // Авторизация Яндекс календаря (не путать с res.locals.isAuthenticated)
         settings: settings || {},
         success: req.query.success || false
     });

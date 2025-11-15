@@ -42,7 +42,11 @@ async function changeNextDuty(channel_id) {
         }
 
         const increment = currentDuty.duty_type === DutyType.UNSCHEDULED ? 2 : 1;
-        let nextIndex = (users.findIndex(u => u.user_id === currentDuty.user_id) + increment) % users.length;
+        const currentIndex = users.findIndex(u => u.user_id === currentDuty.user_id);
+        if (currentIndex === -1) {
+            return resources.duty.noExistingError;
+        }
+        const nextIndex = (currentIndex + increment) % users.length;
         const nextDuty = users[nextIndex].user_id;
         await setCurrentDuty(channel_id, nextDuty, DutyType.REGULAR);
         const message = await nextDutyMessage(channel_id, nextDuty);
@@ -86,8 +90,9 @@ const getActualDutyList = async (channel_id) => {
         let users = await getDutyUsers(channel_id);
 
         // Обновляем статусы пользователей, которые уже должны вернуться
+        const currentDateMoment = moment(currentDate);
         const usersToReactivate = users.filter(user =>
-            user.return_date && moment(user.return_date).isBefore(currentDate)
+            user.return_date && moment(user.return_date).isSameOrBefore(currentDateMoment, 'day')
         );
         if (usersToReactivate.length > 0) {
             await Promise.all(usersToReactivate.map(user =>
@@ -151,17 +156,121 @@ async function changeUnscheduledDutyIfNeed(channel_id, actualUsers) {
     return null;
 }
 
-// Создание callback для cron-задачи
-const createDutyCallback = (channel_id, considerWorkingDays = false) => {
-    return async () => {
-        if (considerWorkingDays) {
-            const isHoliday = await checkIsHoliday();
-            if (isHoliday) {
-                return;
+// Вспомогательная функция: вычисляет следующего дежурного и сообщение БЕЗ изменений в БД
+async function computeNextDutyChange(channel_id) {
+    const actualUsers = await getActualDutyList(channel_id);
+    if (!actualUsers || actualUsers.length === 0) {
+        return { canChange: false, reason: resources.duty.noUsersError };
+    }
+
+    // Проверяем внеочередных
+    const unscheduledUsers = await getAllUnscheduledUsers(channel_id);
+    if (unscheduledUsers && unscheduledUsers.length > 0) {
+        for (const unscheduledUser of unscheduledUsers) {
+            const isAvailable = actualUsers.some(u => u.user_id === unscheduledUser.user_id);
+            if (isAvailable) {
+                const message = await nextDutyMessage(channel_id, unscheduledUser.user_id);
+                // Отложенное применение
+                const apply = async () => {
+                    await deleteUnscheduledUser(unscheduledUser.id);
+                    await setCurrentDuty(channel_id, unscheduledUser.user_id, DutyType.UNSCHEDULED);
+                };
+                return { canChange: true, userId: unscheduledUser.user_id, dutyType: DutyType.UNSCHEDULED, message, apply };
             }
         }
-        const changeResult = await changeNextDuty(channel_id);
-        postMessage(channel_id, changeResult);
+    }
+
+    const currentDuty = await getDutyFromDB(channel_id);
+    if (!currentDuty) {
+        return { canChange: false, reason: resources.duty.noExistingError };
+    }
+
+    const increment = currentDuty.duty_type === DutyType.UNSCHEDULED ? 2 : 1;
+
+    // Получаем полный список пользователей из БД для определения позиции
+    const allUsers = await getDutyUsers(channel_id);
+    const currentIndexInAll = allUsers.findIndex(u => u.user_id === currentDuty.user_id);
+
+    if (currentIndexInAll === -1) {
+        return { canChange: false, reason: resources.duty.noExistingError };
+    }
+
+    // Находим следующего пользователя в полном списке
+    const nextIndexInAll = (currentIndexInAll + increment) % allUsers.length;
+    const nextUserIdInAll = allUsers[nextIndexInAll].user_id;
+
+    // Проверяем, доступен ли следующий пользователь
+    const isNextUserAvailable = actualUsers.some(u => u.user_id === nextUserIdInAll);
+
+    if (!isNextUserAvailable) {
+        // Если следующий пользователь недоступен, ищем следующего доступного
+        let searchIndex = nextIndexInAll;
+        let foundAvailable = false;
+
+        for (let i = 0; i < allUsers.length; i++) {
+            const userId = allUsers[searchIndex].user_id;
+            if (actualUsers.some(u => u.user_id === userId)) {
+                const nextIndex = actualUsers.findIndex(u => u.user_id === userId);
+                const nextUserId = actualUsers[nextIndex].user_id;
+                const message = await nextDutyMessage(channel_id, nextUserId);
+                const apply = async () => {
+                    await setCurrentDuty(channel_id, nextUserId, DutyType.REGULAR);
+                };
+                return { canChange: true, userId: nextUserId, dutyType: DutyType.REGULAR, message, apply };
+            }
+            searchIndex = (searchIndex + 1) % allUsers.length;
+        }
+
+        return { canChange: false, reason: resources.duty.noUsersError };
+    }
+
+    const nextIndex = actualUsers.findIndex(u => u.user_id === nextUserIdInAll);
+    const nextUserId = actualUsers[nextIndex].user_id;
+    const message = await nextDutyMessage(channel_id, nextUserId);
+    const apply = async () => {
+        await setCurrentDuty(channel_id, nextUserId, DutyType.REGULAR);
+    };
+    return { canChange: true, userId: nextUserId, dutyType: DutyType.REGULAR, message, apply };
+}
+
+// Создание callback для cron-задачи с подтверждением post.id и бесконечными ретраями раз в минуту
+const createDutyCallback = (channel_id, considerWorkingDays = false) => {
+    const RETRY_DELAY_MS = 60000; // 60 секунд между попытками
+
+    const scheduleRetry = () => setTimeout(() => attemptChange(), RETRY_DELAY_MS);
+
+    const attemptChange = async () => {
+        try {
+            if (considerWorkingDays) {
+                const isHoliday = await checkIsHoliday();
+                if (isHoliday) return; // не ретраим по праздникам
+            }
+
+            const proposal = await computeNextDutyChange(channel_id);
+            if (!proposal.canChange) {
+                // Нет доступной смены — просто один раз информируем и прекращаем
+                if (proposal.reason) {
+                    await postMessage(channel_id, proposal.reason);
+                }
+                return;
+            }
+
+            const post = await postMessage(channel_id, proposal.message);
+            if (post && post.id) {
+                await proposal.apply();
+                return; // успех
+            }
+
+            // Если не получили post.id — планируем повтор через минуту
+            scheduleRetry();
+        } catch (error) {
+            // Любая ошибка при публикации — пробуем снова через минуту
+            scheduleRetry();
+        }
+    };
+
+    return async () => {
+        await attemptChange();
     };
 };
 

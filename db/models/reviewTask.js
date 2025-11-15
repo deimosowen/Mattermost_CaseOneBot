@@ -10,6 +10,21 @@ const getReviewTaskByKey = async (task_key) => {
     }
 }
 
+const getReviewTaskWithNotClosedMRs = async () => {
+    try {
+        const rows = await db.all(`
+            SELECT rt.*, gmr.project_id, gmr.mr_iid, gmr.status AS mr_status
+            FROM review_task rt
+            JOIN gitlab_merge_requests gmr ON rt.gitlab_merge_request_id = gmr.id
+            WHERE gmr.status NOT IN (?, ?)
+        `, ['merged', 'closed']);
+        return rows || [];
+    }
+    catch (err) {
+        throw err;
+    }
+}
+
 const getReviewTaskByGitlabMergeRequestId = async (gitlab_merge_request_id) => {
     try {
         const row = await db.get(`SELECT * FROM review_task WHERE gitlab_merge_request_id = ?`, [gitlab_merge_request_id]);
@@ -144,4 +159,5 @@ module.exports = {
     addTaskNotification,
     deleteTaskReview,
     getReviewTaskByGitlabMergeRequestId,
+    getReviewTaskWithNotClosedMRs,
 }

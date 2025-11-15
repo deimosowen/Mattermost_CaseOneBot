@@ -18,8 +18,10 @@ const {
 
 const JiraService = require('../services/jiraService');
 const GitlabService = require('../services/gitlabService');
+const reviewDistributionService = require('../services/reviewDistributionService');
 const JiraStatusType = require('../types/jiraStatusTypes');
 const { isToDoStatus, isInProgressStatus } = require('../services/jiraService/jiraHelper');
+const { parseGitlabMrUrl } = require('../services/gitlabService/gitlabHelper');
 const { INREVIEW_CHANNEL_IDS } = require('../config');
 const logger = require('../logger');
 
@@ -102,25 +104,6 @@ function getMergeRequestUrl(task, mergeRequest) {
         return task.pullRequests[0].url;
     }
     return null;
-}
-
-/**
- * Парсит GitLab URL и возвращает проект и IID MR
- * @param {string} url - ссылка на Merge Request
- * @returns {{ project: string, mrIid: number } | null}
- */
-function parseGitlabMrUrl(url) {
-    const regex = /\/([^/]+)\/-\/merge_requests\/(\d+)$/;
-    const match = url.match(regex);
-
-    if (!match) {
-        return null;
-    }
-
-    return {
-        project: match[1],
-        mrIid: parseInt(match[2], 10),
-    };
 }
 
 /** Сборка первичного сообщения при переводе в INREVIEW */
@@ -264,8 +247,21 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
 
                 await updateReviewTaskStatus({ task_key: key, status: JiraStatusType.INREVIEW });
 
+                // Обновляем ревьюера, если указан явно
                 if (hasValue(reviewer) && reviewer !== reviewTask.reviewer) {
                     await updateReviewTaskReviewer({ task_key: key, reviewer });
+                }
+                // Если ревьюер не указан явно и в задаче нет ревьюера, пробуем автоматически назначить
+                else if (!hasValue(reviewer) && !hasValue(reviewTask.reviewer)) {
+                    const assignedReviewer = await reviewDistributionService.assignReviewerForTask(channelId, key);
+                    if (assignedReviewer) {
+                        const reviewerResolved = `@${assignedReviewer.user_name}`;
+                        await updateReviewTaskReviewer({ task_key: key, reviewer: reviewerResolved });
+                        logger.info(`[Review] Автоматически назначен ревьюер ${assignedReviewer.user_name} для существующей задачи ${key} в канале ${channelId}`);
+
+                        // Уведомляем в треде о назначении ревьюера
+                        await postMessageInTreed(reviewTask.post_id, `Автоматически назначен ревьювер: ${reviewerResolved}`);
+                    }
                 }
 
                 await addTaskNotification(reviewTask.id);
@@ -273,8 +269,22 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
             }
 
             // 3.3) Иначе — создаём новую запись и постим сообщение в канал
-            const post = await postMessage(channelId, message);
-            const reviewerResolved = await getReviewer(reviewer, task);
+            let reviewerResolved = await getReviewer(reviewer, task);
+
+            // 3.4) Если ревьюер не указан, пробуем автоматически назначить через систему распределения
+            let messageToPost = message;
+            if (!hasValue(reviewerResolved)) {
+                const assignedReviewer = await reviewDistributionService.assignReviewerForTask(channelId, key);
+                if (assignedReviewer) {
+                    reviewerResolved = `@${assignedReviewer.user_name}`;
+                    logger.info(`[Review] Автоматически назначен ревьюер ${assignedReviewer.user_name} для задачи ${key} в канале ${channelId}`);
+
+                    // Обновляем сообщение с назначенным ревьюером перед отправкой
+                    messageToPost = message + `\nРевьювер: ${reviewerResolved}`;
+                }
+            }
+
+            const post = await postMessage(channelId, messageToPost);
 
             let gitlabMergeRequestId = null;
             const mergeRequestData = mergeRequestLink ? parseGitlabMrUrl(mergeRequestLink) : null;

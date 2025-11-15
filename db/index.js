@@ -7,6 +7,32 @@ const db = new sqlite3.Database(dbPath);
 db.all = util.promisify(db.all);
 db.get = util.promisify(db.get);
 
+db.runAsync = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.run(sql, params, function (err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve({ lastID: this.lastID, changes: this.changes });
+            }
+        });
+    });
+};
+
+db.execAsync = util.promisify(db.exec);
+
+db.transaction = async (callback) => {
+    try {
+        await db.execAsync('BEGIN TRANSACTION');
+        const result = await callback();
+        await db.execAsync('COMMIT');
+        return result;
+    } catch (err) {
+        await db.execAsync('ROLLBACK');
+        throw err;
+    }
+};
+
 db.run(`
     CREATE TABLE IF NOT EXISTS reminders (
         id INTEGER PRIMARY KEY,

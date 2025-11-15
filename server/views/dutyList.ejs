@@ -1,0 +1,96 @@
+<% layout('layout') -%>
+    <% block('title', 'Список дежурств' ); -%>
+
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-10">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">
+                        <i class="bi bi-list-check me-2"></i>Список дежурств
+                    </h2>
+                    <a href="/" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>Назад
+                    </a>
+                </div>
+
+                <% if (error) { %>
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <%= error %>
+                    </div>
+                    <% } %>
+
+                        <% if (duties && duties.length> 0) { %>
+                            <div class="row g-3">
+                                <% duties.forEach(duty=> { %>
+                                    <div class="col-12 col-md-6 col-lg-4">
+                                        <div class="card h-100 shadow-sm">
+                                            <div class="card-body">
+                                                <h5 class="card-title">
+                                                    <i class="bi bi-hash me-2"></i>
+                                                    <%= duty.channelName %>
+                                                </h5>
+                                                <div class="mb-2">
+                                                    <% if (duty.currentDuty) { %>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-success me-2">
+                                                                <i class="bi bi-person-check me-1"></i>Дежурный
+                                                            </span>
+                                                            <span class="text-muted small">
+                                                                <%= duty.currentDuty.name %>
+                                                                    <% if (duty.currentDuty.username) { %>
+                                                                        <span class="text-muted">(@<%=
+                                                                                duty.currentDuty.username %>)</span>
+                                                                        <% } %>
+                                                            </span>
+                                                        </div>
+                                                        <% } else { %>
+                                                            <span class="badge bg-secondary">
+                                                                <i class="bi bi-person-x me-1"></i>Дежурный не назначен
+                                                            </span>
+                                                            <% } %>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <% if (duty.hasSchedule && duty.scheduleDescription) { %>
+                                                        <div class="small text-muted">
+                                                            <i class="bi bi-clock me-1"></i>
+                                                            <strong>Расписание:</strong><br>
+                                                            <span class="text-info">
+                                                                <%= duty.scheduleDescription %>
+                                                            </span>
+                                                        </div>
+                                                        <% } else if (duty.hasSchedule) { %>
+                                                            <span class="badge bg-info text-dark">
+                                                                <i class="bi bi-clock me-1"></i>Расписание настроено
+                                                            </span>
+                                                            <% } else { %>
+                                                                <span class="badge bg-warning text-dark">
+                                                                    <i
+                                                                        class="bi bi-exclamation-triangle me-1"></i>Расписание
+                                                                    не настроено
+                                                                </span>
+                                                                <% } %>
+                                                </div>
+                                            </div>
+                                            <div class="card-footer bg-transparent border-top-0">
+                                                <a href="/duty?channel_id=<%= duty.channelId %>"
+                                                    class="btn btn-sm btn-outline-primary w-100">
+                                                    <i class="bi bi-gear me-1"></i>Настроить
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <% }); %>
+                            </div>
+                            <% } else { %>
+                                <div class="card shadow-sm">
+                                    <div class="card-body text-center py-5">
+                                        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                                        <h5 class="card-title mt-3">Дежурства не найдены</h5>
+                                        <p class="card-text text-muted">
+                                            Нет настроенных дежурств. Начните с настройки дежурства для канала.
+                                        </p>
+                                    </div>
+                                </div>
+                                <% } %>
+            </div>
+        </div>

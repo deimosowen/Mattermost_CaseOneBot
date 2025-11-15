@@ -3,6 +3,7 @@ const logger = require('../../logger');
 const handlers = [
     require('./forwardMessage'),
     require('./reviewTask'),
+    require('./featureReady'),
 ];
 
 module.exports = async function onMessageDeleted(post, eventData) {

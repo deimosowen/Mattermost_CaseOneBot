@@ -4,6 +4,7 @@ module.exports = {
     TEAM_CHANNEL_ID: process.env.TEAM_CHANNEL_ID,
     TEAM_CHANNEL_PREFIX: process.env.TEAM_CHANNEL_PREFIX,
     INREVIEW_CHANNEL_IDS: process.env.INREVIEW_CHANNEL_IDS ? process.env.INREVIEW_CHANNEL_IDS.split(",") : [],
+    FEATURE_IS_READY_CHANNEL_ID: process.env.FEATURE_IS_READY_CHANNEL_ID,
     ADMIN_ID: process.env.ADMIN_ID,
     TZ: process.env.TZ,
     OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
@@ -30,4 +31,8 @@ module.exports = {
     REDIS_PASSWORD: process.env.REDIS_PASSWORD,
     GITLAB_BASE_URL: process.env.GITLAB_BASE_URL,
     GITLAB_API_TOKEN: process.env.GITLAB_API_TOKEN,
+    TEAMCITY_BASE_URL: process.env.TEAMCITY_BASE_URL,
+    TEAMCITY_USERNAME: process.env.TEAMCITY_USERNAME,
+    TEAMCITY_PASSWORD: process.env.TEAMCITY_PASSWORD,
+    ALLOWED_EMAIL_DOMAINS: process.env.ALLOWED_EMAIL_DOMAINS ? process.env.ALLOWED_EMAIL_DOMAINS.split(",").map(d => d.trim()) : [],
 };
