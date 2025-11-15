@@ -122,7 +122,7 @@ class FeatureReadyCronService extends BaseCronService {
                         // Закрываем задачу
                         await JiraService.changeTaskStatus(taskId, JiraStatusType.CLOSED);
                         closedTasks.push(taskId);
-                        logger.info(`[FeatureReadyCron] Закрыта задача ${taskId} (${task.summary}) для роли ${merge_request.role}`);
+                        logger.debug(`[FeatureReadyCron] Закрыта задача ${taskId} (${task.summary}) для роли ${merge_request.role}`);
                     }
                 } catch (error) {
                     logger.error(`[FeatureReadyCron] Ошибка при закрытии задачи ${taskId}: ${error.message}`);

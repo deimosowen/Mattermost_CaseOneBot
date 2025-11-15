@@ -23,7 +23,7 @@ class TeamCityBuildCronService extends BaseCronService {
                     return;
                 }
 
-                logger.info(`[TeamCityBuildCron] Проверяем ${notifications.length} активных настроек уведомлений`);
+                logger.debug(`[TeamCityBuildCron] Проверяем ${notifications.length} активных настроек уведомлений`);
 
                 for (const notification of notifications) {
                     try {
@@ -80,7 +80,7 @@ class TeamCityBuildCronService extends BaseCronService {
             // Обновляем информацию о последней проверке
             await updateLastChecked(id, latestBuild.id);
 
-            logger.info(`[TeamCityBuildCron] Отправлено уведомление о билде ${latestBuild.id} в канал ${channel_id}`);
+            logger.debug(`[TeamCityBuildCron] Отправлено уведомление о билде ${latestBuild.id} в канал ${channel_id}`);
         } catch (error) {
             logger.error(`[TeamCityBuildCron] Ошибка при проверке статуса билда для ${build_config_id}: ${error.message}`);
         }

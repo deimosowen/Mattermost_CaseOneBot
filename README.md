@@ -2,6 +2,24 @@
 
 CaseOneBot is a multifunctional assistant for Mattermost. It began as a simple cron-based reminder tool and now manages duty rotations, channel invites, Yandex Calendar meetings, Jira helpers, message forwarding, and ChatGPT functions. Use it to automate routine tasks and keep your team organized.
 
+## Web Interface
+
+The bot provides a web interface for managing various features. Access to the interface requires authentication via Yandex OAuth.
+
+### Authentication
+- Authentication is performed automatically on first access to protected pages
+- Access is allowed only for users with email domains specified in `ALLOWED_EMAIL_DOMAINS`
+- Sessions are stored in SQLite database
+
+### Available Pages
+- `/` - Home page with bot information and quick access to features
+- `/duty/list` - List of all duties across channels
+- `/calendar/settings` - Yandex Calendar integration settings
+- `/feature` - Form for marking feature as ready for release
+- `/teamcity` - TeamCity build notification settings
+- `/invite` - Invite users to Mattermost channels
+- `/jira` - Jira time logging
+
 ## Key Commands
 
 ### Reminders
@@ -104,6 +122,9 @@ GITLAB_API_TOKEN=your_gitlab_api_token
 TEAMCITY_BASE_URL=your_teamcity_base_url
 TEAMCITY_USERNAME=your_teamcity_username
 TEAMCITY_PASSWORD=your_teamcity_password
+ALLOWED_EMAIL_DOMAINS=pravo.tech
+SESSION_SECRET=your_session_secret_key
+NODE_ENV=production
 ```
 
 - `API_BASE_URL`: Your Mattermost server URL.
@@ -141,6 +162,9 @@ TEAMCITY_PASSWORD=your_teamcity_password
 - `TEAMCITY_BASE_URL`: Base URL of your TeamCity server (e.g., `https://ci.pravo.tech`).
 - `TEAMCITY_USERNAME`: Username for TeamCity API authentication.
 - `TEAMCITY_PASSWORD`: Password for TeamCity API authentication.
+- `ALLOWED_EMAIL_DOMAINS`: Allowed email domains for Yandex OAuth authentication (comma-separated, default: `pravo.tech`).
+- `SESSION_SECRET`: Secret key for session signing (must be changed in production).
+- `NODE_ENV`: Runtime environment (`production` or `development`, affects log levels).
 
 4. Launch the bot:  
    `node index.js`

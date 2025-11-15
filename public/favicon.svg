@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 16 16">
+  <!-- Голова робота -->
+  <rect x="4" y="4" width="8" height="8" rx="1" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Глаза -->
+  <circle cx="6.5" cy="7" r=".8" fill="#212529"/>
+  <circle cx="9.5" cy="7" r=".8" fill="#212529"/>
+  <!-- Рот/кнопки -->
+  <rect x="6.5" y="9.5" width="3" height="1" rx="0.3" fill="#212529"/>
+</svg>

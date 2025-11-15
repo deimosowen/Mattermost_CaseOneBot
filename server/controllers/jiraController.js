@@ -10,8 +10,11 @@ const logger = require('../../logger');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-    const { user_id } = req.query;
     try {
+        const user_id = req.query.user_id || req.user?.mattermostUserId;
+        if (!user_id) {
+            return res.status(400).send('User ID is required');
+        }
         let events = await getUserNotifiedEvents(user_id);
         events = events.map(event => {
             const startDate = moment(event.start_date);

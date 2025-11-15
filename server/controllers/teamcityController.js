@@ -16,6 +16,7 @@ const router = express.Router();
 // Страница со списком настроек
 router.get('/', async (req, res) => {
     try {
+        const user_id = req.query.user_id || req.user?.mattermostUserId;
         const notifications = await getAllNotifications();
         res.render('teamcitySettings', { notifications, status: req.query.status, moment });
     } catch (error) {
@@ -80,7 +81,7 @@ router.post('/create', async (req, res) => {
 
         // По умолчанию настройка включена, если checkbox отмечен
         const enabled = is_enabled === 'true' || is_enabled === true || is_enabled === 'on';
-        
+
         const id = await createNotification({
             build_config_id: build_config_id.trim(),
             build_config_name: configName,

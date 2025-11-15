@@ -9,7 +9,7 @@
         <div class="container my-4">
             <div class="row justify-content-center">
                 <div class="col-12 col-md-8 col-lg-6">
-                    <% if (isAuthenticated) { %>
+                    <% if (yandexAuth) { %>
                         <div class="row">
                             <div class="col-12">
                                 <form action="/calendar/logout" method="post" class="text-end">
@@ -28,11 +28,11 @@
                                         </div>
                                         <% } %>
 
-                                            <% if (!isAuthenticated) { %>
+                                            <% if (!yandexAuth) { %>
                                                 <div id="buttonContainerId"></div>
                                                 <% } %>
 
-                                                    <% if (isAuthenticated) { %>
+                                                    <% if (yandexAuth) { %>
                                                         <form action="/calendar/settings/" method="post">
                                                             <input type="hidden" id="user_id" name="user_id"
                                                                 value="<%= user_id %>">
@@ -155,9 +155,9 @@
         </div>
 
         <script>
-            const isAuthenticated = '<%= isAuthenticated %>' === 'true';
+            const yandexAuth = '<%= yandexAuth %>' === 'true';
             document.addEventListener('DOMContentLoaded', function () {
-                if (!isAuthenticated) {
+                if (!yandexAuth) {
                     yandexInit();
                 } else {
                     var myCollapse = document.getElementById('experimentalFeatures');

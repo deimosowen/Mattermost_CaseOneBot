@@ -1,9 +1,11 @@
 const express = require('express');
 const http = require('http');
 const path = require('path');
-const logger = require('../logger');
+const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 
 const homeController = require('./controllers/homeController');
+const authController = require('./controllers/authController');
 const oauthController = require('./controllers/oauthController');
 const calendarController = require('./controllers/calendarController');
 const dutyController = require('./controllers/dutyController');
@@ -12,6 +14,12 @@ const jiraController = require('./controllers/jiraController');
 const featureController = require('./controllers/featureController');
 const gitlabController = require('./controllers/gitlabController');
 const teamcityController = require('./controllers/teamcityController');
+
+const passport = require('./middleware/passport');
+const requireAuth = require('./middleware/auth');
+const userDataMiddleware = require('./middleware/userData');
+
+const logger = require('../logger');
 
 let app;
 let server;
@@ -23,15 +31,62 @@ function buildApp() {
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
 
+    // Настройка сессий с SQLite
+    app.use(session({
+        store: new SQLiteStore({
+            db: 'sessions.db',
+            dir: path.join(__dirname, '../db')
+        }),
+        secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            secure: process.env.NODE_ENV === 'production', // HTTPS в production
+            httpOnly: true,
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 дней
+        }
+    }));
+
+    // Инициализация Passport
+    app.use(passport.initialize());
+    app.use(passport.session());
+
+    // Middleware для передачи данных пользователя в шаблоны
+    app.use(userDataMiddleware);
+
     // Шаблоны и статика
     app.engine('ejs', require('ejs-locals'));
     app.set('view engine', 'ejs');
     app.set('views', path.join(__dirname, 'views'));
     app.use(express.static('public'));
 
-    // Маршруты
-    app.use('/', homeController);
+    // Публичные маршруты (до авторизации)
+    app.get('/healthz', (_req, res) => res.status(200).send('ok'));
+    app.use('/auth', authController);
     app.use('/oauth', oauthController);
+
+    // Middleware авторизации с исключениями
+    const publicPaths = [
+        '/',
+        '/healthz',
+        '/auth/yandex', // Инициация авторизации
+        '/auth/error', // Страница ошибки авторизации
+        '/auth/logout', // Выход (доступен всем)
+        '/oauth/yandexAuthCallback',
+        '/calendar/auth', // POST для сохранения токенов Яндекс календаря
+        '/gitlab/webhook',
+        '/jira/api/tasks', // использует свой Authorization header
+        '/jira/api/review', // может использовать свою авторизацию
+    ];
+
+    const publicPatterns = [
+        '^/api/public/.*', // если будут публичные API
+    ];
+
+    app.use(requireAuth(publicPaths, publicPatterns));
+
+    // Защищенные маршруты
+    app.use('/', homeController);
     app.use('/calendar', calendarController);
     app.use('/duty', dutyController);
     app.use('/invite', inviteController);
@@ -39,9 +94,6 @@ function buildApp() {
     app.use('/feature', featureController);
     app.use('/gitlab', gitlabController);
     app.use('/teamcity', teamcityController);
-
-    // healthcheck для оркестраторов / мониторинга
-    app.get('/healthz', (_req, res) => res.status(200).send('ok'));
 
     return app;
 }

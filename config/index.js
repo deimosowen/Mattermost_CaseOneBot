@@ -34,4 +34,5 @@ module.exports = {
     TEAMCITY_BASE_URL: process.env.TEAMCITY_BASE_URL,
     TEAMCITY_USERNAME: process.env.TEAMCITY_USERNAME,
     TEAMCITY_PASSWORD: process.env.TEAMCITY_PASSWORD,
+    ALLOWED_EMAIL_DOMAINS: process.env.ALLOWED_EMAIL_DOMAINS ? process.env.ALLOWED_EMAIL_DOMAINS.split(",").map(d => d.trim()) : [],
 };

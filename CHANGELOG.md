@@ -2,6 +2,89 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.7]
+
+### Added
+
+#### Authentication System
+- **Yandex OAuth authentication**: Added user authentication via Yandex OAuth using Passport.js
+  - Session-based authentication with SQLite storage
+  - Automatic redirect to home page for unauthorized users
+  - User information display in navigation bar (name, email, avatar)
+  - Logout functionality
+- **Email domain restriction**: Configurable allowed email domains for authentication
+  - Default: `pravo.tech`
+  - Configurable via `ALLOWED_EMAIL_DOMAINS` environment variable (comma-separated list)
+  - Users with unauthorized email domains cannot authenticate
+- **Home page**: New landing page with bot information and navigation
+  - Information about bot capabilities for unauthorized users
+  - Quick access cards to all available features for authorized users
+  - Responsive design with color-coded feature cards
+- **Duty list page**: New page displaying all active duties across channels
+  - Shows current duty person for each channel
+  - Displays schedule frequency (cron description)
+  - Channel names instead of IDs
+  - Quick access to duty settings for each channel
+- **GitHub link**: Added GitHub project link in bottom-right corner of all pages
+  - Fixed position, non-intrusive design
+  - Theme-aware styling (adapts to dark/light theme)
+
+### Changed
+
+#### Logging System
+- **Environment-based log levels**: Different log levels for production and development
+  - **Production** (`NODE_ENV=production`): Only `warn` and `error` levels
+  - **Development**: All levels including `info` and `debug`
+  - Reduces log noise in production while maintaining full debugging in development
+
+#### UI/UX Improvements
+- **Navigation bar**: Enhanced with user information and theme support
+  - User dropdown menu with email/username and logout option
+  - Theme-aware navbar styling (dark/light mode)
+  - Login button for unauthorized users
+- **Layout improvements**: Better spacing and responsive design
+  - Footer removed in favor of corner GitHub link
+  - Improved container spacing
+
+### Security
+
+- **Route protection**: All routes (except public ones) now require authentication
+- **Public routes**: Configurable list of public routes that don't require authentication
+  - `/healthz` - health check endpoint
+  - `/oauth/yandexAuthCallback` - OAuth callback (supports both user auth and calendar SDK)
+  - `/calendar/auth` - Calendar token storage endpoint
+  - `/gitlab/webhook` - GitLab webhook endpoint
+  - `/jira/api/tasks` and `/jira/api/review` - API endpoints with custom authorization
+
+### Database
+
+#### Session Storage
+- **SQLite session storage**: User sessions stored in SQLite database
+  - Automatic session table creation via `connect-sqlite3`
+  - 30-day session expiration
+  - Secure cookie settings (httpOnly, secure in production)
+
+### Technical Details
+
+- Added `passport` and `passport-yandex` for OAuth authentication
+- Added `express-session` and `connect-sqlite3` for session management
+- Created `server/middleware/passport.js` for Passport configuration
+- Created `server/middleware/auth.js` for route protection with whitelist support
+- Created `server/middleware/userData.js` for passing user data to templates
+- Created `server/controllers/authController.js` for authentication endpoints
+- Updated `server/controllers/oauthController.js` to handle both OAuth callback scenarios:
+  - User authentication (with `code` parameter)
+  - Calendar SDK callback (without `code` parameter)
+- Created `server/views/home.ejs` - new home page
+- Created `server/views/dutyList.ejs` - duty list page
+- Created `server/views/authError.ejs` - authentication error page
+- Updated `server/views/layout.ejs` with user information and theme support
+- Added `getAllChannelsWithCurrentDuty()` function to `db/models/duty.js`
+- Updated `logger/index.js` with environment-based log levels
+- Added `ALLOWED_EMAIL_DOMAINS` and `SESSION_SECRET` to `config/index.js`
+
+---
+
 ## [2.2.6]
 
 ### Added

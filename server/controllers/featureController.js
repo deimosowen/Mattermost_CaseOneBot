@@ -5,8 +5,12 @@ const logger = require('../../logger');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-    const { user_id, status } = req.query;
+    const { status } = req.query;
     try {
+        const user_id = req.query.user_id || req.user?.mattermostUserId;
+        if (!user_id) {
+            return res.status(400).send('User ID is required');
+        }
         res.render('featureForm', { user_id, status: status });
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);

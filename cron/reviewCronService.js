@@ -78,7 +78,7 @@ class ReviewCronService extends BaseCronService {
                 );
 
                 if (assignedReviewer) {
-                    logger.info(`[ReviewCron] Автоматически назначен ревьюер ${assignedReviewer.user_name} для задачи ${reviewTask.task_key}`);
+                    logger.debug(`[ReviewCron] Автоматически назначен ревьюер ${assignedReviewer.user_name} для задачи ${reviewTask.task_key}`);
                 }
             }
         } catch (error) {
