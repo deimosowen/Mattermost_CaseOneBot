@@ -1,96 +1,130 @@
 <% layout('layout') -%>
-    <% block('title', 'Invite to channel' ); -%>
+<% block('title', 'Приглашение в канал' ); -%>
 
-        <div class="container my-5">
-            <div class="row">
-                <div class="col-12 col-md-8 mx-auto">
-                    <div class="card shadow">
-                        <div class="card-body">
-                            <h1 class="card-title text-center">Доступные каналы</h1>
-                            <% if (activeChannels.length> 0) { %>
-                                <table class="table">
-                                    <thead>
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12 col-lg-10 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="bi bi-person-plus me-2"></i>Приглашение в канал
+                </h2>
+                <a href="/" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Назад
+                </a>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-hash me-2"></i>Доступные каналы
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <% if (activeChannels.length > 0) { %>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th scope="col"><i class="bi bi-hash me-1"></i>Канал</th>
+                                        <th scope="col" class="text-end">Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% activeChannels.forEach(channel => { %>
                                         <tr>
-                                            <th scope="col">Канал</th>
-                                            <th scope="col" class="text-end"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% activeChannels.forEach(channel=> { %>
-                                            <tr>
-                                                <td>
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="flex-grow-1">
-                                                            <%= channel.display_name %>
-                                                        </div>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi bi-hash me-2 text-muted"></i>
+                                                    <div class="flex-grow-1">
+                                                        <%= channel.display_name %>
                                                     </div>
-                                                </td>
-                                                <td class="text-end">
-                                                    <form action="/invite" method="post">
-                                                        <input type="hidden" name="user_id" value="<%= user_id %>">
-                                                        <input type="hidden" name="channel_id"
-                                                            value="<%= channel.id %>">
-                                                        <button type="submit"
-                                                            class="btn btn-outline-primary btn-sm">Войти в
-                                                            канал</button>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                            <% }) %>
-                                    </tbody>
-                                </table>
-                                <% } else { %>
-                                    <div class="alert alert-info text-center" role="alert">
-                                        Вы уже приглашены во все доступные каналы 😊
-                                    </div>
-                                    <% } %>
-
-                                        <% if (inactiveChannels.length> 0) { %>
-                                            <button class="btn btn-link" type="button" data-bs-toggle="collapse"
-                                                data-bs-target="#inactiveChannelsCollapse" aria-expanded="false"
-                                                aria-controls="inactiveChannelsCollapse">
-                                                Показать неактивные каналы
-                                            </button>
-
-                                            <div class="collapse" id="inactiveChannelsCollapse">
-                                                <p class="text-muted mt-3">В этих каналах не было сообщений больше <%=
-                                                        daysThreshold %>
-                                                        дней.</p>
-                                                <table class="table">
-                                                    <thead>
-                                                        <tr>
-                                                            <th scope="col">Канал</th>
-                                                            <th scope="col" class="text-end"></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <% inactiveChannels.forEach(channel=> { %>
-                                                            <tr>
-                                                                <td>
-                                                                    <div class="d-flex align-items-center">
-                                                                        <div class="flex-grow-1">
-                                                                            <%= channel.display_name %>
-                                                                        </div>
-                                                                </td>
-                                                                <td class="text-end">
-                                                                    <form action="/invite" method="post">
-                                                                        <input type="hidden" name="user_id"
-                                                                            value="<%= user_id %>">
-                                                                        <input type="hidden" name="channel_id"
-                                                                            value="<%= channel.id %>">
-                                                                        <button type="submit"
-                                                                            class="btn btn-outline-primary btn-sm">Войти
-                                                                            в канал</button>
-                                                                    </form>
-                                                                </td>
-                                                            </tr>
-                                                            <% }) %>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            <% } %>
+                                                </div>
+                                            </td>
+                                            <td class="text-end">
+                                                <form action="/invite" method="post" style="display: inline;">
+                                                    <input type="hidden" name="user_id" value="<%= user_id %>">
+                                                    <input type="hidden" name="channel_id" value="<%= channel.id %>">
+                                                    <button type="submit" class="btn btn-primary btn-sm">
+                                                        <i class="bi bi-box-arrow-in-right me-1"></i>Войти в канал
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
+                    <% } else { %>
+                        <div class="alert alert-info text-center" role="alert">
+                            <i class="bi bi-check-circle me-2"></i>Вы уже приглашены во все доступные каналы 😊
+                        </div>
+                    <% } %>
+
+                    <% if (inactiveChannels.length > 0) { %>
+                        <div class="mt-4">
+                            <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#inactiveChannelsCollapse" aria-expanded="false"
+                                aria-controls="inactiveChannelsCollapse">
+                                <i class="bi bi-chevron-down me-1"></i>Показать неактивные каналы
+                            </button>
+
+                            <div class="collapse" id="inactiveChannelsCollapse">
+                                <p class="text-muted mt-3">
+                                    <i class="bi bi-info-circle me-1"></i>В этих каналах не было сообщений больше <%= daysThreshold %> дней.
+                                </p>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col"><i class="bi bi-hash me-1"></i>Канал</th>
+                                                <th scope="col" class="text-end">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% inactiveChannels.forEach(channel => { %>
+                                                <tr>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <i class="bi bi-hash me-2 text-muted"></i>
+                                                            <div class="flex-grow-1">
+                                                                <%= channel.display_name %>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <form action="/invite" method="post" style="display: inline;">
+                                                            <input type="hidden" name="user_id" value="<%= user_id %>">
+                                                            <input type="hidden" name="channel_id" value="<%= channel.id %>">
+                                                            <button type="submit" class="btn btn-primary btn-sm">
+                                                                <i class="bi bi-box-arrow-in-right me-1"></i>Войти в канал
+                                                            </button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    <% } %>
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const forms = document.querySelectorAll('form[action="/invite"]');
+        forms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const submitButton = form.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Приглашение...';
+                }
+            });
+        });
+    });
+</script>

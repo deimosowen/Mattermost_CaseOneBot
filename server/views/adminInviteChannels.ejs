@@ -1,0 +1,222 @@
+<% layout('layout') -%>
+<% block('title', 'Управление каналами для приглашений' ); -%>
+
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12 col-lg-10 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="bi bi-people me-2"></i>Управление каналами для приглашений
+                </h2>
+                <a href="/admin" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Назад к админ-панели
+                </a>
+            </div>
+
+            <% if (error) { %>
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i><%= error %>
+                </div>
+            <% } %>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-plus-circle me-2"></i>Добавить конфигурацию
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3" role="alert">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Как добавить несколько префиксов?</strong><br>
+                        Для одного основного канала можно добавить несколько префиксов. Каждый префикс добавляется отдельно:
+                        <ul class="mb-0 mt-2">
+                            <li>Укажите <strong>один и тот же</strong> основной канал (Channel ID)</li>
+                            <li>Добавьте <strong>первый префикс</strong> (например: "team-")</li>
+                            <li>Нажмите "Добавить"</li>
+                            <li>Повторите для <strong>каждого следующего префикса</strong> (например: "project-", "dev-")</li>
+                        </ul>
+                    </div>
+                    <form id="addChannelForm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="mainChannelId" class="form-label">Основной канал (Channel ID)</label>
+                                <input type="text" class="form-control" id="mainChannelId" name="main_channel_id" 
+                                    placeholder="channel_id" required>
+                                <div class="form-text">ID основного канала в Mattermost. Один канал может иметь несколько префиксов.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="prefix" class="form-label">Префикс</label>
+                                <input type="text" class="form-control" id="prefix" name="prefix" 
+                                    placeholder="team-" required>
+                                <div class="form-text">Префикс для фильтрации каналов (например: "team-", "project-", "dev-"). Каждый префикс добавляется отдельно.</div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-1"></i>Добавить префикс
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-ul me-2"></i>Текущие конфигурации
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <% if (channels && channels.length > 0) { %>
+                        <div class="accordion" id="channelsAccordion">
+                            <% channels.forEach((channel, index) => { %>
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="heading<%= index %>">
+                                        <button class="accordion-button <%= index === 0 ? '' : 'collapsed' %>" type="button" 
+                                            data-bs-toggle="collapse" data-bs-target="#collapse<%= index %>">
+                                            <i class="bi bi-hash me-2"></i><%= channel.name %>
+                                            <span class="badge bg-secondary ms-2"><%= channel.prefixes.length %> префикс(ов)</span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse<%= index %>" class="accordion-collapse collapse <%= index === 0 ? 'show' : '' %>" 
+                                        data-bs-parent="#channelsAccordion">
+                                        <div class="accordion-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width: 60%;">Префикс</th>
+                                                            <th style="width: 40%;" class="text-end">Действия</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <% channel.prefixes.forEach(prefix => { %>
+                                                            <tr data-id="<%= prefix.id %>">
+                                                                <td>
+                                                                    <code><%= prefix.prefix %></code>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <button type="button" class="btn btn-sm btn-outline-danger remove-prefix-btn" 
+                                                                        data-id="<%= prefix.id %>" data-prefix="<%= prefix.prefix %>">
+                                                                        <i class="bi bi-trash"></i> Удалить
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        <% }); %>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } else { %>
+                        <div class="text-center py-4">
+                            <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-3">Конфигурации не найдены</p>
+                            <p class="text-muted small">Добавьте первую конфигурацию используя форму выше</p>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal для редактирования -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать конфигурацию</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editChannelForm">
+                    <input type="hidden" id="editId" name="id">
+                    <div class="mb-3">
+                        <label for="editMainChannelId" class="form-label">Основной канал (Channel ID)</label>
+                        <input type="text" class="form-control" id="editMainChannelId" name="main_channel_id" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPrefix" class="form-label">Префикс</label>
+                        <input type="text" class="form-control" id="editPrefix" name="prefix" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="saveEditBtn">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Добавление конфигурации
+    document.getElementById('addChannelForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const data = {
+            main_channel_id: formData.get('main_channel_id').trim(),
+            prefix: formData.get('prefix').trim()
+        };
+        
+        try {
+            const response = await fetch('/admin/api/invite-channels', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+            }
+        } catch (error) {
+            alert('Ошибка: ' + error.message);
+        }
+    });
+    
+    // Удаление префикса
+    document.querySelectorAll('.remove-prefix-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.id;
+            const prefix = btn.dataset.prefix;
+            
+            if (!confirm(`Удалить префикс "${prefix}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/admin/api/invite-channels/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        });
+    });
+</script>
+
+<style>
+    .hover-shadow {
+        transition: box-shadow 0.2s ease-in-out;
+    }
+    .hover-shadow:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+</style>
+

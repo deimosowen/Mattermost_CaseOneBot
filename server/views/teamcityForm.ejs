@@ -3,36 +3,43 @@
 
 <div class="container my-5">
     <div class="row">
-        <div class="col-12 col-md-8 mx-auto">
-            <div class="card shadow">
+        <div class="col-12 col-lg-10 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="bi bi-gear me-2"></i><%= notification ? 'Редактирование настройки TeamCity' : 'Создание настройки TeamCity' %>
+                </h2>
+                <a href="/teamcity" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Назад
+                </a>
+            </div>
+
+            <% if (status === 'success') { %>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i><strong>Данные успешно сохранены!</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <% } else if (status === 'error') { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i><strong>Произошла ошибка при сохранении данных.</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <% } %>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bell me-2"></i>Уведомления о билдах TeamCity
+                    </h5>
+                </div>
                 <div class="card-body">
-                    <% if (status === 'success') { %>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <strong>Данные успешно сохранены!</strong>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    <% } else if (status === 'error') { %>
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <strong>Произошла ошибка при сохранении данных.</strong>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    <% } %>
-
-                    <div class="text-center mb-4">
-                        <h1 class="h4 mb-1">
-                            <%= notification ? 'Редактирование настройки' : 'Создание настройки' %>
-                        </h1>
-                        <p class="text-muted small mb-0">Уведомления о билдах TeamCity</p>
-                    </div>
-
-                    <form method="POST" action="<%= notification ? '/teamcity/update' : '/teamcity/create' %>">
+                    <form method="POST" action="<%= notification ? '/teamcity/update' : '/teamcity/create' %>" id="teamcityForm">
                         <% if (notification) { %>
                             <input type="hidden" name="id" value="<%= notification.id %>">
                         <% } %>
 
                         <div class="mb-3">
                             <label for="build_config_id" class="form-label">
-                                ID конфигурации билда <span class="text-danger">*</span>
+                                <i class="bi bi-tag me-1"></i>ID конфигурации билда <span class="text-danger">*</span>
                             </label>
                             <input 
                                 type="text" 
@@ -42,14 +49,11 @@
                                 value="<%= notification ? notification.build_config_id : '' %>"
                                 placeholder="CaseProAutotest_Pipeline_DailyRun_NightlyBuilds"
                                 required>
-                            <div class="form-text">
-                                Например: <code>CaseProAutotest_Pipeline_DailyRun_NightlyBuilds</code>
-                            </div>
                         </div>
 
                         <div class="mb-3">
                             <label for="build_config_name" class="form-label">
-                                Название конфигурации билда
+                                <i class="bi bi-card-heading me-1"></i>Название конфигурации билда
                             </label>
                             <input 
                                 type="text" 
@@ -59,13 +63,13 @@
                                 value="<%= notification ? notification.build_config_name : '' %>"
                                 placeholder="Ночные автотесты">
                             <div class="form-text">
-                                Если не указано, будет получено автоматически из TeamCity
+                                <i class="bi bi-info-circle me-1"></i>Если не указано, будет получено автоматически
                             </div>
                         </div>
 
                         <div class="mb-3">
                             <label for="channel_id" class="form-label">
-                                ID канала Mattermost <span class="text-danger">*</span>
+                                <i class="bi bi-hash me-1"></i>ID канала Mattermost <span class="text-danger">*</span>
                             </label>
                             <input 
                                 type="text" 
@@ -75,14 +79,11 @@
                                 value="<%= notification ? notification.channel_id : '' %>"
                                 placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxx"
                                 required>
-                            <div class="form-text">
-                                ID канала, в который будут отправляться уведомления
-                            </div>
                         </div>
 
                         <div class="mb-3">
                             <label for="notify_on" class="form-label">
-                                Уведомлять о
+                                <i class="bi bi-bell me-1"></i>Уведомлять о
                             </label>
                             <select class="form-select" id="notify_on" name="notify_on" required>
                                 <option value="all" <%= notification && notification.notify_on === 'all' ? 'selected' : '' %>>
@@ -107,15 +108,17 @@
                                     value="true"
                                     <%= (notification && (notification.is_enabled === 1 || notification.is_enabled === true)) || !notification ? 'checked' : '' %>>
                                 <label class="form-check-label" for="is_enabled">
-                                    Включено
+                                    <i class="bi bi-power me-1"></i>Включено
                                 </label>
                             </div>
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                            <a href="/teamcity" class="btn btn-secondary">Отмена</a>
-                            <button type="submit" class="btn btn-primary">
-                                <%= notification ? 'Сохранить изменения' : 'Создать настройку' %>
+                            <a href="/teamcity" class="btn btn-secondary">
+                                <i class="bi bi-x-circle me-1"></i>Отмена
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitButton">
+                                <i class="bi bi-check-circle me-1"></i><%= notification ? 'Сохранить изменения' : 'Создать настройку' %>
                             </button>
                         </div>
                     </form>
@@ -125,3 +128,16 @@
     </div>
 </div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('teamcityForm');
+        const submitButton = document.getElementById('submitButton');
+        
+        if (form && submitButton) {
+            form.addEventListener('submit', function(e) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Сохранение...';
+            });
+        }
+    });
+</script>

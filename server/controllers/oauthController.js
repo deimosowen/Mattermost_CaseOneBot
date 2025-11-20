@@ -17,9 +17,9 @@ router.get('/yandexAuthCallback',
         if (req.query.code) {
             // OAuth callback для Passport - авторизация пользователя
             // Используем кастомный callback для полного контроля
-            logger.info('Processing OAuth callback with code:', req.query.code);
+            logger.debug('Processing OAuth callback with code:', req.query.code);
             const authenticate = passport.authenticate('yandex', {}, (err, user, info) => {
-                logger.info('Passport callback invoked', { hasError: !!err, hasUser: !!user, info });
+                logger.debug('Passport callback invoked', { hasError: !!err, hasUser: !!user, info });
                 if (err) {
                     logger.error('Passport authentication error:', err);
                     const errorMessage = encodeURIComponent(err.message || 'Ошибка авторизации');
@@ -30,16 +30,24 @@ router.get('/yandexAuthCallback',
                     const errorMessage = encodeURIComponent('Не удалось получить данные пользователя');
                     return res.redirect(`/auth/error?error=${errorMessage}`);
                 }
-                logger.info('User received in callback:', user.id, user.displayName);
+                logger.debug('User received in callback:', user.id, user.displayName);
                 // Вручную логиним пользователя в сессию
                 req.login(user, (loginErr) => {
                     if (loginErr) {
                         logger.error('Error during login:', loginErr);
                         return res.redirect('/auth/error');
                     }
-                    logger.info(`User ${user.id} (${user.displayName}) logged in successfully`);
-                    // Переходим к следующему middleware
-                    return next();
+                    logger.debug(`User ${user.id} (${user.displayName}) logged in successfully`);
+                    // Явно сохраняем сессию перед переходом к следующему middleware
+                    req.session.save((saveErr) => {
+                        if (saveErr) {
+                            logger.error('Error saving session after login:', saveErr);
+                            return res.redirect('/auth/error');
+                        }
+                        logger.debug(`Session saved for user ${user.id}`);
+                        // Переходим к следующему middleware
+                        return next();
+                    });
                 });
             });
             return authenticate(req, res);
@@ -50,13 +58,37 @@ router.get('/yandexAuthCallback',
     },
     // Обработка успешной авторизации через Passport
     (req, res, next) => {
-        if (req.query.code && req.isAuthenticated && req.isAuthenticated()) {
-            // Успешная авторизация через Passport
-            const returnUrl = req.session.returnUrl || '/';
-            delete req.session.returnUrl;
+        if (req.query.code) {
+            // Проверяем авторизацию
+            const isAuthenticated = req.isAuthenticated && req.isAuthenticated();
+            logger.debug('Checking authentication status:', {
+                isAuthenticated,
+                hasUser: !!req.user,
+                userId: req.user?.id,
+                sessionId: req.sessionID
+            });
 
-            logger.info(`User ${req.user.id} successfully authenticated via Passport`);
-            return res.redirect(returnUrl);
+            if (isAuthenticated && req.user) {
+                // Успешная авторизация через Passport
+                const returnUrl = req.session.returnUrl || '/';
+                delete req.session.returnUrl;
+
+                logger.debug(`User ${req.user.id} successfully authenticated via Passport, redirecting to ${returnUrl}`);
+                // Сохраняем сессию перед редиректом
+                req.session.save((saveErr) => {
+                    if (saveErr) {
+                        logger.error('Error saving session before redirect:', saveErr);
+                    }
+                    return res.redirect(returnUrl);
+                });
+                return;
+            } else {
+                logger.warn('User not authenticated after login callback', {
+                    isAuthenticated,
+                    hasUser: !!req.user,
+                    sessionId: req.sessionID
+                });
+            }
         }
         // Продолжаем для SDK календаря
         next();

@@ -1,165 +1,250 @@
 <% layout('layout') -%>
-    <% block('title', 'Дежурства' ); -%>
+    <% block('title', 'Настройки дежурств' ); -%>
 
         <div class="container my-5">
             <div class="row">
-                <div class="col-12 col-md-8 mx-auto">
-                    <div class="card shadow">
+                <div class="col-12 col-lg-10 mx-auto">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="mb-0">
+                            <i class="bi bi-calendar-check me-2"></i>Настройки дежурств
+                            <% if (channel) { %>
+                                <small class="text-muted">— <%= channel.name %></small>
+                                <% } %>
+                        </h2>
+                        <a href="/duty/list" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-left me-1"></i>Назад к списку
+                        </a>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-clock-history me-2"></i>Расписание
+                            </h5>
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex flex-column align-items-center">
-                                <h1 class="card-title text-center">Дежурства</h1>
-                                <h6 class="text-center text-muted small" id="cronDescription"></h6>
-                            </div>
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Имя</th>
-                                        <th scope="col">Статус</th>
-                                        <th scope="col" class="text-end">
-                                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
-                                                data-bs-target="#addUserModal">
-                                                Добавить
-                                            </button>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sortableTableBody">
-                                    <% employees.forEach(employee=> { %>
-                                        <tr data-id="<%= employee.id %>">
-                                            <td class="align-middle">
-                                                <%= employee.name %>
-                                            </td>
-                                            <td class="align-middle">
-                                                <span
-                                                    class="badge <%= statusBadgeClasses[employee.status] || 'bg-secondary' %>">
-                                                    <%= employee.status %>
-                                                </span>
-                                                <% if(employee.return_date) { %>
-                                                    </br>
-                                                    <span class="badge bg-warning text-dark">
-                                                        до <%= employee.return_date %>
-                                                    </span>
-                                                    <% } %>
-                                                        <% if(employee.isUnsheduled) { %>
+                            <p class="mb-0 text-muted" id="cronDescription">
+                                <i class="bi bi-hourglass-split me-2"></i>Загрузка расписания...
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-people me-2"></i>Очередь дежурных
+                            </h5>
+                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#addUserModal">
+                                <i class="bi bi-person-plus me-1"></i>Добавить
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <% if (employees && employees.length> 0) { %>
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 50px;">#</th>
+                                                <th scope="col">Имя</th>
+                                                <th scope="col">Статус</th>
+                                                <th scope="col">Когда будет дежурным</th>
+                                                <th scope="col" class="text-end">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sortableTableBody">
+                                            <% employees.forEach((employee, index)=> { %>
+                                                <tr data-id="<%= employee.id %>" data-index="<%= index %>">
+                                                    <td class="align-middle">
+                                                        <span class="badge bg-secondary"><%= index + 1 %></span>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <%= employee.name %>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <span
+                                                            class="badge <%= statusBadgeClasses[employee.status] || 'bg-secondary' %>">
+                                                            <%= employee.status %>
+                                                        </span>
+                                                        <% if(employee.return_date) { %>
                                                             </br>
                                                             <span class="badge bg-warning text-dark">
-                                                                Внеочередной
+                                                                до <%= employee.return_date %>
                                                             </span>
                                                             <% } %>
-                                            </td>
-                                            <td class="text-end align-middle">
-                                                <% if (employee.status==='Текущий' ) { %>
-                                                    <form action="/duty/change-next" method="post"
-                                                        style="display: inline;">
-                                                        <input type="hidden" name="channel_id"
-                                                            value="<%= channel_id %>">
-                                                        <button type="submit"
-                                                            class="btn btn-outline-light btn-sm me-2">Сменить</button>
-                                                    </form>
-                                                    <form action="/duty/update-status" method="post"
-                                                        style="display: inline;" id="statusForm-<%= employee.id %>">
-                                                        <input type="hidden" name="id" value="<%= employee.id %>">
-                                                        <input type="hidden" name="username"
-                                                            value="<%= employee.username %>">
-                                                        <input type="hidden" name="channel_id"
-                                                            value="<%= channel_id %>">
-                                                        <input type="hidden" name="status" value="-1">
-                                                        <button type="submit"
-                                                            class="btn btn-outline-warning btn-sm">Сдвинуть</button>
-                                                    </form>
-                                                    <% } else { %>
-                                                        <form action="/duty/update-status" method="post"
-                                                            id="statusForm-<%= employee.id %>">
-                                                            <input type="hidden" name="id" value="<%= employee.id %>">
-                                                            <input type="hidden" name="username"
-                                                                value="<%= employee.username %>">
-                                                            <input type="hidden" name="channel_id"
-                                                                value="<%= channel_id %>">
-                                                            <% if (employee.status==='Активный' ) { %>
-                                                                <input type="hidden" name="status" value="1">
-                                                                <input type="hidden" name="return_date" value="">
-                                                                <div class="btn-group">
-                                                                    <button type="submit"
-                                                                        class="btn btn-outline-danger btn-sm">Отключить</button>
-                                                                    <button type="button"
-                                                                        class="btn btn-outline-danger dropdown-toggle dropdown-toggle-split btn-sm"
-                                                                        data-bs-toggle="dropdown" aria-expanded="false"
-                                                                        data-bs-reference="parent">
-                                                                        <span class="visually-hidden">Отключить</span>
-                                                                    </button>
-                                                                    <ul class="dropdown-menu">
-                                                                        <li><a class="dropdown-item" href="#"
-                                                                                data-bs-toggle="modal"
-                                                                                data-bs-username="<%= employee.name %>"
-                                                                                data-bs-target="#disableUntilDateModal">Отключить
-                                                                                до
-                                                                                даты</a>
-                                                                        </li>
-                                                                        <li><button type="button"
-                                                                                class="dropdown-item text-danger"
-                                                                                onclick="deleteUser('<%= employee.id %>')">Удалить</button>
-                                                                        </li>
-                                                                    </ul>
-                                                                </div>
-                                                                <% } else if (employee.status==='Отключен' ) { %>
-                                                                    <input type="hidden" name="status" value="0">
-                                                                    <button type="submit"
-                                                                        class="btn btn-outline-primary btn-sm">Включить</button>
+                                                                <% if(employee.isUnsheduled) { %>
+                                                                    </br>
+                                                                    <span class="badge bg-warning text-dark">
+                                                                        Внеочередной
+                                                                    </span>
                                                                     <% } %>
-                                                        </form>
-                                                        <% } %>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <span class="next-duty-date" data-employee-index="<%= index %>">
+                                                            <i class="bi bi-hourglass-split me-1"></i>Расчет...
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end align-middle">
+                                                        <% if (employee.status==='Текущий' ) { %>
+                                                            <form action="/duty/change-next" method="post"
+                                                                style="display: inline;">
+                                                                <input type="hidden" name="channel_id"
+                                                                    value="<%= channel_id %>">
+                                                                <button type="submit"
+                                                                    class="btn btn-outline-light btn-sm me-2">Сменить</button>
+                                                            </form>
+                                                            <form action="/duty/update-status" method="post"
+                                                                style="display: inline;"
+                                                                id="statusForm-<%= employee.id %>">
+                                                                <input type="hidden" name="id"
+                                                                    value="<%= employee.id %>">
+                                                                <input type="hidden" name="username"
+                                                                    value="<%= employee.username %>">
+                                                                <input type="hidden" name="channel_id"
+                                                                    value="<%= channel_id %>">
+                                                                <input type="hidden" name="status" value="-1">
+                                                                <button type="submit"
+                                                                    class="btn btn-outline-warning btn-sm">Сдвинуть</button>
+                                                            </form>
+                                                            <% } else { %>
+                                                                <form action="/duty/update-status" method="post"
+                                                                    id="statusForm-<%= employee.id %>">
+                                                                    <input type="hidden" name="id"
+                                                                        value="<%= employee.id %>">
+                                                                    <input type="hidden" name="username"
+                                                                        value="<%= employee.username %>">
+                                                                    <input type="hidden" name="channel_id"
+                                                                        value="<%= channel_id %>">
+                                                                    <% if (employee.status==='Активный' ) { %>
+                                                                        <input type="hidden" name="status" value="1">
+                                                                        <input type="hidden" name="return_date"
+                                                                            value="">
+                                                                        <div class="btn-group">
+                                                                            <button type="submit"
+                                                                                class="btn btn-outline-danger btn-sm">Отключить</button>
+                                                                            <button type="button"
+                                                                                class="btn btn-outline-danger dropdown-toggle dropdown-toggle-split btn-sm"
+                                                                                data-bs-toggle="dropdown"
+                                                                                aria-expanded="false"
+                                                                                data-bs-reference="parent">
+                                                                                <span
+                                                                                    class="visually-hidden">Отключить</span>
+                                                                            </button>
+                                                                            <ul class="dropdown-menu">
+                                                                                <li><a class="dropdown-item" href="#"
+                                                                                        data-bs-toggle="modal"
+                                                                                        data-bs-username="<%= employee.name %>"
+                                                                                        data-bs-target="#disableUntilDateModal">Отключить
+                                                                                        до
+                                                                                        даты</a>
+                                                                                </li>
+                                                                                <li><button type="button"
+                                                                                        class="dropdown-item text-danger"
+                                                                                        onclick="deleteUser('<%= employee.id %>')">Удалить</button>
+                                                                                </li>
+                                                                            </ul>
+                                                                        </div>
+                                                                        <% } else if (employee.status==='Отключен' ) {
+                                                                            %>
+                                                                            <input type="hidden" name="status"
+                                                                                value="0">
+                                                                            <button type="submit"
+                                                                                class="btn btn-outline-primary btn-sm">Включить</button>
+                                                                            <% } %>
+                                                                </form>
+                                                                <% } %>
 
-                                            </td>
-                                        </tr>
-                                        <% }) %>
-                                </tbody>
-                            </table>
+                                                    </td>
+                                                </tr>
+                                                <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="form-text mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>Перетащите строки для изменения порядка
+                                </div>
+                                <% } else { %>
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                                        <p class="text-muted mt-3">Очередь дежурных пуста</p>
+                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                                            data-bs-target="#addUserModal">
+                                            <i class="bi bi-person-plus me-1"></i>Добавить первого дежурного
+                                        </button>
+                                    </div>
+                                    <% } %>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Modal для добавления пользователя -->
         <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="addUserModalLabel">Добавить пользователя</h1>
+                        <h5 class="modal-title" id="addUserModalLabel">
+                            <i class="bi bi-person-plus me-2"></i>Добавить пользователя
+                        </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <form action="/duty/add-user" method="post" onsubmit="disableSubmitButton(this);">
+                        <form action="/duty/add-user" method="post" id="addUserForm">
                             <input type="hidden" name="channel_id" value="<%= channel_id %>">
-                            <div class="input-group mb-3">
-                                <span class="input-group-text" id="username">@</span>
-                                <input type="text" class="form-control" placeholder="Имя пользователя" id="username"
-                                    name="username" aria-label="username" aria-describedby="username">
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                                <button type="submit" class="btn btn-success">Добавить</button>
+                            <div class="mb-3">
+                                <label for="username" class="form-label">
+                                    <i class="bi bi-at me-1"></i>Username
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">@</span>
+                                    <input type="text" class="form-control" id="username" name="username"
+                                        placeholder="username" required>
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Введите username пользователя (без @)
+                                </div>
                             </div>
                         </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" form="addUserForm" class="btn btn-success" id="addUserBtn">
+                            <i class="bi bi-check-circle me-1"></i>Добавить
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Modal для отключения до даты -->
         <div class="modal fade" id="disableUntilDateModal" data-bs-backdrop="static" data-bs-keyboard="false"
             tabindex="-1" aria-labelledby="disableUntilDateModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="disableUntilDateModalLabel"></h1>
+                        <h5 class="modal-title" id="disableUntilDateModalLabel">
+                            <i class="bi bi-calendar-x me-2"></i>Отключить до даты
+                        </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <label for="returnDate">Дата</label>
-                        <input id="returnDate" class="form-control" type="date" />
+                        <div class="mb-3">
+                            <label for="returnDate" class="form-label">
+                                <i class="bi bi-calendar3 me-1"></i>Дата возврата
+                            </label>
+                            <input id="returnDate" class="form-control" type="date" required />
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>Выберите дату, до которой пользователь будет
+                                отключен
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                        <button type="button" class="btn btn-danger" id="disableUntilDateButton">Отключить</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-danger" id="disableUntilDateButton">
+                            <i class="bi bi-x-circle me-1"></i>Отключить
+                        </button>
                     </div>
                 </div>
             </div>
@@ -168,128 +253,283 @@
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script>
             const channelId = "<%= channel_id %>";
+            const schedule = <%- JSON.stringify(schedule || null) %>;
+            const currentDutyIndex = <%= currentDutyIndex !== undefined ? currentDutyIndex : -1 %>;
+            const employeesCount = <%= employees ? employees.length : 0 %>;
+            const isCurrentDutyUnscheduled = <%= isCurrentDutyUnscheduled !== undefined ? isCurrentDutyUnscheduled : false %>;
 
             document.addEventListener('DOMContentLoaded', function () {
                 fetchCronDescription();
+                calculateNextDutyDates();
 
                 // Блокировка всех кнопок после отправки форм
                 const forms = document.querySelectorAll('form');
                 forms.forEach(form => {
                     form.addEventListener('submit', function (e) {
-                        // Блокируем все кнопки submit на странице
-                        const allSubmitButtons = document.querySelectorAll('form button[type="submit"]');
-                        allSubmitButtons.forEach(button => {
-                            button.disabled = true;
-                            const originalText = button.textContent;
-                            button.dataset.originalText = originalText;
-                            if (originalText !== 'Добавление...') {
-                                button.textContent = 'Отправка...';
-                            }
-                        });
+                        const submitButton = form.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            const originalHTML = submitButton.innerHTML;
+                            submitButton.dataset.originalHTML = originalHTML;
+                            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
+                        }
                     });
                 });
 
-                const sortable = new Sortable(document.getElementById('sortableTableBody'), {
-                    animation: 150,
-                    handle: 'tr',
-                    onEnd: function (evt) {
-                        const sortedIds = Array.from(evt.to.children).map(row => row.dataset.id);
+                // Инициализация Sortable для таблицы
+                const sortableTableBody = document.getElementById('sortableTableBody');
+                if (sortableTableBody) {
+                    const sortable = new Sortable(sortableTableBody, {
+                        animation: 150,
+                        handle: 'tr',
+                        onEnd: function (evt) {
+                            const sortedIds = Array.from(evt.to.children).map(row => row.dataset.id);
 
-                        fetch('/duty/update-order', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ channel_id: channelId, order: sortedIds })
-                        })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    console.log('Order updated successfully.');
-                                } else {
-                                    console.error('Failed to update order.');
-                                }
+                            fetch('/duty/update-order', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ channel_id: channelId, order: sortedIds })
                             })
-                            .catch(error => {
-                                console.error('Error updating order:', error);
-                            });
-                    }
-                });
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        // Обновляем номера в таблице
+                                        const rows = sortableTableBody.querySelectorAll('tr');
+                                        rows.forEach((row, index) => {
+                                            const badge = row.querySelector('.badge.bg-secondary');
+                                            if (badge) {
+                                                badge.textContent = index + 1;
+                                            }
+                                        });
+                                    } else {
+                                        throw new Error(data.message || 'Ошибка при обновлении порядка');
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error updating order:', error);
+                                    alert('Ошибка при обновлении порядка: ' + (error.message || 'Неизвестная ошибка'));
+                                    location.reload();
+                                });
+                        }
+                    });
+                }
 
+                // Обработка модального окна для отключения до даты
                 let relatedTarget = null;
                 const modal = document.getElementById('disableUntilDateModal');
-                modal.addEventListener('show.bs.modal', event => {
-                    relatedTarget = event.relatedTarget;
-                    const username = relatedTarget.getAttribute('data-bs-username');
-                    const modalTitle = modal.querySelector('.modal-title');
-                    const modalBodyInput = modal.querySelector('.modal-body input');
-
-                    modalTitle.textContent = `Отключить до даты: ${username}`;
-                });
-
-                const disableUntilDateButton = document.getElementById('disableUntilDateButton');
-                disableUntilDateButton.addEventListener('click', () => {
-                    const returnDate = document.getElementById('returnDate').value;
-                    const form = relatedTarget.closest('form');
-                    form.querySelector('input[name="return_date"]').value = returnDate;
-
-                    // Блокируем все кнопки перед отправкой
-                    const allSubmitButtons = document.querySelectorAll('form button[type="submit"]');
-                    allSubmitButtons.forEach(button => {
-                        button.disabled = true;
-                        const originalText = button.textContent;
-                        button.dataset.originalText = originalText;
-                        if (originalText !== 'Добавление...') {
-                            button.textContent = 'Отправка...';
+                if (modal) {
+                    modal.addEventListener('show.bs.modal', event => {
+                        relatedTarget = event.relatedTarget;
+                        const username = relatedTarget.getAttribute('data-bs-username');
+                        const modalTitle = modal.querySelector('.modal-title');
+                        if (modalTitle && username) {
+                            modalTitle.innerHTML = `<i class="bi bi-calendar-x me-2"></i>Отключить до даты: ${username}`;
+                        }
+                        // Сбрасываем дату
+                        const dateInput = document.getElementById('returnDate');
+                        if (dateInput) {
+                            dateInput.value = '';
                         }
                     });
 
-                    form.submit();
-                });
-            });
+                    const disableUntilDateButton = document.getElementById('disableUntilDateButton');
+                    if (disableUntilDateButton) {
+                        disableUntilDateButton.addEventListener('click', () => {
+                            const returnDate = document.getElementById('returnDate').value;
+                            if (!returnDate) {
+                                alert('Пожалуйста, выберите дату');
+                                return;
+                            }
 
-            function disableSubmitButton(form) {
-                const submitButton = form.querySelector('button[type="submit"]');
-                submitButton.disabled = true;
-                submitButton.textContent = 'Добавление...';
-            }
+                            if (relatedTarget) {
+                                const form = relatedTarget.closest('form');
+                                if (form) {
+                                    const returnDateInput = form.querySelector('input[name="return_date"]');
+                                    if (returnDateInput) {
+                                        returnDateInput.value = returnDate;
+                                    }
+
+                                    const submitButton = form.querySelector('button[type="submit"]');
+                                    if (submitButton) {
+                                        submitButton.disabled = true;
+                                        const originalHTML = submitButton.innerHTML;
+                                        submitButton.dataset.originalHTML = originalHTML;
+                                        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
+                                    }
+
+                                    form.submit();
+                                }
+                            }
+                        });
+                    }
+                }
+
+                // Обработка формы добавления пользователя
+                const addUserForm = document.getElementById('addUserForm');
+                if (addUserForm) {
+                    addUserForm.addEventListener('submit', function (e) {
+                        const submitButton = document.getElementById('addUserBtn');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Добавление...';
+                        }
+                    });
+                }
+
+                function fetchCronDescription() {
+                    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+                    fetch('/duty/schedule', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ channel_id: channelId, timezone })
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            const cronDescElement = document.getElementById('cronDescription');
+                            if (cronDescElement) {
+                                if (data.cronDescription) {
+                                    cronDescElement.innerHTML = `<i class="bi bi-clock-history me-2"></i>${data.cronDescription}`;
+                                } else if (data.message) {
+                                    cronDescElement.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i>${data.message}`;
+                                } else {
+                                    cronDescElement.innerHTML = '<i class="bi bi-info-circle me-2"></i>Расписание не настроено';
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching cron description:', error);
+                            const cronDescElement = document.getElementById('cronDescription');
+                            if (cronDescElement) {
+                                cronDescElement.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Ошибка загрузки расписания';
+                            }
+                        });
+                }
+            });
 
             function deleteUser(userId) {
                 if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
                     const form = document.getElementById(`statusForm-${userId}`);
-                    form.action = '/duty/delete-user';
+                    if (form) {
+                        form.action = '/duty/delete-user';
 
-                    // Блокируем все кнопки перед отправкой
-                    const allSubmitButtons = document.querySelectorAll('form button[type="submit"]');
-                    allSubmitButtons.forEach(button => {
-                        button.disabled = true;
-                        const originalText = button.textContent;
-                        button.dataset.originalText = originalText;
-                        if (originalText !== 'Добавление...') {
-                            button.textContent = 'Отправка...';
+                        const submitButton = form.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            const originalHTML = submitButton.innerHTML;
+                            submitButton.dataset.originalHTML = originalHTML;
+                            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Удаление...';
                         }
-                    });
 
-                    form.submit();
+                        form.submit();
+                    }
                 }
             }
 
-            function fetchCronDescription() {
-                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            async function calculateNextDutyDates() {
+                if (!schedule || !schedule.cron_schedule || currentDutyIndex === -1 || employeesCount === 0) {
+                    // Если нет расписания или текущего дежурного, показываем сообщение
+                    document.querySelectorAll('.next-duty-date').forEach(el => {
+                        el.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Не настроено</span>';
+                    });
+                    return;
+                }
 
-                fetch('/duty/schedule', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ channel_id: channelId, timezone })
-                })
+                // Убеждаемся, что use_working_days - boolean
+                const useWorkingDays = Boolean(schedule.use_working_days);
+
+                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const rows = document.querySelectorAll('#sortableTableBody tr');
+                
+                rows.forEach((row, index) => {
+                    const dateElement = row.querySelector('.next-duty-date');
+                    if (!dateElement) return;
+
+                    // Рассчитываем количество смен до дежурства этого пользователя
+                    // Начинаем от текущего дежурного, а не от начала списка
+                    let shiftsAhead = 0;
+                    
+                    if (currentDutyIndex === -1) {
+                        // Если нет текущего дежурного, начинаем с начала
+                        shiftsAhead = index + 1;
+                    } else if (index === currentDutyIndex) {
+                        // Текущий дежурный - следующее дежурство через полный цикл
+                        shiftsAhead = employeesCount;
+                    } else {
+                        // Рассчитываем количество смен от текущего дежурного
+                        // Если текущий внеочередной, следующая смена будет через 2 позиции (increment = 2)
+                        const increment = isCurrentDutyUnscheduled ? 2 : 1;
+                        
+                        if (index > currentDutyIndex) {
+                            // Пользователь после текущего дежурного
+                            const distance = index - currentDutyIndex;
+                            if (isCurrentDutyUnscheduled && distance === 1) {
+                                // Если текущий внеочередной, следующий пользователь (distance=1) будет пропущен
+                                // Реальная следующая смена будет через 2 позиции
+                                shiftsAhead = increment;
+                            } else {
+                                // Обычный расчет: если текущий внеочередной, первая смена через 2, остальные по порядку
+                                shiftsAhead = distance;
+                            }
+                        } else {
+                            // Пользователь до текущего дежурного (следующий цикл)
+                            const distance = employeesCount - currentDutyIndex + index;
+                            if (isCurrentDutyUnscheduled && distance === 1) {
+                                // Если текущий внеочередной, следующий пользователь будет пропущен
+                                shiftsAhead = increment;
+                            } else {
+                                shiftsAhead = distance;
+                            }
+                        }
+                    }
+
+                    // Запрашиваем расчет следующей даты дежурства
+                    fetch('/duty/next-duty-date', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            channel_id: channelId,
+                            cron_schedule: schedule.cron_schedule,
+                            use_working_days: useWorkingDays,
+                            shifts_ahead: shiftsAhead,
+                            timezone: timezone
+                        })
+                    })
                     .then(response => response.json())
                     .then(data => {
-                        document.getElementById('cronDescription').innerText = data.cronDescription;
+                        if (data.nextDate) {
+                            const date = new Date(data.nextDate);
+                            // Форматируем дату: день недели, дата (без времени)
+                            const dayNames = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+                            const dayName = dayNames[date.getDay()];
+                            const formattedDate = date.toLocaleDateString('ru-RU', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                            });
+                            dateElement.innerHTML = `<i class="bi bi-calendar-event me-1"></i>${dayName}, ${formattedDate}`;
+                        } else if (data.error) {
+                            dateElement.innerHTML = `<span class="text-muted"><i class="bi bi-exclamation-triangle me-1"></i>${data.error}</span>`;
+                        } else {
+                            dateElement.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Не рассчитано</span>';
+                        }
                     })
                     .catch(error => {
-                        console.error('Error fetching cron description:', error);
+                        console.error('Error calculating next duty date:', error);
+                        dateElement.innerHTML = '<span class="text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Ошибка расчета</span>';
                     });
+                });
             }
+
         </script>

@@ -23,6 +23,7 @@ const reop = require('./reop');
 const review = require('./review');
 const reviewSettings = require('./review/reviewSettings');
 const removeMessage = require('./removeMessage');
+const log = require('./log');
 
 const commands = {
     '!r': removeMessage,
@@ -50,7 +51,8 @@ const commands = {
     '!forward-help': forwardHelp,
     '!reop': reop,
     '!review': review,
-    '!review-settings': reviewSettings
+    '!review-settings': reviewSettings,
+    '!log': log
 };
 
 module.exports = commands;

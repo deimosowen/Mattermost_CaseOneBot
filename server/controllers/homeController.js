@@ -3,6 +3,9 @@ const express = require('express');
 const router = express.Router();
 
 router.get('/', (req, res) => {
+    // Проверяем, является ли пользователь админом
+    const isAdmin = res.locals.user?.isAdmin || false;
+    
     // Список доступных страниц для авторизованных пользователей
     const availablePages = [
         {
@@ -46,11 +49,26 @@ router.get('/', (req, res) => {
             url: '/jira',
             icon: 'bi-clock',
             color: 'secondary'
+        },
+        {
+            title: 'Настройки ревью',
+            description: 'Настройка автоматического распределения ревьюеров',
+            url: '/review/settings',
+            icon: 'bi-check2-square',
+            color: 'info'
+        },
+        {
+            title: 'Перевод в ревью',
+            description: 'Перевод задачи в статус IN REVIEW и отправка в канал',
+            url: '/review',
+            icon: 'bi-send-check',
+            color: 'primary'
         }
     ];
 
     res.render('home', {
-        availablePages: availablePages
+        availablePages: availablePages,
+        isAdmin: isAdmin
     });
 });
 
