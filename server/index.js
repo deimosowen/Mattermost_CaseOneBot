@@ -16,6 +16,8 @@ const gitlabController = require('./controllers/gitlabController');
 const teamcityController = require('./controllers/teamcityController');
 const reviewController = require('./controllers/reviewController');
 const adminController = require('./controllers/adminController');
+const reminderController = require('./controllers/reminderController');
+const commandsController = require('./controllers/commandsController');
 
 const passport = require('./middleware/passport');
 const requireAuth = require('./middleware/auth');
@@ -116,6 +118,8 @@ function buildApp() {
     app.use('/teamcity', teamcityController);
     app.use('/review', reviewController);
     app.use('/admin', adminController);
+    app.use('/reminders', reminderController);
+    app.use('/commands', commandsController);
 
     return app;
 }

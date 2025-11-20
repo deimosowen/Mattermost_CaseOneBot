@@ -63,6 +63,20 @@ router.get('/', (req, res) => {
             url: '/review',
             icon: 'bi-send-check',
             color: 'primary'
+        },
+        {
+            title: 'Управление напоминаниями',
+            description: 'Создание и управление напоминаниями по cron-расписанию',
+            url: '/reminders',
+            icon: 'bi-bell',
+            color: 'primary'
+        },
+        {
+            title: 'Список команд',
+            description: 'Полный список всех доступных команд бота с примерами и подсказками',
+            url: '/commands',
+            icon: 'bi-terminal',
+            color: 'info'
         }
     ];
 
