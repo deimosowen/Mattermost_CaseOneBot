@@ -130,6 +130,45 @@ const getAllChannelsWithCurrentDuty = async () => {
     return db.all('SELECT DISTINCT channel_id FROM duty_current');
 };
 
+// Получение настроек тэгания для канала
+const getDutyTagSettings = async (channel_id) => {
+    return db.all('SELECT * FROM duty_tag_settings WHERE channel_id = ?', channel_id);
+};
+
+// Получение всех активных настроек тэгания
+const getAllActiveDutyTagSettings = async () => {
+    return db.all('SELECT * FROM duty_tag_settings WHERE is_enabled = 1');
+};
+
+// Сохранение или обновление настройки тэгания
+const saveDutyTagSetting = async (channel_id, tag, is_enabled, channel_prefix) => {
+    // Проверяем, существует ли уже запись
+    const existing = await db.get(
+        'SELECT id FROM duty_tag_settings WHERE channel_id = ? AND tag = ?',
+        channel_id, tag
+    );
+
+    if (existing) {
+        // Обновляем существующую запись
+        return db.run(`
+            UPDATE duty_tag_settings 
+            SET is_enabled = ?, channel_prefix = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `, is_enabled ? 1 : 0, channel_prefix || null, existing.id);
+    } else {
+        // Создаем новую запись
+        return db.run(`
+            INSERT INTO duty_tag_settings (channel_id, tag, is_enabled, channel_prefix, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `, channel_id, tag, is_enabled ? 1 : 0, channel_prefix || null);
+    }
+};
+
+// Удаление настройки тэгания
+const deleteDutyTagSetting = async (id) => {
+    return db.run('DELETE FROM duty_tag_settings WHERE id = ?', id);
+};
+
 module.exports = {
     getDutySchedules,
     setDutySchedule,
@@ -150,4 +189,8 @@ module.exports = {
     updateDutyUsersOrder,
     getAllUnscheduledUsers,
     getAllChannelsWithCurrentDuty,
+    getDutyTagSettings,
+    getAllActiveDutyTagSettings,
+    saveDutyTagSetting,
+    deleteDutyTagSetting,
 };

@@ -5,7 +5,8 @@ const { rotateDuty, changeNextDuty } = require('../../services/dutyService');
 const { getDutySchedule, getDutyUsers,
     getCurrentDuty, updateUserActivityStatus,
     getUnscheduledList, removeDutyUser, addDutyUser,
-    updateDutyUsersOrder, getDutySchedules, getAllChannelsWithCurrentDuty } = require('../../db/models/duty');
+    updateDutyUsersOrder, getDutySchedules, getAllChannelsWithCurrentDuty,
+    getDutyTagSettings, saveDutyTagSetting, deleteDutyTagSetting } = require('../../db/models/duty');
 const { getUserByUsernameOrEmail, postMessage, getChannelById, getUser, getUserByUsername, getChannelMembers } = require('../../mattermost/utils');
 const { TZ } = require('../../config');
 const logger = require('../../logger');
@@ -91,6 +92,9 @@ router.get('/', async (req, res) => {
             isCurrentDutyUnscheduled = currentDuty.duty_type === DutyType.UNSCHEDULED;
         }
 
+        // Получаем настройки тэгания
+        const tagSettings = await getDutyTagSettings(channel_id);
+
         res.render('dutySettings', { 
             employees, 
             statusBadgeClasses, 
@@ -98,7 +102,8 @@ router.get('/', async (req, res) => {
             channel,
             schedule,
             currentDutyIndex,
-            isCurrentDutyUnscheduled
+            isCurrentDutyUnscheduled,
+            tagSettings: tagSettings || []
         });
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
@@ -393,6 +398,48 @@ router.get('/list', async (req, res) => {
             duties: [],
             error: 'Ошибка при загрузке списка дежурств'
         });
+    }
+});
+
+// Получение настроек тэгания
+router.get('/api/tag-settings', async (req, res) => {
+    try {
+        const { channel_id } = req.query;
+        if (!channel_id) {
+            return res.status(400).json({ error: 'channel_id is required' });
+        }
+        const settings = await getDutyTagSettings(channel_id);
+        res.json(settings || []);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Сохранение настройки тэгания
+router.post('/api/tag-settings', async (req, res) => {
+    try {
+        const { channel_id, tag, is_enabled, channel_prefix } = req.body;
+        if (!channel_id || !tag) {
+            return res.status(400).json({ error: 'channel_id and tag are required' });
+        }
+        await saveDutyTagSetting(channel_id, tag, is_enabled, channel_prefix);
+        res.json({ success: true });
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Удаление настройки тэгания
+router.delete('/api/tag-settings/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await deleteDutyTagSetting(id);
+        res.json({ success: true });
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 

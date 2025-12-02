@@ -29,7 +29,7 @@
                         </div>
                     </div>
 
-                    <div class="card shadow-sm">
+                    <div class="card shadow-sm mb-4">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
                                 <i class="bi bi-people me-2"></i>Очередь дежурных
@@ -175,6 +175,77 @@
                                     <% } %>
                         </div>
                     </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-tag me-2"></i>Тэгание дежурного в тредах
+                            </h5>
+                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#addTagSettingModal">
+                                <i class="bi bi-plus-circle me-1"></i>Добавить настройку
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="tagSettingsList">
+                                <% if (tagSettings && tagSettings.length > 0) { %>
+                                    <div class="table-responsive">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Тег</th>
+                                                    <th>Префикс канала</th>
+                                                    <th>Статус</th>
+                                                    <th class="text-end">Действия</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% tagSettings.forEach((setting) => { %>
+                                                    <tr data-setting-id="<%= setting.id %>">
+                                                        <td>
+                                                            <code><%= setting.tag %></code>
+                                                        </td>
+                                                        <td>
+                                                            <% if (setting.channel_prefix) { %>
+                                                                <span class="badge bg-info"><%= setting.channel_prefix %></span>
+                                                            <% } else { %>
+                                                                <span class="text-muted">Все каналы</span>
+                                                            <% } %>
+                                                        </td>
+                                                        <td>
+                                                            <% if (setting.is_enabled) { %>
+                                                                <span class="badge bg-success">Включено</span>
+                                                            <% } else { %>
+                                                                <span class="badge bg-secondary">Выключено</span>
+                                                            <% } %>
+                                                        </td>
+                                                        <td class="text-end">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary me-2" 
+                                                                onclick="editTagSetting(<%= setting.id %>, '<%= setting.tag %>', <%= setting.is_enabled ? 'true' : 'false' %>, '<%= setting.channel_prefix || '' %>')">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                                onclick="deleteTagSetting(<%= setting.id %>)">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                <% }); %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                <% } else { %>
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-tag text-muted" style="font-size: 3rem;"></i>
+                                        <p class="text-muted mt-3">Настройки тэгания не добавлены</p>
+                                        <p class="text-muted small">
+                                            При упоминании указанного тега в треде будет автоматически тэгаться текущий дежурный
+                                        </p>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -211,6 +282,62 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                         <button type="submit" form="addUserForm" class="btn btn-success" id="addUserBtn">
                             <i class="bi bi-check-circle me-1"></i>Добавить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal для добавления/редактирования настройки тэгания -->
+        <div class="modal fade" id="addTagSettingModal" tabindex="-1" aria-labelledby="addTagSettingModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addTagSettingModalLabel">
+                            <i class="bi bi-tag me-2"></i>Настройка тэгания дежурного
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="tagSettingForm">
+                            <input type="hidden" id="tagSettingId" name="id" value="">
+                            <div class="mb-3">
+                                <label for="tagInput" class="form-label">
+                                    <i class="bi bi-at me-1"></i>Тег для тэгания
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">@</span>
+                                    <input type="text" class="form-control" id="tagInput" name="tag"
+                                        placeholder="c1-back" required>
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Тег, при упоминании которого в треде будет тэгаться дежурный (без @)
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="channelPrefixInput" class="form-label">
+                                    <i class="bi bi-hash me-1"></i>Префикс каналов (опционально)
+                                </label>
+                                <input type="text" class="form-control" id="channelPrefixInput" name="channel_prefix"
+                                    placeholder="c1-">
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Если указан, тэгание будет работать только в каналах, начинающихся с этого префикса. Оставьте пустым для всех каналов.
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="isEnabledInput" name="is_enabled" checked>
+                                    <label class="form-check-label" for="isEnabledInput">
+                                        Включено
+                                    </label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-success" id="saveTagSettingBtn" onclick="saveTagSetting()">
+                            <i class="bi bi-check-circle me-1"></i>Сохранить
                         </button>
                     </div>
                 </div>
@@ -257,6 +384,7 @@
             const currentDutyIndex = <%= currentDutyIndex !== undefined ? currentDutyIndex : -1 %>;
             const employeesCount = <%= employees ? employees.length : 0 %>;
             const isCurrentDutyUnscheduled = <%= isCurrentDutyUnscheduled !== undefined ? isCurrentDutyUnscheduled : false %>;
+            const tagSettings = <%- JSON.stringify(tagSettings || []) %>;
 
             document.addEventListener('DOMContentLoaded', function () {
                 fetchCronDescription();
@@ -529,6 +657,102 @@
                         console.error('Error calculating next duty date:', error);
                         dateElement.innerHTML = '<span class="text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Ошибка расчета</span>';
                     });
+                });
+            }
+
+            // Функции для работы с настройками тэгания
+            function editTagSetting(id, tag, isEnabled, channelPrefix) {
+                document.getElementById('tagSettingId').value = id;
+                document.getElementById('tagInput').value = tag;
+                document.getElementById('isEnabledInput').checked = isEnabled === true || isEnabled === 'true';
+                document.getElementById('channelPrefixInput').value = channelPrefix || '';
+                document.getElementById('addTagSettingModalLabel').innerHTML = '<i class="bi bi-pencil me-2"></i>Редактировать настройку тэгания';
+                const modal = new bootstrap.Modal(document.getElementById('addTagSettingModal'));
+                modal.show();
+            }
+
+            function deleteTagSetting(id) {
+                if (!confirm('Вы уверены, что хотите удалить эту настройку?')) {
+                    return;
+                }
+
+                fetch(`/duty/api/tag-settings/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Ошибка при удалении настройки');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting tag setting:', error);
+                    alert('Ошибка при удалении настройки');
+                });
+            }
+
+            function saveTagSetting() {
+                const form = document.getElementById('tagSettingForm');
+                const formData = new FormData(form);
+                const tag = formData.get('tag');
+                const isEnabled = document.getElementById('isEnabledInput').checked;
+                const channelPrefix = formData.get('channel_prefix') || null;
+                const id = formData.get('id');
+
+                if (!tag) {
+                    alert('Пожалуйста, укажите тег');
+                    return;
+                }
+
+                const saveBtn = document.getElementById('saveTagSettingBtn');
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Сохранение...';
+
+                fetch('/duty/api/tag-settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        channel_id: channelId,
+                        tag: tag,
+                        is_enabled: isEnabled,
+                        channel_prefix: channelPrefix
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Ошибка при сохранении настройки: ' + (data.error || 'Неизвестная ошибка'));
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранить';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving tag setting:', error);
+                    alert('Ошибка при сохранении настройки');
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранить';
+                });
+            }
+
+            // Сброс формы при открытии модального окна для добавления
+            const addTagSettingModal = document.getElementById('addTagSettingModal');
+            if (addTagSettingModal) {
+                addTagSettingModal.addEventListener('show.bs.modal', function () {
+                    // Проверяем, открывается ли модальное окно для добавления (не редактирования)
+                    if (!document.getElementById('tagSettingId').value) {
+                        document.getElementById('tagSettingForm').reset();
+                        document.getElementById('isEnabledInput').checked = true;
+                        document.getElementById('addTagSettingModalLabel').innerHTML = '<i class="bi bi-tag me-2"></i>Настройка тэгания дежурного';
+                    }
                 });
             }
 
