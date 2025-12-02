@@ -24,26 +24,26 @@ router.get('/invite-channels', async (req, res) => {
     try {
         const { getAllInviteChannels, getAllMainChannels } = require('../../db/models/inviteChannels');
         const { getChannelById } = require('../../mattermost/utils');
-        
+
         logger.debug('Loading invite channels data...');
         const inviteChannels = await getAllInviteChannels();
         logger.debug(`Found ${inviteChannels.length} invite channel configurations`);
-        
+
         const mainChannelIds = await getAllMainChannels();
         logger.debug(`Found ${mainChannelIds.length} unique main channels: ${mainChannelIds.join(', ')}`);
-        
+
         // Группируем по основным каналам и получаем информацию о каналах
         const channelsMap = new Map();
-        
+
         for (const mainChannelId of mainChannelIds) {
             try {
                 const channel = await getChannelById(mainChannelId);
                 const channelPrefixes = inviteChannels
                     .filter(ic => ic.main_channel_id === mainChannelId)
                     .map(ic => ({ id: ic.id, prefix: ic.prefix }));
-                
+
                 logger.debug(`Channel ${mainChannelId}: found ${channelPrefixes.length} prefixes`);
-                
+
                 channelsMap.set(mainChannelId, {
                     id: mainChannelId,
                     name: channel ? (channel.display_name || channel.name || mainChannelId) : mainChannelId,
@@ -54,7 +54,7 @@ router.get('/invite-channels', async (req, res) => {
                 const channelPrefixes = inviteChannels
                     .filter(ic => ic.main_channel_id === mainChannelId)
                     .map(ic => ({ id: ic.id, prefix: ic.prefix }));
-                
+
                 channelsMap.set(mainChannelId, {
                     id: mainChannelId,
                     name: `Канал ${mainChannelId}`,
@@ -62,10 +62,10 @@ router.get('/invite-channels', async (req, res) => {
                 });
             }
         }
-        
+
         const channelsArray = Array.from(channelsMap.values());
         logger.debug(`Rendering with ${channelsArray.length} channels`);
-        
+
         res.render('adminInviteChannels', {
             error: null,
             channels: channelsArray
@@ -83,23 +83,23 @@ router.get('/invite-channels', async (req, res) => {
 router.post('/api/invite-channels', async (req, res) => {
     try {
         const { main_channel_id, prefix } = req.body;
-        
+
         if (!main_channel_id || !prefix) {
             return res.status(400).json({ error: 'Не указан main_channel_id или prefix' });
         }
-        
+
         const { addInviteChannel, inviteChannelExists } = require('../../db/models/inviteChannels');
-        
+
         // Проверяем, не существует ли уже такая конфигурация
         const exists = await inviteChannelExists(main_channel_id, prefix);
         if (exists) {
             return res.status(400).json({ error: 'Такая конфигурация уже существует' });
         }
-        
+
         logger.debug(`Adding invite channel: main_channel_id=${main_channel_id}, prefix=${prefix}`);
         const id = await addInviteChannel(main_channel_id, prefix);
         logger.info(`Invite channel added successfully: id=${id}, main_channel_id=${main_channel_id}, prefix=${prefix}`);
-        
+
         res.json({ success: true, id, message: 'Конфигурация добавлена' });
     } catch (error) {
         logger.error(`Error adding invite channel: ${error.message}\nStack trace:\n${error.stack}`);
@@ -112,7 +112,7 @@ router.delete('/api/invite-channels/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { removeInviteChannel } = require('../../db/models/inviteChannels');
-        
+
         const result = await removeInviteChannel(parseInt(id));
         if (result > 0) {
             res.json({ success: true, message: 'Конфигурация удалена' });
@@ -130,13 +130,13 @@ router.put('/api/invite-channels/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { main_channel_id, prefix } = req.body;
-        
+
         if (!main_channel_id || !prefix) {
             return res.status(400).json({ error: 'Не указан main_channel_id или prefix' });
         }
-        
+
         const { updateInviteChannel, inviteChannelExists } = require('../../db/models/inviteChannels');
-        
+
         // Проверяем, не существует ли уже такая конфигурация (кроме текущей)
         const existing = await inviteChannelExists(main_channel_id, prefix);
         if (existing) {
@@ -148,7 +148,7 @@ router.put('/api/invite-channels/:id', async (req, res) => {
                 return res.status(400).json({ error: 'Такая конфигурация уже существует' });
             }
         }
-        
+
         const result = await updateInviteChannel(parseInt(id), main_channel_id, prefix);
         if (result > 0) {
             res.json({ success: true, message: 'Конфигурация обновлена' });
@@ -166,17 +166,17 @@ router.get('/api/latest-log', async (req, res) => {
     try {
         const fs = require('fs');
         const path = require('path');
-        
+
         const logsDir = path.join(__dirname, '../../logs');
-        
+
         if (!fs.existsSync(logsDir)) {
-            return res.json({ 
+            return res.json({
                 error: 'Папка logs не найдена',
                 logFile: null,
                 logContent: null
             });
         }
-        
+
         // Находим последний файл лога
         const files = fs.readdirSync(logsDir)
             .filter(file => file.endsWith('.log'))
@@ -186,22 +186,22 @@ router.get('/api/latest-log', async (req, res) => {
                 mtime: fs.statSync(path.join(logsDir, file)).mtime
             }))
             .sort((a, b) => b.mtime - a.mtime);
-        
+
         if (files.length === 0) {
-            return res.json({ 
+            return res.json({
                 error: 'Лог-файлы не найдены',
                 logFile: null,
                 logContent: null
             });
         }
-        
+
         const latestLog = files[0];
-        
+
         // Читаем содержимое файла (ограничиваем размер для производительности)
         const maxSize = 100 * 1024; // 100 KB
         const stats = fs.statSync(latestLog.path);
         let logContent = '';
-        
+
         if (stats.size > maxSize) {
             // Если файл большой, читаем только последние 100 KB
             const buffer = Buffer.allocUnsafe(maxSize);
@@ -213,11 +213,11 @@ router.get('/api/latest-log', async (req, res) => {
         } else {
             logContent = fs.readFileSync(latestLog.path, 'utf8');
         }
-        
+
         // Берем последние 500 строк для отображения
         const lines = logContent.split('\n');
         const lastLines = lines.slice(-500).join('\n');
-        
+
         res.json({
             logFile: latestLog.name,
             logPath: latestLog.path,
@@ -229,11 +229,99 @@ router.get('/api/latest-log', async (req, res) => {
         });
     } catch (error) {
         logger.error(`Error getting latest log: ${error.message}`);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Не удалось получить лог-файл: ' + error.message,
             logFile: null,
             logContent: null
         });
+    }
+});
+
+// Страница управления каналами ревью
+router.get('/review-channels', async (req, res) => {
+    try {
+        const { getAllReviewChannels } = require('../../db/models/reviewChannels');
+        const { getChannelById } = require('../../mattermost/utils');
+
+        logger.debug('Loading review channels data...');
+        const reviewChannels = await getAllReviewChannels();
+        logger.debug(`Found ${reviewChannels.length} review channels`);
+
+        // Получаем информацию о каждом канале
+        const channelsWithInfo = await Promise.all(
+            reviewChannels.map(async (channel) => {
+                try {
+                    const channelInfo = await getChannelById(channel.channel_id);
+                    return {
+                        ...channel,
+                        name: channelInfo ? (channelInfo.display_name || channelInfo.name || channel.channel_id) : null
+                    };
+                } catch (error) {
+                    logger.warn(`Could not get channel ${channel.channel_id}:`, error);
+                    return {
+                        ...channel,
+                        name: null
+                    };
+                }
+            })
+        );
+
+        res.render('adminReviewChannels', {
+            error: null,
+            channels: channelsWithInfo
+        });
+    } catch (error) {
+        logger.error(`Error in admin review channels: ${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).render('adminReviewChannels', {
+            error: 'Ошибка при загрузке данных',
+            channels: []
+        });
+    }
+});
+
+// API: Добавление канала ревью
+router.post('/api/review-channels', async (req, res) => {
+    try {
+        const { channel_id } = req.body;
+
+        if (!channel_id) {
+            return res.status(400).json({ error: 'Не указан channel_id' });
+        }
+
+        const { addReviewChannel, reviewChannelExists } = require('../../db/models/reviewChannels');
+
+        // Проверяем, не существует ли уже такой канал
+        const exists = await reviewChannelExists(channel_id);
+        if (exists) {
+            return res.status(400).json({ error: 'Такой канал уже добавлен' });
+        }
+
+        logger.debug(`Adding review channel: channel_id=${channel_id}`);
+        const id = await addReviewChannel(channel_id);
+        logger.info(`Review channel added successfully: id=${id}, channel_id=${channel_id}`);
+
+        res.json({ success: true, id, message: 'Канал добавлен' });
+    } catch (error) {
+        logger.error(`Error adding review channel: ${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// API: Удаление канала ревью
+router.delete('/api/review-channels/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { removeReviewChannel } = require('../../db/models/reviewChannels');
+
+        const result = await removeReviewChannel(parseInt(id));
+        if (result > 0) {
+            res.json({ success: true, message: 'Канал удален' });
+        } else {
+            res.status(404).json({ error: 'Канал не найден' });
+        }
+    } catch (error) {
+        logger.error(`Error removing review channel: ${error.message}`);
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -244,13 +332,13 @@ router.get('/api/system-info', async (req, res) => {
         const path = require('path');
         const { getDatabasePath } = require('../../db/config');
         const db = require('../../db/index.js');
-        
+
         // Получаем информацию о БД (только размер)
         const dbPath = getDatabasePath();
         let dbInfo = {
             size: null
         };
-        
+
         try {
             // Размер файла БД
             if (fs.existsSync(dbPath)) {
@@ -260,7 +348,7 @@ router.get('/api/system-info', async (req, res) => {
         } catch (dbError) {
             logger.warn(`Could not get database info:`, dbError);
         }
-        
+
         res.json({
             nodeVersion: process.version,
             platform: process.platform,

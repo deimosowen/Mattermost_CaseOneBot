@@ -42,7 +42,12 @@ const getTask = async (jiraClient, taskId) => {
 
         return taskData;
     } catch (error) {
-        console.log(error);
+        // Если задача не найдена, возвращаем null вместо undefined
+        if (error.message && error.message.includes('Issue Does Not Exist')) {
+            return null;
+        }
+        // Для других ошибок пробрасываем дальше
+        throw error;
     }
 };
 
@@ -166,6 +171,66 @@ const addComment = async (jiraClient, taskId, comment) => {
     }
 };
 
+const searchTasks = async (jiraClient, jql, maxResults = 50) => {
+    try {
+        const result = await jiraClient.searchJira(jql, {
+            maxResults,
+            fields: ['key', 'summary', 'status', 'assignee']
+        });
+
+        if (!result || !result.issues) {
+            console.log('No issues found in search result');
+            return [];
+        }
+
+        const mappedTasks = result.issues.map(issue => {
+            const assignee = issue.fields.assignee;
+            return {
+                key: issue.key,
+                summary: issue.fields.summary,
+                status: issue.fields.status.name,
+                assignee: assignee ? {
+                    name: assignee.displayName,
+                    email: assignee.emailAddress,
+                    username: assignee.name,
+                    accountId: assignee.accountId
+                } : null
+            };
+        });
+
+        return mappedTasks;
+    } catch (error) {
+        // Логируем полную ошибку для отладки
+        const errorInfo = {
+            message: error.message,
+            errorMessages: error.errorMessages,
+            errors: error.errors,
+            statusCode: error.statusCode,
+            jql: jql
+        };
+
+        // Если есть response с деталями ошибки
+        if (error.response) {
+            errorInfo.responseStatus = error.response.status;
+            errorInfo.responseData = error.response.data;
+        }
+
+        console.error('Error searching tasks:', JSON.stringify(errorInfo, null, 2));
+
+        // Если есть errorMessages от Jira, логируем их отдельно
+        if (error.errorMessages && Array.isArray(error.errorMessages)) {
+            console.error('Jira error messages:', error.errorMessages.join(', '));
+        }
+
+        // Если есть responseData с errorMessages, логируем их
+        if (error.response?.data?.errorMessages) {
+            console.error('Jira API error messages:', error.response.data.errorMessages.join(', '));
+        }
+
+        return [];
+    }
+};
+
 module.exports = {
     createJiraClient,
     getTask,
@@ -175,4 +240,5 @@ module.exports = {
     changeStatus,
     addComment,
     setReviewers,
+    searchTasks,
 };

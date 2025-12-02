@@ -1,7 +1,11 @@
 const express = require('express');
 const reviewDistributionService = require('../../services/reviewDistributionService');
 const { getReviewQueue, addReviewerToQueue, removeReviewerFromQueue, updateReviewQueueOrder, clearReviewQueue } = require('../../db/models/reviewQueue');
-const { getChannelById, getUserByUsername, getChannelMembers, getUser } = require('../../mattermost/utils');
+const { getChannelById, getUserByUsername, getChannelMembers, getUser, postMessage } = require('../../mattermost/utils');
+const { getAllReviewChannelIds } = require('../../db/models/reviewChannels');
+const JiraService = require('../../services/jiraService');
+const reviewTaskService = require('../../services/reviewTaskService');
+const JiraStatusType = require('../../types/jiraStatusTypes');
 const logger = require('../../logger');
 
 const router = express.Router();
@@ -206,21 +210,37 @@ router.post('/settings/reviewers/clear', async (req, res) => {
 // Страница для создания ревью (перевод задачи в INREVIEW)
 router.get('/', async (req, res) => {
     try {
-        const { getMyChannels } = require('../../mattermost/utils');
-        const { INREVIEW_CHANNEL_IDS } = require('../../config');
+        const user_id = req.user?.mattermostUserId;
 
-        // Получаем каналы пользователя
-        const userChannels = await getMyChannels();
+        if (!user_id) {
+            return res.render('review', {
+                error: 'Не удалось определить пользователя. Пожалуйста, войдите в систему.',
+                availableChannels: [],
+                user: req.user
+            });
+        }
 
-        // Фильтруем только каналы из INREVIEW_CHANNEL_IDS, в которых пользователь состоит
+        // Получаем список каналов ревью из БД
+        const reviewChannelIds = await getAllReviewChannelIds();
+
+        // Фильтруем только каналы из списка ревью, в которых пользователь состоит
         const availableChannels = [];
-        for (const channelId of INREVIEW_CHANNEL_IDS || []) {
-            const channel = userChannels.find(ch => ch.id === channelId);
-            if (channel) {
-                availableChannels.push({
-                    id: channel.id,
-                    name: channel.display_name || channel.name || channelId
-                });
+        for (const channelId of reviewChannelIds) {
+            try {
+                // Проверяем, является ли пользователь участником канала
+                const members = await getChannelMembers(channelId);
+                const isMember = members.some(member => String(member.user_id) === String(user_id));
+
+                if (isMember) {
+                    // Получаем информацию о канале для отображения имени
+                    const channel = await getChannelById(channelId);
+                    availableChannels.push({
+                        id: channelId,
+                        name: channel ? (channel.display_name || channel.name || channelId) : channelId
+                    });
+                }
+            } catch (err) {
+                logger.warn(`Could not check membership for channel ${channelId}:`, err);
             }
         }
 
@@ -236,6 +256,203 @@ router.get('/', async (req, res) => {
             availableChannels: [],
             user: req.user
         });
+    }
+});
+
+// API: Получение задач пользователя
+router.get('/api/user-tasks', async (req, res) => {
+    try {
+        const user_id = req.user?.mattermostUserId;
+        const { search } = req.query;
+
+        if (!user_id) {
+            return res.status(401).json({ error: 'Пользователь не авторизован' });
+        }
+
+        // Получаем данные пользователя из Mattermost
+        let userEmail = null;
+        let username = null;
+        try {
+            const mattermostUser = await getUser(user_id);
+            userEmail = mattermostUser?.email;
+            username = mattermostUser?.username;
+            logger.debug(`User data: email=${userEmail}, username=${username}`);
+        } catch (err) {
+            logger.warn(`Could not get Mattermost user ${user_id}:`, err);
+            // Не возвращаем ошибку сразу, попробуем использовать альтернативный подход
+            logger.warn('Will try to search tasks without user filter');
+        }
+
+        if (!userEmail && !username) {
+            logger.warn('No user email or username available, will try alternative search');
+        }
+
+        // Формируем JQL запрос - пробуем несколько вариантов
+        // Сначала пробуем username, так как это самый надежный способ
+        let jql;
+        const searchTerm = search && search.trim() ? search.trim().toUpperCase() : null;
+
+        // Проверяем, является ли searchTerm точным ключом задачи (например, CASEM-123)
+        const isExactTaskKey = searchTerm && /^(CASEM|REN)-\d+$/.test(searchTerm);
+
+        // Если это точный ключ задачи, сначала пробуем найти задачу без фильтров по assignee и статусу
+        if (isExactTaskKey) {
+            try {
+                logger.debug(`Searching for exact task key: ${searchTerm} without filters`);
+                const exactTaskJql = `key = "${searchTerm}"`;
+                const exactTasks = await JiraService.searchTasksByJql(exactTaskJql, 1);
+
+                if (Array.isArray(exactTasks) && exactTasks.length > 0) {
+                    // Задача найдена, возвращаем её без фильтров
+                    const formattedTasks = exactTasks.map(task => ({
+                        value: task.key,
+                        text: `${task.key}: ${task.summary}`,
+                        key: task.key,
+                        summary: task.summary,
+                        status: task.status
+                    }));
+                    logger.debug(`Found exact task: ${searchTerm}`);
+                    return res.json({ tasks: formattedTasks });
+                }
+            } catch (error) {
+                logger.debug(`Could not find exact task ${searchTerm}, will try with filters: ${error.message}`);
+            }
+        }
+
+        // Пробуем разные варианты JQL запросов с фильтрами
+        const jqlVariants = [];
+
+        if (username) {
+            // Вариант 1: поиск по username (самый надежный)
+            if (searchTerm) {
+                jqlVariants.push(`(assignee = "${username}" AND status = "In Progress" AND (key ~ "${searchTerm}" OR summary ~ "${searchTerm}")) ORDER BY updated DESC`);
+            } else {
+                jqlVariants.push(`assignee = "${username}" AND status = "In Progress" ORDER BY updated DESC`);
+            }
+        }
+
+        if (userEmail) {
+            // Вариант 2: поиск по email (может не работать в некоторых версиях Jira)
+            if (searchTerm) {
+                jqlVariants.push(`(assignee.emailAddress = "${userEmail}" AND status = "In Progress" AND (key ~ "${searchTerm}" OR summary ~ "${searchTerm}")) ORDER BY updated DESC`);
+                // Вариант 3: поиск по email с использованием ~ (contains)
+                jqlVariants.push(`(assignee.emailAddress ~ "${userEmail}" AND status = "In Progress" AND (key ~ "${searchTerm}" OR summary ~ "${searchTerm}")) ORDER BY updated DESC`);
+            } else {
+                jqlVariants.push(`assignee.emailAddress = "${userEmail}" AND status = "In Progress" ORDER BY updated DESC`);
+                jqlVariants.push(`assignee.emailAddress ~ "${userEmail}" AND status = "In Progress" ORDER BY updated DESC`);
+            }
+        }
+
+        // Пробуем выполнить запросы по очереди, пока не найдем рабочий
+        let tasks = [];
+        let lastError = null;
+
+        for (const jqlQuery of jqlVariants) {
+            try {
+                logger.debug(`Trying JQL: ${jqlQuery}`);
+                tasks = await JiraService.searchTasksByJql(jqlQuery, 50);
+
+                if (Array.isArray(tasks) && tasks.length > 0) {
+                    logger.debug(`Success with JQL, found ${tasks.length} tasks`);
+                    break;
+                }
+            } catch (error) {
+                lastError = error;
+                logger.debug(`JQL query failed: ${jqlQuery}, error: ${error.message}`);
+                continue;
+            }
+        }
+
+        // Если не нашли задачи по assignee, пробуем альтернативный подход:
+        // Получаем все задачи в статусе In Progress и фильтруем на стороне сервера
+        if ((!Array.isArray(tasks) || tasks.length === 0) && (userEmail || username)) {
+            logger.debug('Trying alternative approach: get all In Progress tasks and filter by assignee');
+            try {
+                const allTasksJql = searchTerm
+                    ? `status = "In Progress" AND (key ~ "${searchTerm}" OR summary ~ "${searchTerm}") ORDER BY updated DESC`
+                    : `status = "In Progress" ORDER BY updated DESC`;
+
+                const allTasks = await JiraService.searchTasksByJql(allTasksJql, 100);
+
+                if (Array.isArray(allTasks) && allTasks.length > 0) {
+                    // Фильтруем задачи по assignee
+                    tasks = allTasks.filter(task => {
+                        if (!task.assignee) return false;
+                        const assigneeEmail = task.assignee.email?.toLowerCase();
+                        const assigneeUsername = task.assignee.username?.toLowerCase();
+                        const userEmailLower = userEmail?.toLowerCase();
+                        const usernameLower = username?.toLowerCase();
+
+                        return (userEmailLower && assigneeEmail === userEmailLower) ||
+                            (usernameLower && assigneeUsername === usernameLower);
+                    });
+
+                    logger.debug(`Filtered ${tasks.length} tasks from ${allTasks.length} total tasks`);
+                }
+            } catch (error) {
+                logger.warn(`Alternative search also failed: ${error.message}`);
+            }
+        }
+
+        if (!Array.isArray(tasks) || tasks.length === 0) {
+            logger.warn(`No tasks found. Tried ${jqlVariants.length} JQL variants. Last error: ${lastError?.message || 'No tasks found'}`);
+        }
+
+        // Проверяем, что tasks - это массив
+        if (!Array.isArray(tasks)) {
+            logger.warn(`Unexpected tasks format: ${typeof tasks}`);
+            return res.json({ tasks: [] });
+        }
+
+        // Форматируем результат для Tom Select
+        const formattedTasks = tasks.map(task => ({
+            value: task.key,
+            text: `${task.key}: ${task.summary}`,
+            key: task.key,
+            summary: task.summary,
+            status: task.status
+        }));
+
+        res.json({ tasks: formattedTasks });
+    } catch (error) {
+        logger.error(`Error getting user tasks: ${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: error.message || 'Ошибка при получении задач' });
+    }
+});
+
+// API: Получение деталей задачи с Merge Request
+router.get('/api/task-details', async (req, res) => {
+    try {
+        const { taskKey } = req.query;
+
+        if (!taskKey) {
+            return res.status(400).json({ error: 'Не указан ключ задачи' });
+        }
+
+        // Получаем задачу из Jira
+        const task = await JiraService.fetchTask(taskKey);
+        if (!task) {
+            return res.status(404).json({ error: 'Задача не найдена' });
+        }
+
+        // Извлекаем Merge Request URL из pullRequests
+        const pullRequests = task.pullRequests || [];
+        let mergeRequestUrl = null;
+
+        // Если есть ровно один открытый MR, используем его
+        if (pullRequests.length === 1) {
+            mergeRequestUrl = pullRequests[0].url;
+        }
+
+        res.json({
+            taskKey: task.key,
+            summary: task.summary,
+            status: task.status,
+            mergeRequestUrl: mergeRequestUrl
+        });
+    } catch (error) {
+        logger.error(`Error getting task details: ${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: error.message || 'Ошибка при получении деталей задачи' });
     }
 });
 
@@ -319,11 +536,6 @@ router.post('/api/send', async (req, res) => {
             return res.status(400).json({ error: 'Не указан канал (channelId)' });
         }
 
-        // Импортируем необходимые модули
-        const reviewCommand = require('../../commands/review');
-        const { isUserInChannel } = require('../../commands/review');
-        const { getChannelMembers } = require('../../mattermost/utils');
-
         // Проверяем, состоит ли пользователь в канале
         const members = await getChannelMembers(channelId);
         const userInChannel = members.some(m => m.user_id === user_id);
@@ -332,153 +544,67 @@ router.post('/api/send', async (req, res) => {
             return res.status(403).json({ error: 'Вы не состоите в указанном канале' });
         }
 
-        // Вызываем команду review (но без post_id, так как это UI)
-        // Нужно адаптировать команду для работы без post_id или создать отдельную функцию
-
-        // Временно используем прямую логику из команды
-        const JiraService = require('../../services/jiraService');
-        const { getReviewTaskByKey } = require('../../db/models/reviewTask');
-        const { postMessage } = require('../../mattermost/utils');
-        const reviewDistributionService = require('../../services/reviewDistributionService');
-        const JiraStatusType = require('../../types/jiraStatusTypes');
-        const { isToDoStatus, isInProgressStatus } = require('../../services/jiraService/jiraHelper');
-        const { parseGitlabMrUrl } = require('../../services/gitlabService/gitlabHelper');
-        const GitlabService = require('../../services/gitlabService');
-        const { addReviewTask, addTaskNotification } = require('../../db/models/reviewTask');
-
+        // Используем сервис для обработки ревью
         // Получаем задачу из Jira
         const task = await JiraService.fetchTask(taskKey);
         if (!task) {
             return res.status(404).json({ error: `Задача ${taskKey} не найдена в Jira` });
         }
 
-        // Проверяем существующую запись
-        const reviewTask = await getReviewTaskByKey(taskKey);
+        // Получаем merge request URL
+        const mergeRequestLink = contentType === 'pr'
+            ? (mergeRequest || reviewTaskService.getMergeRequestUrl(task, null))
+            : null;
 
-        // Формируем сообщение в зависимости от типа контента
-        let message = `**${JiraStatusType.INREVIEW.toUpperCase()}** [${task.key}](https://jira.parcsis.org/browse/${task.key}) ${task.summary}`;
-
-        if (contentType === 'pr') {
-            // Если выбран Pull Request
-            const mergeRequestLink = mergeRequest || (task.pullRequests && task.pullRequests.length === 1 ? task.pullRequests[0].url : null);
-            if (mergeRequestLink) {
-                message += `\n[${mergeRequestLink}](${mergeRequestLink})`;
-            }
-        } else if (contentType === 'message' && messageText) {
-            // Если выбрано сообщение
-            message += `\n${messageText}`;
-        }
-
-        message += `\nАвтор: ${user_name}`;
-
-        // Обрабатываем ревьювера
-        let reviewerResolved = reviewer || null;
-        if (!reviewerResolved && Array.isArray(task.reviewers) && task.reviewers.length > 0) {
-            // Используем встроенную логику для получения упоминаний ревьюверов
-            const GENERIC_REVIEWER_EMAIL = 'caseone@pravo.tech';
-            const REVIEWER_NAME_TO_MENTION = {
-                'caseone-back': '@c1-back',
-                'caseone-tester': '@c1-qa',
-                'caseone-frontend': '@c1-front',
-                'caseone-analyst': '@c1-analyst',
-            };
-
-            const { getUserByEmail } = require('../../mattermost/utils');
-            const mentions = [];
-            for (const r of task.reviewers) {
-                try {
-                    const emailLc = (r?.email || '').trim().toLowerCase();
-                    const nameLc = (r?.name || '').trim().toLowerCase();
-
-                    let mention = null;
-                    if (emailLc === GENERIC_REVIEWER_EMAIL) {
-                        mention = REVIEWER_NAME_TO_MENTION[nameLc] || null;
-                    } else {
-                        const user = await getUserByEmail(emailLc);
-                        mention = user ? `@${user.username}` : null;
-                    }
-                    if (mention) mentions.push(mention);
-                } catch (err) {
-                    logger.warn(`Не удалось получить пользователя по email ${r?.email}: ${err?.message || err}`);
-                }
-            }
-            if (mentions.length > 0) {
-                reviewerResolved = mentions.join(', ');
-            }
-        }
+        // Формируем сообщение
+        const message = await reviewTaskService.prepareReviewMessage(
+            task,
+            mergeRequestLink,
+            user_name,
+            reviewer,
+            messageText,
+            contentType
+        );
 
         // Переводим задачу в статус INREVIEW
-        let taskStatus = task.status;
-        if (isToDoStatus(taskStatus)) {
-            const ok = await JiraService.changeTaskStatus(taskKey, JiraStatusType.INPROGRESS);
-            if (ok) {
-                taskStatus = JiraStatusType.INPROGRESS;
-            }
+        const moveResult = await reviewTaskService.moveTaskToInReview(taskKey, task.status);
+        if (!moveResult.ok) {
+            return res.status(500).json({ error: `Не удалось перевести задачу в статус ${JiraStatusType.INREVIEW}` });
         }
-        if (isInProgressStatus(taskStatus)) {
-            const ok = await JiraService.changeTaskStatus(taskKey, JiraStatusType.INREVIEW);
-            if (!ok) {
-                return res.status(500).json({ error: `Не удалось перевести задачу в статус ${JiraStatusType.INREVIEW}` });
-            }
-            taskStatus = JiraStatusType.INREVIEW;
-        }
+
+        // Получаем ревьювера
+        let reviewerResolved = await reviewTaskService.getReviewer(reviewer, task);
 
         // Если ревьюер не указан, пробуем автоматически назначить
         let messageToPost = message;
         if (!reviewerResolved) {
-            const assignedReviewer = await reviewDistributionService.assignReviewerForTask(channelId, taskKey);
-            if (assignedReviewer) {
-                reviewerResolved = `@${assignedReviewer.user_name}`;
+            reviewerResolved = await reviewTaskService.assignReviewerAutomatically(channelId, taskKey);
+            if (reviewerResolved) {
                 messageToPost = message + `\nРевьювер: ${reviewerResolved}`;
             }
-        } else {
+        } else if (!message.includes('Ревьювер')) {
+            // Если ревьювер есть, но его нет в сообщении (может быть из-за логики prepareReviewMessage)
             messageToPost = message + `\nРевьювер: ${reviewerResolved}`;
+        } else {
+            messageToPost = message;
         }
 
         // Отправляем сообщение в канал
         const post = await postMessage(channelId, messageToPost);
 
-        // Обрабатываем GitLab merge request (только если contentType === 'pr')
-        let gitlabMergeRequestId = null;
-        if (contentType === 'pr') {
-            const mergeRequestLink = mergeRequest || (task.pullRequests && task.pullRequests.length === 1 ? task.pullRequests[0].url : null);
-            if (mergeRequestLink) {
-                const mergeRequestData = parseGitlabMrUrl(mergeRequestLink);
-                if (mergeRequestData) {
-                    const project = await GitlabService.getProjectByName(mergeRequestData.project);
-                    if (project) {
-                        gitlabMergeRequestId = await GitlabService.addMergeRequest({
-                            project_id: project.project_id,
-                            mr_iid: mergeRequestData.mrIid,
-                            status: GitlabService.STATUSES.NEW,
-                        });
-                    }
-                }
-            }
-        }
+        // Обрабатываем GitLab merge request
+        const gitlabMergeRequestId = await reviewTaskService.processGitlabMergeRequest(mergeRequestLink);
 
         // Создаем или обновляем запись reviewTask
-        if (reviewTask) {
-            // Обновляем существующую запись
-            const { updateReviewTaskStatus, updateReviewTaskReviewer } = require('../../db/models/reviewTask');
-            await updateReviewTaskStatus({ task_key: taskKey, status: JiraStatusType.INREVIEW });
-            if (reviewerResolved) {
-                await updateReviewTaskReviewer({ task_key: taskKey, reviewer: reviewerResolved });
-            }
-            await addTaskNotification(reviewTask.id);
-        } else {
-            // Создаем новую запись
-            const reviewTaskId = await addReviewTask({
-                channel_id: channelId,
-                post_id: post.id,
-                user_id,
-                task_key: taskKey,
-                merge_request_url: (contentType === 'pr' ? mergeRequest : null) || null,
-                reviewer: reviewerResolved,
-                gitlab_merge_request_id: gitlabMergeRequestId,
-            });
-            await addTaskNotification(reviewTaskId);
-        }
+        await reviewTaskService.createOrUpdateReviewTask({
+            taskKey,
+            channelId,
+            postId: post.id,
+            userId: user_id,
+            mergeRequestUrl: contentType === 'pr' ? mergeRequestLink : null,
+            reviewer: reviewerResolved,
+            gitlabMergeRequestId,
+        });
 
         res.json({
             success: true,
@@ -515,68 +641,33 @@ router.get('/api/preview', async (req, res) => {
             return res.status(400).json({ error: 'Не указан ключ задачи' });
         }
 
-        const JiraService = require('../../services/jiraService');
-        const JiraStatusType = require('../../types/jiraStatusTypes');
-        const { getUserByEmail } = require('../../mattermost/utils');
-
         // Получаем задачу из Jira
         const task = await JiraService.fetchTask(taskKey);
         if (!task) {
             return res.status(404).json({ error: `Задача ${taskKey} не найдена в Jira` });
         }
 
-        // Формируем сообщение в зависимости от типа контента
-        let message = `**${JiraStatusType.INREVIEW.toUpperCase()}** [${task.key}](https://jira.parcsis.org/browse/${task.key}) ${task.summary}`;
+        // Получаем merge request URL
+        const mergeRequestLink = contentType === 'pr'
+            ? (mergeRequest || reviewTaskService.getMergeRequestUrl(task, null))
+            : null;
 
-        if (contentType === 'pr') {
-            // Если выбран Pull Request
-            const mergeRequestLink = mergeRequest || (task.pullRequests && task.pullRequests.length === 1 ? task.pullRequests[0].url : null);
-            if (mergeRequestLink) {
-                message += `\n[${mergeRequestLink}](${mergeRequestLink})`;
-            }
-        } else if (contentType === 'message' && messageText) {
-            // Если выбрано сообщение
-            message += `\n${messageText}`;
-        }
+        // Формируем сообщение
+        let message = await reviewTaskService.prepareReviewMessage(
+            task,
+            mergeRequestLink,
+            user_name,
+            reviewer,
+            messageText,
+            contentType
+        );
 
-        message += `\nАвтор: ${user_name}`;
-
-        // Обрабатываем ревьювера
-        let reviewerResolved = reviewer || null;
-        if (!reviewerResolved && Array.isArray(task.reviewers) && task.reviewers.length > 0) {
-            const GENERIC_REVIEWER_EMAIL = 'caseone@pravo.tech';
-            const REVIEWER_NAME_TO_MENTION = {
-                'caseone-back': '@c1-back',
-                'caseone-tester': '@c1-qa',
-                'caseone-frontend': '@c1-front',
-                'caseone-analyst': '@c1-analyst',
-            };
-
-            const mentions = [];
-            for (const r of task.reviewers) {
-                try {
-                    const emailLc = (r?.email || '').trim().toLowerCase();
-                    const nameLc = (r?.name || '').trim().toLowerCase();
-
-                    let mention = null;
-                    if (emailLc === GENERIC_REVIEWER_EMAIL) {
-                        mention = REVIEWER_NAME_TO_MENTION[nameLc] || null;
-                    } else {
-                        const user = await getUserByEmail(emailLc);
-                        mention = user ? `@${user.username}` : null;
-                    }
-                    if (mention) mentions.push(mention);
-                } catch (err) {
-                    logger.warn(`Не удалось получить пользователя по email ${r?.email}: ${err?.message || err}`);
-                }
-            }
-            if (mentions.length > 0) {
-                reviewerResolved = mentions.join(', ');
-            }
-        }
-
+        // Получаем ревьювера для предпросмотра
+        const reviewerResolved = await reviewTaskService.getReviewer(reviewer, task);
         if (reviewerResolved) {
-            message += `\nРевьювер: ${reviewerResolved}`;
+            if (!message.includes('Ревьювер')) {
+                message += `\nРевьювер: ${reviewerResolved}`;
+            }
         } else {
             message += `\nРевьювер: (будет назначен автоматически)`;
         }

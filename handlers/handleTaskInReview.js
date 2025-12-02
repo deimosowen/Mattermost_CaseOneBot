@@ -2,12 +2,12 @@ const { postMessageInTreed } = require('../mattermost/utils');
 const JiraService = require('../services/jiraService');
 const JiraStatusType = require('../types/jiraStatusTypes');
 const { isInReviewStatus, isInProgressStatus, extractTaskNumber } = require('../services/jiraService/jiraHelper');
+const { isReviewChannel } = require('../db/models/reviewChannels');
 const logger = require('../logger');
-const { INREVIEW_CHANNEL_IDS } = require('../config');
 
 module.exports = async (post, eventData) => {
     try {
-        if (!checkChannel(post.channel_id)) {
+        if (!(await checkChannel(post.channel_id))) {
             return;
         }
 
@@ -35,6 +35,6 @@ function prepareMessage(eventData, taskKey, currentStatus) {
     return `${eventData.sender_name}, статус задачи **${taskKey}** не соответствует **${JiraStatusType.INREVIEW}**.\nТекущий статус: **${currentStatus}**.`;
 }
 
-function checkChannel(channel_id) {
-    return INREVIEW_CHANNEL_IDS.includes(channel_id);
+async function checkChannel(channel_id) {
+    return await isReviewChannel(channel_id);
 }

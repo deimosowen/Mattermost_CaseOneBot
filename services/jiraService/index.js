@@ -1,4 +1,4 @@
-const { getTask, changeStatus, addComment, setReviewers } = require('../../jira');
+const { getTask, changeStatus, addComment, setReviewers, searchTasks } = require('../../jira');
 const { JIRA_BOT_USERNAME, JIRA_BOT_PASSWORD } = require('../../config');
 
 class JiraService {
@@ -20,6 +20,10 @@ class JiraService {
 
     async setReviewers(taskKey, reviewers) {
         return await setReviewers(taskKey, reviewers, this.authHeader);
+    }
+
+    async searchTasksByJql(jql, maxResults = 50) {
+        return await searchTasks(jql, maxResults, this.authHeader);
     }
 }
 

@@ -9,6 +9,7 @@ const {
 const cache = require('../cacheService');
 const config = require('../../config');
 const logger = require('../../logger');
+const { parseGitlabMrUrl } = require('./gitlabHelper');
 
 const STATUSES = {
     NEW: "new",
@@ -280,45 +281,45 @@ class GitlabService {
                 logger.error(`Попытка обновить файл ${filePath} с пустым содержимым`);
                 return false;
             }
-            
+
             if (!commitMessage || commitMessage.trim().length === 0) {
                 logger.error(`Попытка обновить файл ${filePath} с пустым сообщением коммита`);
                 return false;
             }
-            
+
             const contentBase64 = Buffer.from(content, 'utf-8').toString('base64');
-            
+
             // Используем прямой HTTP запрос, так как @gitbeaker/rest может неправильно обрабатывать параметры
             const encodedFilePath = encodeURIComponent(filePath);
             const url = `${config.GITLAB_BASE_URL}/api/v4/projects/${projectId}/repository/files/${encodedFilePath}`;
-            
+
             const requestData = {
                 branch: branch,
                 content: contentBase64,
                 commit_message: commitMessage,
                 encoding: 'base64'  // Указываем, что content в base64
             };
-            
+
             // Добавляем last_commit_id, если он доступен
             if (lastCommitId) {
                 requestData.last_commit_id = lastCommitId;
             }
-            
+
             logger.info(`Обновление файла ${filePath}: branch="${branch}", content length=${contentBase64.length}, commit_message="${commitMessage}", last_commit_id=${lastCommitId || 'не указан'}`);
-            
+
             const response = await axios.put(url, requestData, {
                 headers: {
                     'PRIVATE-TOKEN': config.GITLAB_API_TOKEN,
                     'Content-Type': 'application/json'
                 }
             });
-            
+
             if (!response.data) {
                 throw new Error('Пустой ответ от GitLab API');
             }
             return true;
         } catch (error) {
-            const errorMessage = error.response 
+            const errorMessage = error.response
                 ? `Status: ${error.response.status}, Message: ${error.response.data?.message || error.message}, Data: ${JSON.stringify(error.response.data)}`
                 : error.message;
             logger.error(`Ошибка при обновлении файла ${filePath}: ${errorMessage}`);
@@ -355,23 +356,23 @@ class GitlabService {
                 try {
                     // Получаем текущее содержимое файла для сравнения
                     const currentContent = await this.getFileContent(projectId, file.filePath, branch);
-                    
+
                     logger.info(`Сравнение файла ${file.filePath}: текущая длина=${currentContent?.length || 0}, новая длина=${file.content.length}`);
-                    
+
                     // Проверяем, изменилась ли версия FrontendVersion
                     const versionPattern = /<FrontendVersion>([\s\S]*?)<\/FrontendVersion>/g;
                     const currentVersionMatch = [...(currentContent || '').matchAll(versionPattern)];
                     const newVersionMatch = [...file.content.matchAll(versionPattern)];
-                    
+
                     const currentVersion = currentVersionMatch.length > 0 ? currentVersionMatch[0][1].trim() : null;
                     const newVersion = newVersionMatch.length > 0 ? newVersionMatch[0][1].trim() : null;
-                    
+
                     logger.info(`Файл ${file.filePath}: Текущая версия FrontendVersion: "${currentVersion}", новая версия: "${newVersion}"`);
-                    
+
                     // Нормализуем оба содержимых для сравнения (убираем комментарии для точного сравнения)
                     const normalizedCurrent = (currentContent || '').replace(/[\r\n\s]+$/, '').replace(/<!--[\s\S]*?-->/g, '').trim();
                     const normalizedNew = file.content.replace(/[\r\n\s]+$/, '').replace(/<!--[\s\S]*?-->/g, '').trim();
-                    
+
                     if (normalizedCurrent === normalizedNew) {
                         if (currentVersion === newVersion) {
                             logger.warn(`Файл ${file.filePath} не изменился, версия FrontendVersion уже правильная: "${currentVersion}"`);
@@ -384,16 +385,16 @@ class GitlabService {
                     } else {
                         logger.info(`Файл ${file.filePath}: Содержимое изменилось, версия FrontendVersion: "${currentVersion}" -> "${newVersion}"`);
                     }
-                    
+
                     const contentBase64 = Buffer.from(file.content, 'utf-8').toString('base64');
-                    
+
                     const action = {
                         action: 'update',
                         file_path: file.filePath,
                         content: contentBase64,
                         encoding: 'base64'
                     };
-                    
+
                     actions.push(action);
                     logger.info(`Подготовлен action для файла ${file.filePath}, размер content: ${contentBase64.length} байт (${file.content.length} символов)`);
                 } catch (error) {
@@ -416,7 +417,7 @@ class GitlabService {
 
             // Используем GitLab Commits API для создания коммита с несколькими файлами
             const url = `${config.GITLAB_BASE_URL}/api/v4/projects/${projectId}/repository/commits`;
-            
+
             const requestData = {
                 branch: branch,
                 commit_message: commitMessage,
@@ -437,19 +438,19 @@ class GitlabService {
             if (!response.data) {
                 throw new Error('Пустой ответ от GitLab API');
             }
-            
+
             logger.info(`Коммит успешно создан: ${response.data.id || 'ID не указан'}`);
             logger.info(`Статистика коммита: ${JSON.stringify(response.data.stats || {}, null, 2)}`);
             logger.info(`Изменения в коммите: ${JSON.stringify(response.data.changes || [], null, 2)}`);
-            
+
             // Проверяем, что коммит содержит изменения
             if (response.data.stats && response.data.stats.total === 0) {
                 logger.warn('Коммит создан, но не содержит изменений (stats.total = 0)');
             }
-            
+
             return true;
         } catch (error) {
-            const errorMessage = error.response 
+            const errorMessage = error.response
                 ? `Status: ${error.response.status}, Message: ${error.response.data?.message || error.message}, Data: ${JSON.stringify(error.response.data)}`
                 : error.message;
             logger.error(`Ошибка при обновлении файлов: ${errorMessage}`);
@@ -512,6 +513,129 @@ class GitlabService {
         } catch (error) {
             logger.error(`Ошибка при получении содержимого файла с конфликтами ${filePath}: ${error.message}`);
             return null;
+        }
+    }
+
+    /**
+     * Получение лейблов Merge Request с цветами
+     * @param {string} mrUrl - URL Merge Request
+     * @returns {Promise<Array<{name: string, color: string}>|null>} - Массив объектов с лейблами и цветами или null при ошибке
+     */
+    async getMergeRequestLabels(mrUrl) {
+        try {
+            const parsed = parseGitlabMrUrl(mrUrl);
+
+            if (!parsed) {
+                logger.warn(`Не удалось распарсить URL MR: ${mrUrl}`);
+                return null;
+            }
+
+            const project = await this.getProjectByName(parsed.project);
+            if (!project) {
+                logger.warn(`Проект не найден: ${parsed.project}`);
+                return null;
+            }
+
+            // Получаем MR
+            let mr;
+            try {
+                mr = await this.client.MergeRequests.show(project.project_id, parsed.mrIid);
+            } catch (error) {
+                logger.error(`Ошибка при получении MR ${parsed.mrIid}: ${error.message}`);
+                if (error.stack) {
+                    logger.error(`Stack trace: ${error.stack}`);
+                }
+                return null;
+            }
+
+            if (!mr) {
+                logger.warn(`MR не найден: ${parsed.mrIid}`);
+                return null;
+            }
+
+            const mrLabelNames = mr.labels || [];
+
+            if (mrLabelNames.length === 0) {
+                return [];
+            }
+
+            // Получаем все лейблы проекта через ProjectLabels API
+            let projectLabels = [];
+            try {
+                const labelsResult = await this.client.ProjectLabels.all(project.project_id);
+                projectLabels = Array.isArray(labelsResult) ? labelsResult : [];
+            } catch (error) {
+                logger.warn(`Не удалось получить лейблы проекта ${project.project_id}: ${error.message}`);
+                if (error.stack) {
+                    logger.warn(`Stack trace: ${error.stack}`);
+                }
+                // Продолжаем работу с дефолтными цветами
+                projectLabels = [];
+            }
+
+            // Создаем мапу лейблов проекта для быстрого поиска по имени
+            const labelsMap = new Map();
+            projectLabels.forEach(label => {
+                labelsMap.set(label.name, {
+                    name: label.name,
+                    color: label.color || '#428BCA' // Дефолтный цвет, если не указан
+                });
+            });
+
+            // Формируем результат с цветами
+            const labelsWithColors = mrLabelNames.map(labelName => {
+                const labelInfo = labelsMap.get(labelName);
+                if (labelInfo) {
+                    return labelInfo;
+                }
+                // Если лейбл не найден в проекте, возвращаем с дефолтным цветом
+                return {
+                    name: labelName,
+                    color: '#428BCA'
+                };
+            });
+
+            return labelsWithColors;
+        } catch (error) {
+            logger.error(`Ошибка при получении лейблов MR ${mrUrl}: ${error.message}`);
+            if (error.stack) {
+                logger.error(`Stack trace: ${error.stack}`);
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Обновление лейблов Merge Request
+     * @param {string} mrUrl - URL Merge Request
+     * @param {Array<string>} labels - Массив названий лейблов для установки
+     * @returns {Promise<boolean>} - Успешно ли обновлены лейблы
+     */
+    async updateMergeRequestLabels(mrUrl, labels) {
+        try {
+            const parsed = parseGitlabMrUrl(mrUrl);
+
+            if (!parsed) {
+                logger.warn(`Не удалось распарсить URL MR: ${mrUrl}`);
+                return false;
+            }
+
+            const project = await this.getProjectByName(parsed.project);
+            if (!project) {
+                logger.warn(`Проект не найден: ${parsed.project}`);
+                return false;
+            }
+
+            // Обновляем лейблы через edit метод
+            await this.client.MergeRequests.edit(project.project_id, parsed.mrIid, {
+                labels: labels || []
+            });
+
+            logger.info(`Лейблы MR ${mrUrl} успешно обновлены: ${labels?.join(', ') || 'нет лейблов'}`);
+            return true;
+        } catch (error) {
+            logger.error(`Ошибка при обновлении лейблов MR ${mrUrl}: ${error.message}`);
+            return false;
         }
     }
 }

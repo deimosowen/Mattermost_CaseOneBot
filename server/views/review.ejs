@@ -30,13 +30,12 @@
                                     <form id="reviewForm">
                                         <div class="mb-3">
                                             <label for="taskKey" class="form-label">
-                                                <strong>Ключ задачи (Jira)</strong> <span class="text-danger">*</span>
+                                                <strong>Задача (Jira)</strong> <span class="text-danger">*</span>
                                             </label>
-                                            <input type="text" class="form-control" id="taskKey" name="taskKey"
-                                                placeholder="CASEM-123" required pattern="^(CASEM|REN)-\d+$"
-                                                title="Формат: CASEM-123 или REN-123">
-                                            <div class="form-text">Укажите ключ задачи из Jira (например: CASEM-123,
-                                                REN-456)</div>
+                                            <select class="form-select" id="taskKey" name="taskKey" required>
+                                                <option value="">Загрузка задач...</option>
+                                            </select>
+                                            <div class="form-text">Выберите задачу из списка или начните вводить для поиска. Показываются ваши задачи в статусе "In Progress"</div>
                                         </div>
 
                                         <div class="mb-3">
@@ -203,6 +202,163 @@
 
         <script>
             let reviewersSelect = null;
+            let tasksSelect = null;
+
+            // Функция загрузки задач пользователя
+            async function loadUserTasks(searchTerm = '') {
+                const taskSelect = document.getElementById('taskKey');
+
+                // Уничтожаем предыдущий экземпляр Tom Select, если он существует
+                if (tasksSelect) {
+                    tasksSelect.destroy();
+                    tasksSelect = null;
+                }
+
+                try {
+                    const url = searchTerm 
+                        ? `/review/api/user-tasks?search=${encodeURIComponent(searchTerm)}`
+                        : '/review/api/user-tasks';
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+
+                    if (data.error) {
+                        taskSelect.innerHTML = `<option value="">Ошибка: ${data.error}</option>`;
+                        taskSelect.disabled = true;
+                        return;
+                    }
+
+                    if (data.tasks && data.tasks.length > 0) {
+                        // Инициализируем Tom Select
+                        tasksSelect = new TomSelect('#taskKey', {
+                            maxItems: 1,
+                            valueField: 'value',
+                            labelField: 'text',
+                            searchField: ['key', 'summary', 'text'],
+                            create: function(input) {
+                                // Позволяем создавать новую опцию, если пользователь ввел ключ задачи вручную
+                                const value = input.trim().toUpperCase();
+                                if (/^(CASEM|REN)-\d+$/.test(value)) {
+                                    return {
+                                        value: value,
+                                        text: value,
+                                        key: value,
+                                        summary: ''
+                                    };
+                                }
+                                return null;
+                            },
+                            createOnBlur: true,
+                            options: data.tasks,
+                            placeholder: 'Выберите задачу или начните вводить для поиска...',
+                            render: {
+                                option: (item, escape) => {
+                                    if (item.summary) {
+                                        return `
+                                            <div>
+                                                <strong>${escape(item.key)}</strong>
+                                                <div class="text-muted small">${escape(item.summary)}</div>
+                                            </div>
+                                        `;
+                                    }
+                                    return `<div>${escape(item.text)}</div>`;
+                                },
+                                item: (item, escape) => {
+                                    return `<div>${escape(item.key || item.value)}</div>`;
+                                },
+                                no_results: () => {
+                                    return '<div class="no-results">Задачи не найдены. Попробуйте ввести ключ задачи вручную (например: CASEM-123)</div>';
+                                }
+                            },
+                            load: function(query, callback) {
+                                // Загружаем задачи при поиске
+                                if (!query.length) {
+                                    callback();
+                                    return;
+                                }
+                                
+                                fetch(`/review/api/user-tasks?search=${encodeURIComponent(query)}`)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.error) {
+                                            callback();
+                                            return;
+                                        }
+                                        callback(data.tasks || []);
+                                    })
+                                    .catch(() => {
+                                        callback();
+                                    });
+                            },
+                            onChange: function(value) {
+                                // При выборе задачи загружаем её детали и заполняем Merge Request
+                                if (!value) return;
+                                
+                                const taskKey = value;
+                                loadTaskDetails(taskKey);
+                            }
+                        });
+                    } else {
+                        // Если нет задач, все равно инициализируем Tom Select с возможностью ввода вручную
+                        tasksSelect = new TomSelect('#taskKey', {
+                            maxItems: 1,
+                            valueField: 'value',
+                            labelField: 'text',
+                            create: function(input) {
+                                const value = input.trim().toUpperCase();
+                                if (/^(CASEM|REN)-\d+$/.test(value)) {
+                                    return {
+                                        value: value,
+                                        text: value,
+                                        key: value,
+                                        summary: ''
+                                    };
+                                }
+                                return null;
+                            },
+                            createOnBlur: true,
+                            placeholder: 'Введите ключ задачи (например: CASEM-123)',
+                            options: [],
+                            onChange: function(value) {
+                                // При выборе задачи загружаем её детали и заполняем Merge Request
+                                if (!value) return;
+                                
+                                const taskKey = value;
+                                loadTaskDetails(taskKey);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    taskSelect.innerHTML = `<option value="">Ошибка загрузки: ${error.message}</option>`;
+                    taskSelect.disabled = true;
+                }
+            }
+
+            // Функция загрузки деталей задачи и автоматического заполнения Merge Request
+            async function loadTaskDetails(taskKey) {
+                if (!taskKey) return;
+
+                try {
+                    const response = await fetch(`/review/api/task-details?taskKey=${encodeURIComponent(taskKey)}`);
+                    const data = await response.json();
+
+                    if (data.error) {
+                        console.warn('Could not load task details:', data.error);
+                        return;
+                    }
+
+                    // Заполняем поле Merge Request, если оно есть и если выбран тип "Pull Request"
+                    const contentTypePR = document.getElementById('contentTypePR');
+                    if (contentTypePR && contentTypePR.checked && data.mergeRequestUrl) {
+                        const mergeRequestInput = document.getElementById('mergeRequest');
+                        if (mergeRequestInput && !mergeRequestInput.value.trim()) {
+                            mergeRequestInput.value = data.mergeRequestUrl;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Error loading task details:', error);
+                }
+            }
 
             // Функция загрузки пользователей канала
             async function loadChannelUsers(channelId) {
@@ -289,8 +445,12 @@
                 await loadChannelUsers(this.value);
             });
 
-            // Автоматическая загрузка, если канал уже выбран (например, если только один доступен)
+            // Автоматическая загрузка при загрузке страницы
             document.addEventListener('DOMContentLoaded', () => {
+                // Загружаем задачи пользователя
+                loadUserTasks();
+
+                // Загружаем пользователей канала, если канал уже выбран
                 const channelSelect = document.getElementById('channelId');
                 const selectedChannelId = channelSelect.value;
                 if (selectedChannelId) {
@@ -330,8 +490,24 @@
                 const mergeRequest = contentType === 'pr' ? document.getElementById('mergeRequest').value.trim() : null;
                 const messageText = contentType === 'message' ? document.getElementById('messageText').value.trim() : null;
 
+                // Получаем выбранную задачу
+                let taskKey = null;
+                if (tasksSelect && tasksSelect.items && tasksSelect.items.length > 0) {
+                    taskKey = tasksSelect.items[0];
+                } else {
+                    const taskSelectElement = document.getElementById('taskKey');
+                    taskKey = taskSelectElement.value ? taskSelectElement.value.trim() : null;
+                }
+
+                if (!taskKey) {
+                    alert('Пожалуйста, выберите задачу');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    return;
+                }
+
                 const formData = {
-                    taskKey: document.getElementById('taskKey').value.trim(),
+                    taskKey: taskKey,
                     channelId: document.getElementById('channelId').value,
                     contentType: contentType,
                     mergeRequest: mergeRequest,
@@ -359,7 +535,16 @@
                         resultContainer.style.display = 'block';
                         document.getElementById('reviewForm').reset();
 
-                        // Сбрасываем Tom Select
+                        // Сбрасываем Tom Select для задач
+                        if (tasksSelect) {
+                            tasksSelect.clear();
+                            tasksSelect.destroy();
+                            tasksSelect = null;
+                        }
+                        // Перезагружаем задачи
+                        loadUserTasks();
+
+                        // Сбрасываем Tom Select для ревьюверов
                         if (reviewersSelect) {
                             reviewersSelect.clear();
                             reviewersSelect.destroy();
@@ -393,7 +578,14 @@
             });
 
             async function previewMessage() {
-                const taskKey = document.getElementById('taskKey').value.trim();
+                // Получаем выбранную задачу
+                let taskKey = null;
+                if (tasksSelect && tasksSelect.items && tasksSelect.items.length > 0) {
+                    taskKey = tasksSelect.items[0];
+                } else {
+                    const taskSelectElement = document.getElementById('taskKey');
+                    taskKey = taskSelectElement.value ? taskSelectElement.value.trim() : null;
+                }
                 const contentType = document.querySelector('input[name="contentType"]:checked').value;
                 const mergeRequest = contentType === 'pr' ? document.getElementById('mergeRequest').value.trim() : null;
                 const messageText = contentType === 'message' ? document.getElementById('messageText').value.trim() : null;

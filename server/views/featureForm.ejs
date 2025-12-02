@@ -56,6 +56,7 @@
                             <input type="text" class="form-control" id="backPullRequestUrl"
                                 name="backPullRequestUrl"
                                 placeholder="https://gitlab.pravo.tech/caseone/CasePro/-/merge_requests/12345">
+                            <div id="backPullRequestUrl-labels" class="mt-2"></div>
                         </div>
 
                         <div class="mb-3">
@@ -65,6 +66,7 @@
                             <input type="text" class="form-control" id="frontPullRequestUrl"
                                 name="frontPullRequestUrl"
                                 placeholder="https://gitlab.pravo.tech/caseone/CasePro.Frontend/-/merge_requests/12345">
+                            <div id="frontPullRequestUrl-labels" class="mt-2"></div>
                         </div>
 
                         <div class="mb-3">
@@ -74,6 +76,7 @@
                             <input type="text" class="form-control" id="aqaPullRequestUrl"
                                 name="aqaPullRequestUrl"
                                 placeholder="https://gitlab.pravo.tech/qa/CasePro.Autotest/-/merge_requests/12345">
+                            <div id="aqaPullRequestUrl-labels" class="mt-2"></div>
                         </div>
 
                         <div class="mb-3">
@@ -280,7 +283,100 @@
                     'frontPullRequestUrl',
                     'aqaPullRequestUrl'
                 ]);
+
+                // Загрузка лейблов при изменении URL
+                ['backPullRequestUrl', 'frontPullRequestUrl', 'aqaPullRequestUrl'].forEach(fieldId => {
+                    const input = document.getElementById(fieldId);
+                    const labelsContainer = document.getElementById(`${fieldId}-labels`);
+                    
+                    if (input && labelsContainer) {
+                        let debounceTimer;
+                        
+                        const loadLabels = async (url) => {
+                            if (!url || !isValidUrl(url) || !url.includes('/merge_requests/')) {
+                                labelsContainer.innerHTML = '';
+                                return;
+                            }
+
+                            labelsContainer.innerHTML = '<small class="text-muted"><i class="bi bi-hourglass-split me-1"></i>Загрузка лейблов...</small>';
+
+                            try {
+                                const response = await fetch(`/feature/api/mr-labels?url=${encodeURIComponent(url)}`);
+                                
+                                if (!response.ok) {
+                                    labelsContainer.innerHTML = '';
+                                    return;
+                                }
+
+                                const data = await response.json();
+                                
+                                if (!data.labels || data.labels.length === 0) {
+                                    labelsContainer.innerHTML = '';
+                                    return;
+                                }
+
+                                // Отображаем лейблы с цветами из GitLab
+                                const labelsHtml = data.labels.map(label => {
+                                    const labelName = typeof label === 'string' ? label : label.name;
+                                    const labelColor = typeof label === 'object' && label.color ? label.color : '#6c757d';
+                                    
+                                    // Вычисляем, нужен ли темный текст (для светлых цветов)
+                                    const rgb = hexToRgb(labelColor);
+                                    const brightness = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 : 128;
+                                    const textColor = brightness > 128 ? '#000000' : '#ffffff';
+                                    
+                                    return `<span class="badge me-1 mb-1" style="background-color: ${labelColor}; color: ${textColor}; border: none;">${escapeHtml(labelName)}</span>`;
+                                }).join('');
+
+                                labelsContainer.innerHTML = `
+                                    <div class="d-flex flex-wrap align-items-center">
+                                        <small class="text-muted me-2">
+                                            <i class="bi bi-tags me-1"></i>Лейблы:
+                                        </small>
+                                        ${labelsHtml}
+                                    </div>
+                                `;
+                            } catch (error) {
+                                console.error('Ошибка загрузки лейблов:', error);
+                                labelsContainer.innerHTML = '';
+                            }
+                        };
+
+                        input.addEventListener('input', () => {
+                            clearTimeout(debounceTimer);
+                            debounceTimer = setTimeout(() => {
+                                loadLabels(input.value);
+                            }, 500);
+                        });
+
+                        // Загружаем лейблы при загрузке страницы, если URL уже заполнен
+                        if (input.value) {
+                            loadLabels(input.value);
+                        }
+                    }
+                });
             });
+
+            /**
+             * Экранирование HTML для безопасности
+             */
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            /**
+             * Конвертация HEX цвета в RGB
+             */
+            function hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            }
         </script>
 
         <style>
