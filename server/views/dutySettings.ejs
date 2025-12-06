@@ -2,6 +2,14 @@
     <% block('title', 'Настройки дежурств' ); -%>
 
         <div class="container my-5">
+            <!-- Скрытые поля для передачи данных в JavaScript -->
+            <input type="hidden" id="dataChannelId" value="<%= channel_id %>">
+            <input type="hidden" id="dataSchedule" value="<%= scheduleJson %>">
+            <input type="hidden" id="dataCurrentDutyIndex" value="<%= currentDutyIndex !== undefined ? currentDutyIndex : -1 %>">
+            <input type="hidden" id="dataEmployeesCount" value="<%= employees ? employees.length : 0 %>">
+            <input type="hidden" id="dataIsCurrentDutyUnscheduled" value="<%= isCurrentDutyUnscheduled !== undefined ? isCurrentDutyUnscheduled : false %>">
+            <input type="hidden" id="dataTagSettings" value="<%= tagSettingsJson %>">
+            
             <div class="row">
                 <div class="col-12 col-lg-10 mx-auto">
                     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -56,7 +64,9 @@
                                             <% employees.forEach((employee, index)=> { %>
                                                 <tr data-id="<%= employee.id %>" data-index="<%= index %>">
                                                     <td class="align-middle">
-                                                        <span class="badge bg-secondary"><%= index + 1 %></span>
+                                                        <span class="badge bg-secondary">
+                                                            <%= index + 1 %>
+                                                        </span>
                                                     </td>
                                                     <td class="align-middle">
                                                         <%= employee.name %>
@@ -188,61 +198,82 @@
                         </div>
                         <div class="card-body">
                             <div id="tagSettingsList">
-                                <% if (tagSettings && tagSettings.length > 0) { %>
+                                <% if (tagSettings && tagSettings.length> 0) { %>
                                     <div class="table-responsive">
                                         <table class="table">
                                             <thead>
                                                 <tr>
                                                     <th>Тег</th>
                                                     <th>Префикс канала</th>
+                                                    <th>Исключения</th>
                                                     <th>Статус</th>
                                                     <th class="text-end">Действия</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <% tagSettings.forEach((setting) => { %>
+                                                <% tagSettings.forEach((setting)=> { %>
                                                     <tr data-setting-id="<%= setting.id %>">
                                                         <td>
                                                             <code><%= setting.tag %></code>
                                                         </td>
                                                         <td>
                                                             <% if (setting.channel_prefix) { %>
-                                                                <span class="badge bg-info"><%= setting.channel_prefix %></span>
-                                                            <% } else { %>
-                                                                <span class="text-muted">Все каналы</span>
-                                                            <% } %>
+                                                                <span class="badge bg-info">
+                                                                    <%= setting.channel_prefix %>
+                                                                </span>
+                                                                <% } else { %>
+                                                                    <span class="text-muted">Все каналы</span>
+                                                                    <% } %>
+                                                        </td>
+                                                        <td>
+                                                            <% if (setting.excluded_user_ids &&
+                                                                setting.excluded_user_ids.length> 0) { %>
+                                                                <span class="badge bg-warning text-dark">
+                                                                    <%= setting.excluded_user_ids.length %>
+                                                                        пользователей
+                                                                </span>
+                                                                <% } else { %>
+                                                                    <span class="text-muted">Нет</span>
+                                                                    <% } %>
                                                         </td>
                                                         <td>
                                                             <% if (setting.is_enabled) { %>
                                                                 <span class="badge bg-success">Включено</span>
-                                                            <% } else { %>
-                                                                <span class="badge bg-secondary">Выключено</span>
-                                                            <% } %>
+                                                                <% } else { %>
+                                                                    <span class="badge bg-secondary">Выключено</span>
+                                                                    <% } %>
                                                         </td>
                                                         <td class="text-end">
-                                                            <button type="button" class="btn btn-sm btn-outline-primary me-2" 
-                                                                onclick="editTagSetting(<%= setting.id %>, '<%= setting.tag %>', <%= setting.is_enabled ? 'true' : 'false' %>, '<%= setting.channel_prefix || '' %>')">
+                                                            <button type="button"
+                                                                class="btn btn-sm btn-outline-primary me-2 edit-tag-setting-btn"
+                                                                data-setting-id="<%= setting.id %>"
+                                                                data-tag="<%= setting.tag %>"
+                                                                data-enabled="<%= setting.is_enabled ? 'true' : 'false' %>"
+                                                                data-channel-prefix="<%= setting.channel_prefix || '' %>"
+                                                                data-excluded-user-ids="<%= JSON.stringify(setting.excluded_user_ids || []) %>"
+                                                                data-message-template="<%= JSON.stringify(setting.message_template || '{duty_mention}') %>">
                                                                 <i class="bi bi-pencil"></i>
                                                             </button>
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                            <button type="button" class="btn btn-sm btn-outline-danger"
                                                                 onclick="deleteTagSetting(<%= setting.id %>)">
                                                                 <i class="bi bi-trash"></i>
                                                             </button>
                                                         </td>
                                                     </tr>
-                                                <% }); %>
+                                                    <% }); %>
                                             </tbody>
                                         </table>
                                     </div>
-                                <% } else { %>
-                                    <div class="text-center py-4">
-                                        <i class="bi bi-tag text-muted" style="font-size: 3rem;"></i>
-                                        <p class="text-muted mt-3">Настройки тэгания не добавлены</p>
-                                        <p class="text-muted small">
-                                            При упоминании указанного тега в треде будет автоматически тэгаться текущий дежурный
-                                        </p>
-                                    </div>
-                                <% } %>
+                                    <% } else { %>
+                                        <div class="text-center py-4">
+                                            <i class="bi bi-tag text-muted" style="font-size: 3rem;"></i>
+                                            <p class="text-muted mt-3">Настройки тэгания не добавлены</p>
+                                            <p class="text-muted small">
+                                                При упоминании указанного тега в треде будет автоматически тэгаться
+                                                текущий дежурный
+                                            </p>
+                                        </div>
+                                        <% } %>
                             </div>
                         </div>
                     </div>
@@ -289,7 +320,8 @@
         </div>
 
         <!-- Modal для добавления/редактирования настройки тэгания -->
-        <div class="modal fade" id="addTagSettingModal" tabindex="-1" aria-labelledby="addTagSettingModalLabel" aria-hidden="true">
+        <div class="modal fade" id="addTagSettingModal" tabindex="-1" aria-labelledby="addTagSettingModalLabel"
+            aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -311,7 +343,8 @@
                                         placeholder="c1-back" required>
                                 </div>
                                 <div class="form-text">
-                                    <i class="bi bi-info-circle me-1"></i>Тег, при упоминании которого в треде будет тэгаться дежурный (без @)
+                                    <i class="bi bi-info-circle me-1"></i>Тег, при упоминании которого в треде будет
+                                    тэгаться дежурный (без @)
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -321,12 +354,38 @@
                                 <input type="text" class="form-control" id="channelPrefixInput" name="channel_prefix"
                                     placeholder="c1-">
                                 <div class="form-text">
-                                    <i class="bi bi-info-circle me-1"></i>Если указан, тэгание будет работать только в каналах, начинающихся с этого префикса. Оставьте пустым для всех каналов.
+                                    <i class="bi bi-info-circle me-1"></i>Если указан, тэгание будет работать только в
+                                    каналах, начинающихся с этого префикса. Оставьте пустым для всех каналов.
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="excludedUsersInput" class="form-label">
+                                    <i class="bi bi-person-x me-1"></i>Исключения (пользователи, которые не будут
+                                    тэгаться)
+                                </label>
+                                <input type="text" class="form-control" id="excludedUsersInput" name="excluded_user_ids"
+                                    placeholder="Загрузка пользователей...">
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Выберите пользователей, которые не будут
+                                    тэгаться при упоминании тега.
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="messageTemplateInput" class="form-label">
+                                    <i class="bi bi-chat-text me-1"></i>Шаблон сообщения
+                                </label>
+                                <textarea class="form-control" id="messageTemplateInput" name="message_template"
+                                    rows="3" placeholder="{duty_mention}"></textarea>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Шаблон сообщения для тэгания дежурного.</br>
+                                    Используйте <code>{duty_mention}</code> для вставки упоминания дежурного.</br>По
+                                    умолчанию: <code>{duty_mention}</code>
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="isEnabledInput" name="is_enabled" checked>
+                                    <input class="form-check-input" type="checkbox" id="isEnabledInput"
+                                        name="is_enabled" checked>
                                     <label class="form-check-label" for="isEnabledInput">
                                         Включено
                                     </label>
@@ -377,18 +436,54 @@
             </div>
         </div>
 
+        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/css/tom-select.bootstrap5.min.css"
+            rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/js/tom-select.complete.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script>
-            const channelId = "<%= channel_id %>";
-            const schedule = <%- JSON.stringify(schedule || null) %>;
-            const currentDutyIndex = <%= currentDutyIndex !== undefined ? currentDutyIndex : -1 %>;
-            const employeesCount = <%= employees ? employees.length : 0 %>;
-            const isCurrentDutyUnscheduled = <%= isCurrentDutyUnscheduled !== undefined ? isCurrentDutyUnscheduled : false %>;
-            const tagSettings = <%- JSON.stringify(tagSettings || []) %>;
+            // Глобальные переменные для данных
+            let channelId, schedule, currentDutyIndex, employeesCount, isCurrentDutyUnscheduled, tagSettings;
 
             document.addEventListener('DOMContentLoaded', function () {
+                // Получаем данные из скрытых полей после загрузки DOM
+                channelId = document.getElementById('dataChannelId')?.value || '';
+                const scheduleValue = document.getElementById('dataSchedule')?.value || 'null';
+                schedule = scheduleValue === 'null' ? null : JSON.parse(scheduleValue);
+                currentDutyIndex = parseInt(document.getElementById('dataCurrentDutyIndex')?.value || '-1') || -1;
+                employeesCount = parseInt(document.getElementById('dataEmployeesCount')?.value || '0') || 0;
+                isCurrentDutyUnscheduled = document.getElementById('dataIsCurrentDutyUnscheduled')?.value === 'true';
+                tagSettings = JSON.parse(document.getElementById('dataTagSettings')?.value || '[]');
+
                 fetchCronDescription();
                 calculateNextDutyDates();
+
+                // Обработчик для кнопок редактирования настроек тэгания
+                document.querySelectorAll('.edit-tag-setting-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = this.getAttribute('data-setting-id');
+                        const tag = this.getAttribute('data-tag');
+                        const isEnabled = this.getAttribute('data-enabled') === 'true';
+                        const channelPrefix = this.getAttribute('data-channel-prefix') || '';
+                        const excludedUserIdsJson = this.getAttribute('data-excluded-user-ids') || '[]';
+                        const messageTemplateJson = this.getAttribute('data-message-template') || '"{duty_mention}"';
+                        
+                        let excludedUserIds = [];
+                        try {
+                            excludedUserIds = JSON.parse(excludedUserIdsJson);
+                        } catch (e) {
+                            console.error('Error parsing excludedUserIds:', e);
+                        }
+                        
+                        let messageTemplate = '{duty_mention}';
+                        try {
+                            messageTemplate = JSON.parse(messageTemplateJson);
+                        } catch (e) {
+                            console.error('Error parsing messageTemplate:', e);
+                        }
+                        
+                        editTagSetting(id, tag, isEnabled, channelPrefix, excludedUserIds, messageTemplate);
+                    });
+                });
 
                 // Блокировка всех кнопок после отправки форм
                 const forms = document.querySelectorAll('form');
@@ -564,8 +659,10 @@
             }
 
             async function calculateNextDutyDates() {
-                if (!schedule || !schedule.cron_schedule || currentDutyIndex === -1 || employeesCount === 0) {
-                    // Если нет расписания или текущего дежурного, показываем сообщение
+                // Проверяем только наличие расписания и сотрудников
+                // currentDutyIndex может быть -1, если нет текущего дежурного, но это не блокирует расчет
+                if (!schedule || !schedule.cron_schedule || employeesCount === 0) {
+                    // Если нет расписания или сотрудников, показываем сообщение
                     document.querySelectorAll('.next-duty-date').forEach(el => {
                         el.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Не настроено</span>';
                     });
@@ -577,7 +674,7 @@
 
                 const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
                 const rows = document.querySelectorAll('#sortableTableBody tr');
-                
+
                 rows.forEach((row, index) => {
                     const dateElement = row.querySelector('.next-duty-date');
                     if (!dateElement) return;
@@ -585,7 +682,7 @@
                     // Рассчитываем количество смен до дежурства этого пользователя
                     // Начинаем от текущего дежурного, а не от начала списка
                     let shiftsAhead = 0;
-                    
+
                     if (currentDutyIndex === -1) {
                         // Если нет текущего дежурного, начинаем с начала
                         shiftsAhead = index + 1;
@@ -596,7 +693,7 @@
                         // Рассчитываем количество смен от текущего дежурного
                         // Если текущий внеочередной, следующая смена будет через 2 позиции (increment = 2)
                         const increment = isCurrentDutyUnscheduled ? 2 : 1;
-                        
+
                         if (index > currentDutyIndex) {
                             // Пользователь после текущего дежурного
                             const distance = index - currentDutyIndex;
@@ -634,38 +731,191 @@
                             timezone: timezone
                         })
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.nextDate) {
-                            const date = new Date(data.nextDate);
-                            // Форматируем дату: день недели, дата (без времени)
-                            const dayNames = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
-                            const dayName = dayNames[date.getDay()];
-                            const formattedDate = date.toLocaleDateString('ru-RU', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric'
-                            });
-                            dateElement.innerHTML = `<i class="bi bi-calendar-event me-1"></i>${dayName}, ${formattedDate}`;
-                        } else if (data.error) {
-                            dateElement.innerHTML = `<span class="text-muted"><i class="bi bi-exclamation-triangle me-1"></i>${data.error}</span>`;
-                        } else {
-                            dateElement.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Не рассчитано</span>';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error calculating next duty date:', error);
-                        dateElement.innerHTML = '<span class="text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Ошибка расчета</span>';
-                    });
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.nextDate) {
+                                const date = new Date(data.nextDate);
+                                // Форматируем дату: день недели, дата (без времени)
+                                const dayNames = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+                                const dayName = dayNames[date.getDay()];
+                                const formattedDate = date.toLocaleDateString('ru-RU', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric'
+                                });
+                                dateElement.innerHTML = `<i class="bi bi-calendar-event me-1"></i>${dayName}, ${formattedDate}`;
+                            } else if (data.error) {
+                                dateElement.innerHTML = `<span class="text-muted"><i class="bi bi-exclamation-triangle me-1"></i>${data.error}</span>`;
+                            } else {
+                                dateElement.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Не рассчитано</span>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error calculating next duty date:', error);
+                            dateElement.innerHTML = '<span class="text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Ошибка расчета</span>';
+                        });
                 });
             }
 
             // Функции для работы с настройками тэгания
-            function editTagSetting(id, tag, isEnabled, channelPrefix) {
+            let excludedUsersSelect = null;
+            let pendingExcludedUserIds = null;
+
+            // Загрузка пользователей канала
+            async function loadChannelUsers() {
+                const excludedUsersInput = document.getElementById('excludedUsersInput');
+
+                // Уничтожаем предыдущий экземпляр Tom Select, если он существует
+                if (excludedUsersSelect) {
+                    excludedUsersSelect.destroy();
+                    excludedUsersSelect = null;
+                }
+
+                try {
+                    const response = await fetch(`/duty/api/channel-users?channelId=${channelId}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+
+                    if (data.error) {
+                        excludedUsersInput.placeholder = `Ошибка: ${data.error}`;
+                        excludedUsersInput.disabled = true;
+                        return;
+                    }
+
+                    if (data.users && data.users.length > 0) {
+                        // Создаем опции для Tom Select
+                        const options = data.users.map(user => ({
+                            value: user.id,
+                            text: `${user.displayName} (@${user.username})`,
+                            username: user.username,
+                            displayName: user.displayName
+                        }));
+
+                        // Включаем поле ПЕРЕД инициализацией Tom Select
+                        excludedUsersInput.disabled = false;
+                        excludedUsersInput.placeholder = 'Выберите пользователей...';
+
+                        // Сохраняем значения для установки после инициализации
+                        const idsToSet = pendingExcludedUserIds && pendingExcludedUserIds.length > 0 
+                            ? [...pendingExcludedUserIds] 
+                            : null;
+
+                        // Инициализируем Tom Select
+                        excludedUsersSelect = new TomSelect('#excludedUsersInput', {
+                            maxItems: null, // Неограниченное количество выбора
+                            valueField: 'value',
+                            labelField: 'text',
+                            searchField: ['text', 'username', 'displayName'],
+                            create: false,
+                            preload: true,
+                            options: options,
+                            placeholder: 'Выберите пользователей...',
+                            disabled: false,
+                            plugins: {
+                                remove_button: {
+                                    title: 'Удалить этот элемент'
+                                }
+                            },
+                            render: {
+                                option: (item, escape) => {
+                                    const displayName = item.displayName || item.username;
+                                    return `
+                                        <div>
+                                            <strong>${escape(displayName)}</strong>
+                                            <span class="text-muted"> — ${escape(item.username)}</span>
+                                        </div>
+                                    `;
+                                },
+                                item: (item, escape) => `<div>${escape(item.text)}</div>`
+                            }
+                        });
+
+                        // Убеждаемся, что Tom Select активирован
+                        if (excludedUsersSelect) {
+                            excludedUsersSelect.enable();
+                            
+                            // Подписываемся на событие initialize для установки значений
+                            excludedUsersSelect.on('initialize', function() {
+                                if (idsToSet && idsToSet.length > 0) {
+                                    setTimeout(() => {
+                                        try {
+                                            this.setValue(idsToSet, true);
+                                        } catch (e) {
+                                            console.error('Error setting values in initialize event:', e);
+                                        }
+                                    }, 50);
+                                }
+                            });
+                            
+                            // Устанавливаем значения сразу после создания (на случай, если событие уже произошло)
+                            if (idsToSet && idsToSet.length > 0) {
+                                // Пробуем несколько раз с разными задержками
+                                [100, 300, 500].forEach(delay => {
+                                    setTimeout(() => {
+                                        if (excludedUsersSelect && idsToSet.length > 0) {
+                                            try {
+                                                const currentItems = excludedUsersSelect.items || [];
+                                                // Проверяем, что значения еще не установлены
+                                                const allSet = idsToSet.every(id => currentItems.includes(id));
+                                                if (!allSet) {
+                                                    excludedUsersSelect.setValue(idsToSet, true);
+                                                }
+                                            } catch (e) {
+                                                console.error(`Error setting values in setTimeout(${delay}ms):`, e);
+                                            }
+                                        }
+                                    }, delay);
+                                });
+                            }
+                        }
+                        
+                        // Возвращаем промис, который резолвится после небольшой задержки для завершения инициализации
+                        return new Promise(resolve => setTimeout(resolve, 200));
+                    } else {
+                        excludedUsersInput.placeholder = 'В канале нет пользователей';
+                        excludedUsersInput.disabled = true;
+                        return Promise.resolve();
+                    }
+                } catch (error) {
+                    console.error('Error loading channel users:', error);
+                    excludedUsersInput.placeholder = `Ошибка загрузки: ${error.message}`;
+                    excludedUsersInput.disabled = true;
+                    return Promise.resolve();
+                }
+            }
+
+            async function editTagSetting(id, tag, isEnabled, channelPrefix, excludedUserIds, messageTemplate) {
                 document.getElementById('tagSettingId').value = id;
                 document.getElementById('tagInput').value = tag;
                 document.getElementById('isEnabledInput').checked = isEnabled === true || isEnabled === 'true';
                 document.getElementById('channelPrefixInput').value = channelPrefix || '';
+                document.getElementById('messageTemplateInput').value = messageTemplate || '{duty_mention}';
+
+                // Обрабатываем excludedUserIds - может быть строкой JSON или массивом
+                let savedExcludedUserIds = [];
+                if (excludedUserIds) {
+                    if (typeof excludedUserIds === 'string') {
+                        try {
+                            savedExcludedUserIds = JSON.parse(excludedUserIds);
+                        } catch (e) {
+                            console.error('Error parsing excludedUserIds:', e);
+                            savedExcludedUserIds = [];
+                        }
+                    } else if (Array.isArray(excludedUserIds)) {
+                        savedExcludedUserIds = excludedUserIds;
+                    }
+                }
+
+                // Сохраняем excludedUserIds для установки после загрузки пользователей
+                pendingExcludedUserIds = savedExcludedUserIds;
+
+                // Загружаем пользователей канала и ждем завершения
+                await loadChannelUsers();
+
                 document.getElementById('addTagSettingModalLabel').innerHTML = '<i class="bi bi-pencil me-2"></i>Редактировать настройку тэгания';
                 const modal = new bootstrap.Modal(document.getElementById('addTagSettingModal'));
                 modal.show();
@@ -682,18 +932,18 @@
                         'Content-Type': 'application/json'
                     }
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Ошибка при удалении настройки');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting tag setting:', error);
                         alert('Ошибка при удалении настройки');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error deleting tag setting:', error);
-                    alert('Ошибка при удалении настройки');
-                });
+                    });
             }
 
             function saveTagSetting() {
@@ -703,6 +953,13 @@
                 const isEnabled = document.getElementById('isEnabledInput').checked;
                 const channelPrefix = formData.get('channel_prefix') || null;
                 const id = formData.get('id');
+                const messageTemplate = document.getElementById('messageTemplateInput').value.trim() || '{duty_mention}';
+
+                // Получаем выбранные пользователи для исключений из Tom Select
+                let excludedUserIds = [];
+                if (excludedUsersSelect && excludedUsersSelect.items && excludedUsersSelect.items.length > 0) {
+                    excludedUserIds = excludedUsersSelect.items;
+                }
 
                 if (!tag) {
                     alert('Пожалуйста, укажите тег');
@@ -722,38 +979,122 @@
                         channel_id: channelId,
                         tag: tag,
                         is_enabled: isEnabled,
-                        channel_prefix: channelPrefix
+                        channel_prefix: channelPrefix,
+                        excluded_user_ids: excludedUserIds,
+                        message_template: messageTemplate
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert('Ошибка при сохранении настройки: ' + (data.error || 'Неизвестная ошибка'));
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Ошибка при сохранении настройки: ' + (data.error || 'Неизвестная ошибка'));
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранить';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error saving tag setting:', error);
+                        alert('Ошибка при сохранении настройки');
                         saveBtn.disabled = false;
                         saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранить';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error saving tag setting:', error);
-                    alert('Ошибка при сохранении настройки');
-                    saveBtn.disabled = false;
-                    saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранить';
-                });
+                    });
             }
 
             // Сброс формы при открытии модального окна для добавления
             const addTagSettingModal = document.getElementById('addTagSettingModal');
             if (addTagSettingModal) {
                 addTagSettingModal.addEventListener('show.bs.modal', function () {
+                    // Загружаем пользователей канала при открытии модального окна
+                    loadChannelUsers();
+
                     // Проверяем, открывается ли модальное окно для добавления (не редактирования)
                     if (!document.getElementById('tagSettingId').value) {
                         document.getElementById('tagSettingForm').reset();
                         document.getElementById('isEnabledInput').checked = true;
+                        document.getElementById('messageTemplateInput').value = '{duty_mention}';
+                        // Сбрасываем выбор пользователей после загрузки
+                        setTimeout(() => {
+                            if (excludedUsersSelect) {
+                                excludedUsersSelect.clear();
+                            }
+                        }, 100);
                         document.getElementById('addTagSettingModalLabel').innerHTML = '<i class="bi bi-tag me-2"></i>Настройка тэгания дежурного';
+                    }
+                });
+
+                // Очистка при закрытии модального окна
+                addTagSettingModal.addEventListener('hidden.bs.modal', function () {
+                    // Уничтожаем Tom Select при закрытии модального окна
+                    if (excludedUsersSelect) {
+                        excludedUsersSelect.destroy();
+                        excludedUsersSelect = null;
                     }
                 });
             }
 
         </script>
+
+        <style>
+            /* === Tom Select: Dark Mode Fixes === */
+            [data-bs-theme="dark"] .ts-control,
+            body.dark .ts-control {
+                background-color: #212529 !important;
+                color: #f8f9fa !important;
+                border-color: #495057 !important;
+            }
+
+            [data-bs-theme="dark"] .ts-control:focus,
+            body.dark .ts-control:focus {
+                border-color: #0d6efd !important;
+                box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+            }
+
+            [data-bs-theme="dark"] .ts-control input,
+            body.dark .ts-control input {
+                color: #f8f9fa !important;
+                caret-color: #0d6efd !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown,
+            body.dark .ts-dropdown {
+                background-color: #212529 !important;
+                border-color: #343a40 !important;
+                color: #f8f9fa !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option {
+                background-color: transparent !important;
+                color: #dee2e6 !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option:hover,
+            [data-bs-theme="dark"] .ts-dropdown .option.active,
+            body.dark .ts-dropdown .option.active {
+                background-color: #495057 !important;
+                color: #ffffff !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option span.text-muted {
+                color: #adb5bd !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown mark,
+            body.dark .ts-dropdown mark {
+                background-color: transparent !important;
+                color: #0d6efd !important;
+                font-weight: 600;
+            }
+
+            [data-bs-theme="dark"] .ts-wrapper.multi .ts-control>.item {
+                background-color: #495057 !important;
+                color: #f8f9fa !important;
+                border-color: #6c757d !important;
+            }
+
+            [data-bs-theme="dark"] .ts-wrapper.multi .ts-control>.item.active {
+                background-color: #0d6efd !important;
+                color: #ffffff !important;
+            }
+        </style>

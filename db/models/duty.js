@@ -132,35 +132,77 @@ const getAllChannelsWithCurrentDuty = async () => {
 
 // Получение настроек тэгания для канала
 const getDutyTagSettings = async (channel_id) => {
-    return db.all('SELECT * FROM duty_tag_settings WHERE channel_id = ?', channel_id);
+    const settings = await db.all('SELECT * FROM duty_tag_settings WHERE channel_id = ?', channel_id);
+    // Парсим excluded_user_ids из JSON строки и устанавливаем значение по умолчанию для message_template
+    return settings.map(setting => {
+        if (setting.excluded_user_ids) {
+            try {
+                setting.excluded_user_ids = JSON.parse(setting.excluded_user_ids);
+            } catch (e) {
+                setting.excluded_user_ids = [];
+            }
+        } else {
+            setting.excluded_user_ids = [];
+        }
+        // Устанавливаем значение по умолчанию для message_template, если не задано
+        if (!setting.message_template) {
+            setting.message_template = '{duty_mention}';
+        }
+        return setting;
+    });
 };
 
 // Получение всех активных настроек тэгания
 const getAllActiveDutyTagSettings = async () => {
-    return db.all('SELECT * FROM duty_tag_settings WHERE is_enabled = 1');
+    const settings = await db.all('SELECT * FROM duty_tag_settings WHERE is_enabled = 1');
+    // Парсим excluded_user_ids из JSON строки и устанавливаем значение по умолчанию для message_template
+    return settings.map(setting => {
+        if (setting.excluded_user_ids) {
+            try {
+                setting.excluded_user_ids = JSON.parse(setting.excluded_user_ids);
+            } catch (e) {
+                setting.excluded_user_ids = [];
+            }
+        } else {
+            setting.excluded_user_ids = [];
+        }
+        // Устанавливаем значение по умолчанию для message_template, если не задано
+        if (!setting.message_template) {
+            setting.message_template = '{duty_mention}';
+        }
+        return setting;
+    });
 };
 
 // Сохранение или обновление настройки тэгания
-const saveDutyTagSetting = async (channel_id, tag, is_enabled, channel_prefix) => {
+const saveDutyTagSetting = async (channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template) => {
     // Проверяем, существует ли уже запись
     const existing = await db.get(
         'SELECT id FROM duty_tag_settings WHERE channel_id = ? AND tag = ?',
         channel_id, tag
     );
 
+    // Преобразуем массив excluded_user_ids в JSON строку
+    const excludedUserIdsJson = excluded_user_ids && Array.isArray(excluded_user_ids)
+        ? JSON.stringify(excluded_user_ids)
+        : '[]';
+
+    // Устанавливаем значение по умолчанию для message_template, если не указано
+    const messageTemplate = message_template || '{duty_mention}';
+
     if (existing) {
         // Обновляем существующую запись
         return db.run(`
             UPDATE duty_tag_settings 
-            SET is_enabled = ?, channel_prefix = ?, updated_at = CURRENT_TIMESTAMP
+            SET is_enabled = ?, channel_prefix = ?, excluded_user_ids = ?, message_template = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        `, is_enabled ? 1 : 0, channel_prefix || null, existing.id);
+        `, is_enabled ? 1 : 0, channel_prefix || null, excludedUserIdsJson, messageTemplate, existing.id);
     } else {
         // Создаем новую запись
         return db.run(`
-            INSERT INTO duty_tag_settings (channel_id, tag, is_enabled, channel_prefix, updated_at)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-        `, channel_id, tag, is_enabled ? 1 : 0, channel_prefix || null);
+            INSERT INTO duty_tag_settings (channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `, channel_id, tag, is_enabled ? 1 : 0, channel_prefix || null, excludedUserIdsJson, messageTemplate);
     }
 };
 
