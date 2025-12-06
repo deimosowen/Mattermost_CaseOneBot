@@ -59,17 +59,18 @@ class TeamCityService {
             const response = await axios.get(url, {
                 headers: this._getAuthHeaders(),
                 params: {
-                    fields: 'id,number,status,state,statusText,startDate,finishDate,href,webUrl,buildType(id,name,projectName),statistics(property(name,value))'
+                    fields: 'id,number,status,state,statusText,startDate,finishDate,href,webUrl,buildType(id,name,projectName),statistics(property(name,value)),testOccurrences(count,failed,passed,ignored,muted)'
                 }
             });
 
             const build = response.data;
-            
-            // Получаем статистику тестов, передавая statusText и statistics
+
+            // Получаем статистику тестов, передавая buildId для запроса к /statistics endpoint
             const testStats = await this.getBuildTestStatistics(
                 buildId,
                 build.statusText,
-                build.statistics?.property || []
+                build.statistics?.property || [],
+                build.testOccurrences
             );
 
             return {
@@ -100,11 +101,49 @@ class TeamCityService {
      * @param {string|number} buildId - ID билда
      * @param {string} statusText - Текст статуса билда (содержит статистику тестов)
      * @param {Array} statistics - Статистика билда из API
+     * @param {Object} testOccurrences - Объект testOccurrences из API с атрибутами count, failed, passed, ignored, muted
      * @returns {Promise<Object>}
      */
-    async getBuildTestStatistics(buildId, statusText, statistics = []) {
+    async getBuildTestStatistics(buildId, statusText, statistics = [], testOccurrences = null) {
         try {
-            // Сначала пытаемся получить статистику из statistics property билда
+            // Сначала пытаемся получить статистику из /statistics endpoint (самый надежный источник)
+            try {
+                const statsFromEndpoint = await this._getBuildStatisticsFromEndpoint(buildId);
+                if (statsFromEndpoint) {
+                    return statsFromEndpoint;
+                }
+            } catch (error) {
+                logger.debug(`[TeamCityService] Не удалось получить статистику из /statistics endpoint для билда ${buildId}: ${error.message}`);
+            }
+
+            // Затем пытаемся получить статистику из testOccurrences
+            if (testOccurrences) {
+                // TeamCity API может возвращать testOccurrences как объект с атрибутами или как строку
+                // Пытаемся извлечь значения разными способами
+                let total, passed, failed, ignored, muted;
+
+                if (typeof testOccurrences === 'object') {
+                    // Если это объект, берем значения напрямую
+                    total = testOccurrences.count !== undefined ? parseInt(testOccurrences.count, 10) : undefined;
+                    passed = testOccurrences.passed !== undefined ? parseInt(testOccurrences.passed, 10) : undefined;
+                    failed = testOccurrences.failed !== undefined ? parseInt(testOccurrences.failed, 10) : undefined;
+                    ignored = testOccurrences.ignored !== undefined ? parseInt(testOccurrences.ignored, 10) : undefined;
+                    muted = testOccurrences.muted !== undefined ? parseInt(testOccurrences.muted, 10) : undefined;
+                }
+
+                // Если есть хотя бы одно значение, используем их
+                if (total !== undefined || passed !== undefined || failed !== undefined || ignored !== undefined || muted !== undefined) {
+                    return {
+                        total: total !== undefined ? total : ((passed || 0) + (failed || 0) + (ignored || 0) + (muted || 0)),
+                        passed: passed || 0,
+                        failed: failed || 0,
+                        muted: muted || 0,
+                        ignored: ignored || 0
+                    };
+                }
+            }
+
+            // Затем пытаемся получить статистику из statistics property билда
             const statsMap = {};
             if (statistics && Array.isArray(statistics)) {
                 for (const stat of statistics) {
@@ -122,7 +161,7 @@ class TeamCityService {
             // Если есть статистика из properties, используем её
             if (statsMap['PassedTestCount'] !== undefined || statsMap['FailedTestCount'] !== undefined) {
                 return {
-                    total: (statsMap['PassedTestCount'] || 0) + (statsMap['FailedTestCount'] || 0) + (statsMap['IgnoredTestCount'] || 0) + (statsMap['MutedTestCount'] || 0),
+                    total: statsMap['TotalTestCount'] || ((statsMap['PassedTestCount'] || 0) + (statsMap['FailedTestCount'] || 0) + (statsMap['IgnoredTestCount'] || 0) + (statsMap['MutedTestCount'] || 0)),
                     passed: statsMap['PassedTestCount'] || 0,
                     failed: statsMap['FailedTestCount'] || 0,
                     muted: statsMap['MutedTestCount'] || 0,
@@ -150,7 +189,7 @@ class TeamCityService {
             });
 
             const totalCount = response.data.count || 0;
-            
+
             // Если тестов много, получаем статистику по статусам через locator
             if (totalCount > 0) {
                 const passedResponse = await axios.get(baseUrl, {
@@ -199,7 +238,7 @@ class TeamCityService {
             };
         } catch (error) {
             logger.warn(`[TeamCityService] Не удалось получить статистику тестов для билда ${buildId}: ${error.message}`);
-            
+
             // Пытаемся парсить из statusText как fallback
             if (statusText) {
                 const parsed = this._parseTestStatisticsFromStatusText(statusText);
@@ -220,8 +259,54 @@ class TeamCityService {
     }
 
     /**
+     * Получить статистику тестов из /statistics endpoint
+     * @param {string|number} buildId - ID билда
+     * @returns {Promise<Object|null>}
+     */
+    async _getBuildStatisticsFromEndpoint(buildId) {
+        try {
+            const url = `${this.baseUrl}/app/rest/builds/id:${buildId}/statistics`;
+            const response = await axios.get(url, {
+                headers: this._getAuthHeaders()
+            });
+
+            if (!response.data || !response.data.property) {
+                return null;
+            }
+
+            const properties = Array.isArray(response.data.property)
+                ? response.data.property
+                : [response.data.property];
+
+            const statsMap = {};
+            for (const prop of properties) {
+                if (prop.name && prop.value !== undefined) {
+                    statsMap[prop.name] = parseInt(prop.value, 10) || 0;
+                }
+            }
+
+            // Проверяем наличие нужных полей
+            if (statsMap['PassedTestCount'] !== undefined || statsMap['FailedTestCount'] !== undefined || statsMap['TotalTestCount'] !== undefined) {
+                return {
+                    total: statsMap['TotalTestCount'] || 0,
+                    passed: statsMap['PassedTestCount'] || 0,
+                    failed: statsMap['FailedTestCount'] || 0,
+                    muted: statsMap['MutedTestCount'] || 0,
+                    ignored: statsMap['IgnoredTestCount'] || 0
+                };
+            }
+
+            return null;
+        } catch (error) {
+            logger.debug(`[TeamCityService] Ошибка при получении статистики из /statistics endpoint для билда ${buildId}: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
      * Парсить статистику тестов из statusText билда
      * Формат: "Tests failed: 4, passed: 775, ignored: 1, muted: 13"
+     * Или: "Tests failed: 7 (3 new), passed: 766, ignored: 1, muted: 19"
      * @param {string} statusText
      * @returns {Object|null}
      */
@@ -230,8 +315,9 @@ class TeamCityService {
             return null;
         }
 
-        // Ищем паттерн "Tests failed: X, passed: Y, ignored: Z, muted: W"
-        const testPattern = /Tests\s+failed:\s*(\d+)[,\s]+passed:\s*(\d+)(?:[,\s]+ignored:\s*(\d+))?(?:[,\s]+muted:\s*(\d+))?/i;
+        // Ищем паттерн "Tests failed: X (Y new), passed: Z, ignored: W, muted: V"
+        // Учитываем возможные дополнительные части в скобках после failed
+        const testPattern = /Tests\s+failed:\s*(\d+)(?:\s*\([^)]+\))?[,\s]+passed:\s*(\d+)(?:[,\s]+ignored:\s*(\d+))?(?:[,\s]+muted:\s*(\d+))?/i;
         const match = statusText.match(testPattern);
 
         if (match) {

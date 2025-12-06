@@ -140,6 +140,7 @@ class GitlabService {
                 draft: mr.draft === true,
                 status,
                 hasComments,
+                hasConflicts: mr.has_conflicts || false,
             };
         } catch (error) {
             logger.error(`Ошибка при получении статуса MR ${mrIid}: ${error.message}`);
