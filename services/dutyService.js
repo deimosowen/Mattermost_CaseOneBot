@@ -289,10 +289,31 @@ async function checkIsHoliday() {
     }
 }
 
+// Получение следующего дежурного БЕЗ смены текущего (только для информации)
+// Использует логику из computeNextDutyChange, но возвращает только информацию о следующем дежурном
+async function getNextDuty(channel_id) {
+    try {
+        const result = await computeNextDutyChange(channel_id);
+        if (result && result.canChange && result.userId) {
+            return { user_id: result.userId, duty_type: result.dutyType };
+        }
+        // Если computeNextDutyChange вернул ошибку, но есть пользователи, возвращаем первого
+        const actualUsers = await getActualDutyList(channel_id);
+        if (actualUsers && actualUsers.length > 0) {
+            return { user_id: actualUsers[0].user_id, duty_type: DutyType.REGULAR };
+        }
+        return null;
+    } catch (error) {
+        logger.error(`Error in getNextDuty: ${error.message}\nStack trace:\n${error.stack}`);
+        return null;
+    }
+}
+
 module.exports = {
     getCurrentDuty,
     changeNextDuty,
     rotateDuty,
     createDutyCallback,
     updateDutyActivityStatus,
+    getNextDuty,
 };

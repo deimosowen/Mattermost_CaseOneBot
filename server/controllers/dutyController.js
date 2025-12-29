@@ -6,7 +6,7 @@ const { getDutySchedule, getDutyUsers,
     getCurrentDuty, updateUserActivityStatus,
     getUnscheduledList, removeDutyUser, addDutyUser,
     updateDutyUsersOrder, getDutySchedules, getAllChannelsWithCurrentDuty,
-    getDutyTagSettings, saveDutyTagSetting, deleteDutyTagSetting } = require('../../db/models/duty');
+    getDutyTagSettings, addDutyTagSetting, updateDutyTagSetting, deleteDutyTagSetting } = require('../../db/models/duty');
 const { getUserByUsernameOrEmail, postMessage, getChannelById, getUser, getUserByUsername, getChannelMembers } = require('../../mattermost/utils');
 const { TZ } = require('../../config');
 const logger = require('../../logger');
@@ -425,11 +425,17 @@ router.get('/api/tag-settings', async (req, res) => {
 // Сохранение настройки тэгания
 router.post('/api/tag-settings', async (req, res) => {
     try {
-        const { channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template } = req.body;
+        const { id, channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots } = req.body;
         if (!channel_id || !tag) {
             return res.status(400).json({ error: 'channel_id and tag are required' });
         }
-        await saveDutyTagSetting(channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template);
+
+        if (id) {
+            await updateDutyTagSetting(id, channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots);
+        } else {
+            await addDutyTagSetting(channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots);
+        }
+
         res.json({ success: true });
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);

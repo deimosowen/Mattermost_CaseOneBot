@@ -5,11 +5,13 @@
             <!-- Скрытые поля для передачи данных в JavaScript -->
             <input type="hidden" id="dataChannelId" value="<%= channel_id %>">
             <input type="hidden" id="dataSchedule" value="<%= scheduleJson %>">
-            <input type="hidden" id="dataCurrentDutyIndex" value="<%= currentDutyIndex !== undefined ? currentDutyIndex : -1 %>">
+            <input type="hidden" id="dataCurrentDutyIndex"
+                value="<%= currentDutyIndex !== undefined ? currentDutyIndex : -1 %>">
             <input type="hidden" id="dataEmployeesCount" value="<%= employees ? employees.length : 0 %>">
-            <input type="hidden" id="dataIsCurrentDutyUnscheduled" value="<%= isCurrentDutyUnscheduled !== undefined ? isCurrentDutyUnscheduled : false %>">
+            <input type="hidden" id="dataIsCurrentDutyUnscheduled"
+                value="<%= isCurrentDutyUnscheduled !== undefined ? isCurrentDutyUnscheduled : false %>">
             <input type="hidden" id="dataTagSettings" value="<%= tagSettingsJson %>">
-            
+
             <div class="row">
                 <div class="col-12 col-lg-10 mx-auto">
                     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -191,8 +193,7 @@
                             <h5 class="mb-0">
                                 <i class="bi bi-tag me-2"></i>Тэгание дежурного в тредах
                             </h5>
-                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
-                                data-bs-target="#addTagSettingModal">
+                            <button type="button" class="btn btn-success btn-sm" onclick="openAddTagSettingModal()">
                                 <i class="bi bi-plus-circle me-1"></i>Добавить настройку
                             </button>
                         </div>
@@ -251,7 +252,8 @@
                                                                 data-enabled="<%= setting.is_enabled ? 'true' : 'false' %>"
                                                                 data-channel-prefix="<%= setting.channel_prefix || '' %>"
                                                                 data-excluded-user-ids="<%= JSON.stringify(setting.excluded_user_ids || []) %>"
-                                                                data-message-template="<%= JSON.stringify(setting.message_template || '{duty_mention}') %>">
+                                                                data-message-template="<%= JSON.stringify(setting.message_template || '{duty_mention}') %>"
+                                                                data-allow-bots="<%= setting.allow_bots ? 'true' : 'false' %>">
                                                                 <i class="bi bi-pencil"></i>
                                                             </button>
                                                             <button type="button" class="btn btn-sm btn-outline-danger"
@@ -378,8 +380,9 @@
                                     rows="3" placeholder="{duty_mention}"></textarea>
                                 <div class="form-text">
                                     <i class="bi bi-info-circle me-1"></i>Шаблон сообщения для тэгания дежурного.</br>
-                                    Используйте <code>{duty_mention}</code> для вставки упоминания дежурного.</br>По
-                                    умолчанию: <code>{duty_mention}</code>
+                                    Используйте <code>{duty_mention}</code> для вставки упоминания текущего дежурного.</br>
+                                    Используйте <code>{next_duty_mention}</code> для вставки упоминания следующего дежурного.</br>
+                                    По умолчанию: <code>{duty_mention}</code>
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -388,6 +391,15 @@
                                         name="is_enabled" checked>
                                     <label class="form-check-label" for="isEnabledInput">
                                         Включено
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="allowBotsInput"
+                                        name="allow_bots">
+                                    <label class="form-check-label" for="allowBotsInput">
+                                        Реагировать на сообщения ботов
                                     </label>
                                 </div>
                             </div>
@@ -459,29 +471,30 @@
 
                 // Обработчик для кнопок редактирования настроек тэгания
                 document.querySelectorAll('.edit-tag-setting-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
+                    btn.addEventListener('click', function () {
                         const id = this.getAttribute('data-setting-id');
                         const tag = this.getAttribute('data-tag');
                         const isEnabled = this.getAttribute('data-enabled') === 'true';
                         const channelPrefix = this.getAttribute('data-channel-prefix') || '';
                         const excludedUserIdsJson = this.getAttribute('data-excluded-user-ids') || '[]';
                         const messageTemplateJson = this.getAttribute('data-message-template') || '"{duty_mention}"';
-                        
+                        const allowBots = this.getAttribute('data-allow-bots') === 'true';
+
                         let excludedUserIds = [];
                         try {
                             excludedUserIds = JSON.parse(excludedUserIdsJson);
                         } catch (e) {
                             console.error('Error parsing excludedUserIds:', e);
                         }
-                        
+
                         let messageTemplate = '{duty_mention}';
                         try {
                             messageTemplate = JSON.parse(messageTemplateJson);
                         } catch (e) {
                             console.error('Error parsing messageTemplate:', e);
                         }
-                        
-                        editTagSetting(id, tag, isEnabled, channelPrefix, excludedUserIds, messageTemplate);
+
+                        editTagSetting(id, tag, isEnabled, channelPrefix, excludedUserIds, messageTemplate, allowBots);
                     });
                 });
 
@@ -773,11 +786,11 @@
 
                 try {
                     const response = await fetch(`/duty/api/channel-users?channelId=${channelId}`);
-                    
+
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    
+
                     const data = await response.json();
 
                     if (data.error) {
@@ -800,8 +813,8 @@
                         excludedUsersInput.placeholder = 'Выберите пользователей...';
 
                         // Сохраняем значения для установки после инициализации
-                        const idsToSet = pendingExcludedUserIds && pendingExcludedUserIds.length > 0 
-                            ? [...pendingExcludedUserIds] 
+                        const idsToSet = pendingExcludedUserIds && pendingExcludedUserIds.length > 0
+                            ? [...pendingExcludedUserIds]
                             : null;
 
                         // Инициализируем Tom Select
@@ -837,9 +850,9 @@
                         // Убеждаемся, что Tom Select активирован
                         if (excludedUsersSelect) {
                             excludedUsersSelect.enable();
-                            
+
                             // Подписываемся на событие initialize для установки значений
-                            excludedUsersSelect.on('initialize', function() {
+                            excludedUsersSelect.on('initialize', function () {
                                 if (idsToSet && idsToSet.length > 0) {
                                     setTimeout(() => {
                                         try {
@@ -850,7 +863,7 @@
                                     }, 50);
                                 }
                             });
-                            
+
                             // Устанавливаем значения сразу после создания (на случай, если событие уже произошло)
                             if (idsToSet && idsToSet.length > 0) {
                                 // Пробуем несколько раз с разными задержками
@@ -872,7 +885,7 @@
                                 });
                             }
                         }
-                        
+
                         // Возвращаем промис, который резолвится после небольшой задержки для завершения инициализации
                         return new Promise(resolve => setTimeout(resolve, 200));
                     } else {
@@ -888,10 +901,39 @@
                 }
             }
 
-            async function editTagSetting(id, tag, isEnabled, channelPrefix, excludedUserIds, messageTemplate) {
+            function openAddTagSettingModal() {
+                // Сбрасываем форму
+                const form = document.getElementById('tagSettingForm');
+                form.reset();
+
+                // Явно очищаем скрытое поле ID
+                document.getElementById('tagSettingId').value = '';
+
+                // Устанавливаем значения по умолчанию
+                document.getElementById('isEnabledInput').checked = true;
+                document.getElementById('allowBotsInput').checked = false;
+                document.getElementById('messageTemplateInput').value = '{duty_mention}';
+
+                // Сбрасываем Tom Select если он инициализирован
+                if (excludedUsersSelect) {
+                    excludedUsersSelect.clear();
+                }
+
+                document.getElementById('addTagSettingModalLabel').innerHTML = '<i class="bi bi-tag me-2"></i>Настройка тэгания дежурного';
+
+                const modal = new bootstrap.Modal(document.getElementById('addTagSettingModal'));
+                modal.show();
+            }
+
+            async function editTagSetting(id, tag, isEnabled, channelPrefix, excludedUserIds, messageTemplate, allowBots) {
+                // Сначала сбрасываем форму
+                document.getElementById('tagSettingForm').reset();
+
+                // Устанавливаем ID и другие значения
                 document.getElementById('tagSettingId').value = id;
                 document.getElementById('tagInput').value = tag;
                 document.getElementById('isEnabledInput').checked = isEnabled === true || isEnabled === 'true';
+                document.getElementById('allowBotsInput').checked = allowBots === true || allowBots === 'true';
                 document.getElementById('channelPrefixInput').value = channelPrefix || '';
                 document.getElementById('messageTemplateInput').value = messageTemplate || '{duty_mention}';
 
@@ -951,6 +993,7 @@
                 const formData = new FormData(form);
                 const tag = formData.get('tag');
                 const isEnabled = document.getElementById('isEnabledInput').checked;
+                const allowBots = document.getElementById('allowBotsInput').checked;
                 const channelPrefix = formData.get('channel_prefix') || null;
                 const id = formData.get('id');
                 const messageTemplate = document.getElementById('messageTemplateInput').value.trim() || '{duty_mention}';
@@ -976,12 +1019,14 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
+                        id: id,
                         channel_id: channelId,
                         tag: tag,
                         is_enabled: isEnabled,
                         channel_prefix: channelPrefix,
                         excluded_user_ids: excludedUserIds,
-                        message_template: messageTemplate
+                        message_template: messageTemplate,
+                        allow_bots: allowBots
                     })
                 })
                     .then(response => response.json())
@@ -1008,20 +1053,6 @@
                 addTagSettingModal.addEventListener('show.bs.modal', function () {
                     // Загружаем пользователей канала при открытии модального окна
                     loadChannelUsers();
-
-                    // Проверяем, открывается ли модальное окно для добавления (не редактирования)
-                    if (!document.getElementById('tagSettingId').value) {
-                        document.getElementById('tagSettingForm').reset();
-                        document.getElementById('isEnabledInput').checked = true;
-                        document.getElementById('messageTemplateInput').value = '{duty_mention}';
-                        // Сбрасываем выбор пользователей после загрузки
-                        setTimeout(() => {
-                            if (excludedUsersSelect) {
-                                excludedUsersSelect.clear();
-                            }
-                        }, 100);
-                        document.getElementById('addTagSettingModalLabel').innerHTML = '<i class="bi bi-tag me-2"></i>Настройка тэгания дежурного';
-                    }
                 });
 
                 // Очистка при закрытии модального окна

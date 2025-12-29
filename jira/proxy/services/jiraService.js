@@ -67,7 +67,8 @@ const getTaskParent = async (jiraClient, taskId) => {
         status: task.fields.status.name,
         created: task.fields.created,
         updated: task.fields.updated,
-        comments: task.fields.comment.comments
+        comments: task.fields.comment.comments,
+        confluenceURL: task.fields.customfield_12061
     };
     return taskData;
 };

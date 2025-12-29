@@ -148,6 +148,8 @@ const getDutyTagSettings = async (channel_id) => {
         if (!setting.message_template) {
             setting.message_template = '{duty_mention}';
         }
+        // Преобразуем allow_bots в boolean
+        setting.allow_bots = Boolean(setting.allow_bots);
         return setting;
     });
 };
@@ -170,18 +172,14 @@ const getAllActiveDutyTagSettings = async () => {
         if (!setting.message_template) {
             setting.message_template = '{duty_mention}';
         }
+        // Преобразуем allow_bots в boolean
+        setting.allow_bots = Boolean(setting.allow_bots);
         return setting;
     });
 };
 
-// Сохранение или обновление настройки тэгания
-const saveDutyTagSetting = async (channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template) => {
-    // Проверяем, существует ли уже запись
-    const existing = await db.get(
-        'SELECT id FROM duty_tag_settings WHERE channel_id = ? AND tag = ?',
-        channel_id, tag
-    );
-
+// Добавление новой настройки тэгания
+const addDutyTagSetting = async (channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots) => {
     // Преобразуем массив excluded_user_ids в JSON строку
     const excludedUserIdsJson = excluded_user_ids && Array.isArray(excluded_user_ids)
         ? JSON.stringify(excluded_user_ids)
@@ -190,20 +188,27 @@ const saveDutyTagSetting = async (channel_id, tag, is_enabled, channel_prefix, e
     // Устанавливаем значение по умолчанию для message_template, если не указано
     const messageTemplate = message_template || '{duty_mention}';
 
-    if (existing) {
-        // Обновляем существующую запись
-        return db.run(`
-            UPDATE duty_tag_settings 
-            SET is_enabled = ?, channel_prefix = ?, excluded_user_ids = ?, message_template = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        `, is_enabled ? 1 : 0, channel_prefix || null, excludedUserIdsJson, messageTemplate, existing.id);
-    } else {
-        // Создаем новую запись
-        return db.run(`
-            INSERT INTO duty_tag_settings (channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        `, channel_id, tag, is_enabled ? 1 : 0, channel_prefix || null, excludedUserIdsJson, messageTemplate);
-    }
+    return db.run(`
+        INSERT INTO duty_tag_settings (channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `, channel_id, tag, is_enabled ? 1 : 0, channel_prefix || null, excludedUserIdsJson, messageTemplate, allow_bots ? 1 : 0);
+};
+
+// Обновление существующей настройки тэгания
+const updateDutyTagSetting = async (id, channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots) => {
+    // Преобразуем массив excluded_user_ids в JSON строку
+    const excludedUserIdsJson = excluded_user_ids && Array.isArray(excluded_user_ids)
+        ? JSON.stringify(excluded_user_ids)
+        : '[]';
+
+    // Устанавливаем значение по умолчанию для message_template, если не указано
+    const messageTemplate = message_template || '{duty_mention}';
+
+    return db.run(`
+        UPDATE duty_tag_settings 
+        SET channel_id = ?, tag = ?, is_enabled = ?, channel_prefix = ?, excluded_user_ids = ?, message_template = ?, allow_bots = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `, channel_id, tag, is_enabled ? 1 : 0, channel_prefix || null, excludedUserIdsJson, messageTemplate, allow_bots ? 1 : 0, id);
 };
 
 // Удаление настройки тэгания
@@ -233,6 +238,7 @@ module.exports = {
     getAllChannelsWithCurrentDuty,
     getDutyTagSettings,
     getAllActiveDutyTagSettings,
-    saveDutyTagSetting,
+    addDutyTagSetting,
+    updateDutyTagSetting,
     deleteDutyTagSetting,
 };

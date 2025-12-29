@@ -20,6 +20,56 @@ const JiraStatusType = require('../types/jiraStatusTypes');
 const { getAllReviewChannelIds } = require('../db/models/reviewChannels');
 const logger = require('../logger');
 
+/**
+ * Обработчики сообщений для разных каналов
+ * Каждый обработчик - это async функция, которая принимает task и возвращает messageText
+ * Если обработчик возвращает null, используется дефолтное поведение
+ */
+const channelMessageHandlers = {
+    /**
+     * Дефолтный обработчик - возвращает null для использования стандартной логики
+     * @param {Object} task - Задача из Jira
+     * @returns {Promise<string|null>} - Текст сообщения или null для дефолта
+     */
+    default: async (task) => {
+        return null;
+    },
+
+    'channel-id-here': async (task) => {
+        const rootTask = await JiraService.fetchTaskParent(task.key);
+        return rootTask.confluenceURL;
+    }
+    /**
+     * Пример обработчика для конкретного канала
+     * 
+     * 'channel-id-here': async (task) => {
+     *     // Извлекаем нужные данные из task
+     *     // task.description, task.summary, task.comments и т.д.
+     *     return task.description || task.summary || '';
+     * },
+     */
+};
+
+/**
+ * Получает текст сообщения для канала
+ * @param {string} channelId - ID канала
+ * @param {Object} task - Задача из Jira
+ * @returns {Promise<string|null>} - Текст сообщения или null для дефолта
+ */
+async function getMessageTextForChannel(channelId, task) {
+    // Проверяем, есть ли обработчик для этого канала
+    const handler = channelMessageHandlers[channelId] || channelMessageHandlers.default;
+
+    try {
+        const messageText = await handler(task);
+        return messageText;
+    } catch (error) {
+        logger.error(`Error in message handler for channel ${channelId}: ${error.message}`);
+        // В случае ошибки возвращаем null для использования дефолтного поведения
+        return null;
+    }
+}
+
 /** Утилиты/гварды */
 const hasValue = (v) => v != null && v !== '';
 
@@ -71,7 +121,6 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
         const key = taskKey || reviewTask.task_key;
         const task = await JiraService.fetchTask(key);
         const mergeRequestLink = reviewTaskService.getMergeRequestUrl(task, mergeRequest);
-        const message = await reviewTaskService.prepareReviewMessage(task, mergeRequestLink, user_name, reviewer);
         let taskStatus = task.status;
 
         // 3) Получаем список каналов ревью из БД и обрабатываем все целевые каналы
@@ -118,7 +167,21 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
             // 3.3) Иначе — создаём новую запись и постим сообщение в канал
             let reviewerResolved = await reviewTaskService.getReviewer(reviewer, task);
 
-            // 3.4) Если ревьюер не указан, пробуем автоматически назначить через систему распределения
+            // 3.4) Получаем текст сообщения для канала (может быть кастомным или дефолтным)
+            const messageText = await getMessageTextForChannel(channelId, task);
+            const contentType = messageText ? 'message' : null;
+
+            // 3.5) Формируем сообщение с учетом кастомного текста для канала
+            const message = await reviewTaskService.prepareReviewMessage(
+                task,
+                mergeRequestLink,
+                user_name,
+                reviewer,
+                messageText,
+                contentType
+            );
+
+            // 3.6) Если ревьюер не указан, пробуем автоматически назначить через систему распределения
             let messageToPost = message;
             if (!hasValue(reviewerResolved)) {
                 reviewerResolved = await reviewTaskService.assignReviewerAutomatically(channelId, key);

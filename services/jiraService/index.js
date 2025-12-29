@@ -10,6 +10,10 @@ class JiraService {
         return await getTask(taskKey, this.authHeader);
     }
 
+    async fetchTaskParent(taskKey) {
+        return await getTaskParent(taskKey, this.authHeader);
+    }
+
     async changeTaskStatus(taskKey, status) {
         return await changeStatus(taskKey, status, this.authHeader);
     }
