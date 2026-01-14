@@ -106,17 +106,7 @@ class TeamCityService {
      */
     async getBuildTestStatistics(buildId, statusText, statistics = [], testOccurrences = null) {
         try {
-            // Сначала пытаемся получить статистику из /statistics endpoint (самый надежный источник)
-            try {
-                const statsFromEndpoint = await this._getBuildStatisticsFromEndpoint(buildId);
-                if (statsFromEndpoint) {
-                    return statsFromEndpoint;
-                }
-            } catch (error) {
-                logger.debug(`[TeamCityService] Не удалось получить статистику из /statistics endpoint для билда ${buildId}: ${error.message}`);
-            }
-
-            // Затем пытаемся получить статистику из testOccurrences
+            // Сначала пытаемся получить статистику из переданного testOccurrences (если есть)
             if (testOccurrences) {
                 // TeamCity API может возвращать testOccurrences как объект с атрибутами или как строку
                 // Пытаемся извлечь значения разными способами
@@ -143,7 +133,7 @@ class TeamCityService {
                 }
             }
 
-            // Затем пытаемся получить статистику из statistics property билда
+            // Затем пытаемся получить статистику из переданного statistics property билда
             const statsMap = {};
             if (statistics && Array.isArray(statistics)) {
                 for (const stat of statistics) {
@@ -167,6 +157,16 @@ class TeamCityService {
                     muted: statsMap['MutedTestCount'] || 0,
                     ignored: statsMap['IgnoredTestCount'] || 0
                 };
+            }
+
+            // Затем пытаемся получить статистику из /statistics endpoint (если не было переданных данных)
+            try {
+                const statsFromEndpoint = await this._getBuildStatisticsFromEndpoint(buildId);
+                if (statsFromEndpoint) {
+                    return statsFromEndpoint;
+                }
+            } catch (error) {
+                logger.debug(`[TeamCityService] Не удалось получить статистику из /statistics endpoint для билда ${buildId}: ${error.message}`);
             }
 
             // Если нет статистики в properties, парсим из statusText

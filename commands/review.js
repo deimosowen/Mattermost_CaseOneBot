@@ -35,19 +35,14 @@ const channelMessageHandlers = {
         return null;
     },
 
-    'channel-id-here': async (task) => {
+    '5n7ic16hqfn8ibfgek48bohesh': async (task) => {
         const rootTask = await JiraService.fetchTaskParent(task.key);
-        return rootTask.confluenceURL;
+        const confluenceURL = rootTask.confluenceURL;
+        if (confluenceURL) {
+            return `[${confluenceURL}](${confluenceURL})`;
+        }
+        return null;
     }
-    /**
-     * Пример обработчика для конкретного канала
-     * 
-     * 'channel-id-here': async (task) => {
-     *     // Извлекаем нужные данные из task
-     *     // task.description, task.summary, task.comments и т.д.
-     *     return task.description || task.summary || '';
-     * },
-     */
 };
 
 /**

@@ -73,6 +73,36 @@ const tagHandlers = {
 };
 
 /**
+ * Извлекает весь текст из поста, включая текст из attachments
+ * Учитывает случаи, когда message пустой, а текст находится в props.attachments
+ */
+function extractPostText(post) {
+    const textParts = [];
+
+    // Добавляем основной текст сообщения
+    if (post.message) {
+        textParts.push(post.message);
+    }
+
+    // Добавляем текст из attachments (для интеграций типа Slack)
+    if (post.props?.attachments && Array.isArray(post.props.attachments)) {
+        for (const attachment of post.props.attachments) {
+            if (attachment.text) {
+                textParts.push(attachment.text);
+            }
+            if (attachment.fallback) {
+                textParts.push(attachment.fallback);
+            }
+            if (attachment.pretext) {
+                textParts.push(attachment.pretext);
+            }
+        }
+    }
+
+    return textParts.join(' ');
+}
+
+/**
  * Обрабатывает шаблон сообщения, заменяя все теги на соответствующие значения
  */
 async function processMessageTemplate(template, context) {
@@ -135,8 +165,10 @@ module.exports = async (post, eventData) => {
                 }
             }
             // Проверяем, есть ли в сообщении нужный тег
+            // Извлекаем весь текст из поста (включая attachments для интеграций)
+            const postText = extractPostText(post);
             const tagPattern = new RegExp(`\\b${setting.tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-            if (!tagPattern.test(post.message)) {
+            if (!tagPattern.test(postText)) {
                 continue;
             }
 
