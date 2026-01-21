@@ -36,8 +36,7 @@ const channelMessageHandlers = {
     },
 
     '5n7ic16hqfn8ibfgek48bohesh': async (task) => {
-        const rootTask = await JiraService.fetchTaskParent(task.key);
-        const confluenceURL = rootTask.confluenceURL;
+        const confluenceURL = task.confluenceURL;
         if (confluenceURL) {
             return `[${confluenceURL}](${confluenceURL})`;
         }

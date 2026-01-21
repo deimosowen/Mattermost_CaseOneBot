@@ -18,6 +18,7 @@ const getTask = async (jiraClient, taskId) => {
     try {
         let task = await jiraClient.findIssue(taskId);
         const customField = "customfield_18160";
+        const confluenceURL = "customfield_12061";
 
         const devDetails = await jiraClient.getDevStatusDetail(task.id, 'gitlabselfmanaged', 'pullrequest');
 
@@ -35,6 +36,7 @@ const getTask = async (jiraClient, taskId) => {
             created: task.fields.created,
             updated: task.fields.updated,
             comments: task.fields.comment.comments,
+            confluenceURL: task.fields[confluenceURL],
             labels: task.fields.labels,
             pullRequests: openPullRequests,
             reviewers: reviewers || [],
@@ -53,6 +55,8 @@ const getTask = async (jiraClient, taskId) => {
 
 const getTaskParent = async (jiraClient, taskId) => {
     const customField = "customfield_11161";
+    const confluenceURL = "customfield_12061";
+
     let task = await jiraClient.findIssue(taskId);
     if (task.fields[customField] !== null) {
         task = await jiraClient.findIssue(task.fields[customField]);
@@ -68,7 +72,7 @@ const getTaskParent = async (jiraClient, taskId) => {
         created: task.fields.created,
         updated: task.fields.updated,
         comments: task.fields.comment.comments,
-        confluenceURL: task.fields.customfield_12061
+        confluenceURL: task.fields[confluenceURL]
     };
     return taskData;
 };

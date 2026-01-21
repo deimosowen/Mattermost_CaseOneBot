@@ -31,7 +31,7 @@ class TeamCityService {
      */
     async getLatestBuild(buildConfigId) {
         try {
-            const url = `${this.baseUrl}/app/rest/builds?locator=buildType:${buildConfigId},count:1`;
+            const url = `${this.baseUrl}/app/rest/builds?locator=buildType:${buildConfigId},defaultFilter:false,count:1`;
             const response = await axios.get(url, {
                 headers: this._getAuthHeaders()
             });
