@@ -1,4 +1,4 @@
-const { wsClient } = require('./client');
+const { wsClient, initializeMattermostHandlers } = require('./client');
 const commands = require('../commands');
 const messageEventEmitter = require('../handlers/messageEventEmitter');
 const { parseCommand } = require('../commands/parser');
@@ -36,12 +36,7 @@ const eventHandlers = {
 };
 
 const initializeMattermost = () => {
-    wsClient.addMessageListener((event) => {
-        const handler = eventHandlers[event.event];
-        if (handler) {
-            handler(event);
-        }
-    });
+    initializeMattermostHandlers(eventHandlers);
 };
 
 module.exports = {
