@@ -97,7 +97,7 @@ class CalendarManager {
                 await this.processEvent(user, event, now, timezone);
             }
         } catch (error) {
-            logger.error(error);
+            //logger.error(error);
         }
     }
 

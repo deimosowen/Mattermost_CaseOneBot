@@ -35,4 +35,5 @@ module.exports = {
     TEAMCITY_USERNAME: process.env.TEAMCITY_USERNAME,
     TEAMCITY_PASSWORD: process.env.TEAMCITY_PASSWORD,
     ALLOWED_EMAIL_DOMAINS: process.env.ALLOWED_EMAIL_DOMAINS ? process.env.ALLOWED_EMAIL_DOMAINS.split(",").map(d => d.trim()) : [],
+    PATCH_CHANNEL_NAME: process.env.PATCH_CHANNEL_NAME || 'c1_team_important',
 };

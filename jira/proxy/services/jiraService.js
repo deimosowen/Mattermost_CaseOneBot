@@ -28,6 +28,27 @@ const getTask = async (jiraClient, taskId) => {
             name: reviewer.displayName,
             email: reviewer.emailAddress,
         }));
+
+        // Извлекаем зависимости из issuelinks
+        const issueLinks = task.fields.issuelinks || [];
+        const dependencies = [];
+
+        for (const link of issueLinks) {
+            // Outward link: текущая задача зависит от другой (Зависит от)
+            if (link.outwardIssue) {
+                const linkTypeOutward = link.type?.outward || '';
+                // Проверяем, что это связь "Зависит от" (на русском или английском)
+                if (linkTypeOutward === 'Зависит от' ||
+                    linkTypeOutward.toLowerCase().includes('depends') ||
+                    linkTypeOutward.toLowerCase().includes('зависит')) {
+                    dependencies.push({
+                        key: link.outwardIssue.key,
+                        summary: link.outwardIssue.fields?.summary || ''
+                    });
+                }
+            }
+        }
+
         const taskData = {
             key: task.key,
             summary: task.fields.summary,
@@ -40,6 +61,8 @@ const getTask = async (jiraClient, taskId) => {
             labels: task.fields.labels,
             pullRequests: openPullRequests,
             reviewers: reviewers || [],
+            fixVersions: task.fields.fixVersions || [],
+            dependencies: dependencies,
         };
 
         return taskData;

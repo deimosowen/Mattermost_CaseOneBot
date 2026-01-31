@@ -30,6 +30,13 @@ router.get('/', (req, res) => {
             color: 'success'
         },
         {
+            title: 'Сообщение о патче',
+            description: 'Создание сообщения о патче в канале c1_team_important',
+            url: '/patch',
+            icon: 'bi-patch-check',
+            color: 'success'
+        },
+        {
             title: 'TeamCity',
             description: 'Настройка уведомлений о сборках TeamCity',
             url: '/teamcity',

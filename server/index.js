@@ -12,6 +12,7 @@ const dutyController = require('./controllers/dutyController');
 const inviteController = require('./controllers/inviteController');
 const jiraController = require('./controllers/jiraController');
 const featureController = require('./controllers/featureController');
+const patchController = require('./controllers/patchController');
 const gitlabController = require('./controllers/gitlabController');
 const teamcityController = require('./controllers/teamcityController');
 const reviewController = require('./controllers/reviewController');
@@ -114,6 +115,7 @@ function buildApp() {
     app.use('/invite', inviteController);
     app.use('/jira', jiraController);
     app.use('/feature', featureController);
+    app.use('/patch', patchController);
     app.use('/gitlab', gitlabController);
     app.use('/teamcity', teamcityController);
     app.use('/review', reviewController);

@@ -1,0 +1,644 @@
+<% layout('layout') -%>
+<% block('title', 'Сообщение о патче' ); -%>
+
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12 col-lg-10 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="bi bi-patch-check me-2"></i>Сообщение о патче
+                </h2>
+                <a href="/" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Назад
+                </a>
+            </div>
+
+            <% if (status === 'success') { %>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i><strong>Сообщение о патче успешно отправлено!</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <% } else if (status === 'error') { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i><strong>Произошла ошибка при отправке сообщения.</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <% } %>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-text me-2"></i>Информация о патче
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form action="/patch/create" method="post" id="patchForm">
+                        <div class="mb-3">
+                            <label for="taskId" class="form-label">
+                                <i class="bi bi-ticket-perforated me-1"></i>Задача патча <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="taskId" name="taskId" required>
+                                <option value="">Загрузка задач...</option>
+                            </select>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>Выберите задачу из списка или начните вводить для поиска. Можно ввести ключ задачи вручную (например: CASEM-92133)
+                            </div>
+                        </div>
+
+                        <div class="mb-3" id="taskInfoContainer" style="display: none;">
+                            <label class="form-label">
+                                <i class="bi bi-card-heading me-1"></i>Название задачи
+                            </label>
+                            <input type="text" class="form-control" id="taskNameDisplay" readonly>
+                        </div>
+                        
+                        <div class="mb-3" id="fixVersionsContainer" style="display: none;">
+                            <label class="form-label">
+                                <i class="bi bi-tag me-1"></i>Fix Versions
+                            </label>
+                            <div id="fixVersionsDisplay"></div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="backVersion" class="form-label">
+                                    <i class="bi bi-server me-1"></i>Back-End версия сборки
+                                </label>
+                                <input type="text" class="form-control" id="backVersion" name="backVersion"
+                                    placeholder="Например: 75.11.334" value="<%= taskData && taskData.backVersion ? taskData.backVersion : '' %>" required>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="frontVersion" class="form-label">
+                                    <i class="bi bi-laptop me-1"></i>Front-End версия сборки
+                                </label>
+                                <input type="text" class="form-control" id="frontVersion" name="frontVersion"
+                                    placeholder="Например: 75.2.626" value="<%= taskData && taskData.frontVersion ? taskData.frontVersion : '' %>" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="buildMessageLink" class="form-label">
+                                <i class="bi bi-link-45deg me-1"></i>Ссылка на сообщение с деталями сборки
+                            </label>
+                            <input type="text" class="form-control" id="buildMessageLink" name="buildMessageLink"
+                                placeholder="https://jira.parcsis.org/browse/CASEM-XXXXX#comment-...">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="subtasks" class="form-label">
+                                <i class="bi bi-list-task me-1"></i>Задачи в патче (Зависит от)
+                            </label>
+                            <div id="subtasksContainer">
+                                <% if (taskData && taskData.dependencies && taskData.dependencies.length > 0) { %>
+                                    <% taskData.dependencies.forEach((dep, index) => { %>
+                                        <div class="input-group mb-2 subtask-item">
+                                            <input type="text" class="form-control subtask-key" name="subtasks[]" 
+                                                value="<%= dep.key %>" placeholder="CASEM-XXXXX">
+                                            <input type="text" class="form-control subtask-summary" 
+                                                value="<%= dep.summary || '' %>" placeholder="Описание задачи" readonly>
+                                            <button type="button" class="btn btn-outline-danger remove-subtask" type="button">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    <% }); %>
+                                <% } else { %>
+                                    <div class="input-group mb-2 subtask-item">
+                                        <input type="text" class="form-control subtask-key" name="subtasks[]" 
+                                            placeholder="CASEM-XXXXX">
+                                        <input type="text" class="form-control subtask-summary" 
+                                            placeholder="Описание задачи" readonly>
+                                        <button type="button" class="btn btn-outline-danger remove-subtask" type="button">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                <% } %>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="addSubtask">
+                                <i class="bi bi-plus-circle me-1"></i>Добавить задачу
+                            </button>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>Список зависимостей будет автоматически заполнен из главной задачи, если не указан
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="comment" class="form-label">
+                                <i class="bi bi-chat-left-text me-1"></i>Комментарий (опционально)
+                            </label>
+                            <textarea class="form-control" id="comment" name="comment"
+                                placeholder="Дополнительный комментарий" rows="3"></textarea>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success" id="submitButton">
+                                <i class="bi bi-send me-1"></i>Отправить сообщение в канал
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/js/tom-select.complete.min.js"></script>
+
+<script>
+    let tasksSelect = null;
+
+    // Функция для экранирования HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Функция для извлечения версий сборки из описания
+    function extractBuildVersions(description) {
+        const backVersionInput = document.getElementById('backVersion');
+        const frontVersionInput = document.getElementById('frontVersion');
+        
+        // Паттерны для поиска версий
+        const backPattern = /(?:Back-End|Backend|Back)[\s:]*(\d+\.\d+\.\d+)/i;
+        const frontPattern = /(?:Front-End|Frontend|Front)[\s:]*(\d+\.\d+\.\d+)/i;
+        
+        // Заполняем только если поле пустое
+        if (backVersionInput && !backVersionInput.value.trim()) {
+            const backMatch = description.match(backPattern);
+            if (backMatch) {
+                backVersionInput.value = backMatch[1];
+            }
+        }
+        
+        if (frontVersionInput && !frontVersionInput.value.trim()) {
+            const frontMatch = description.match(frontPattern);
+            if (frontMatch) {
+                frontVersionInput.value = frontMatch[1];
+            }
+        }
+    }
+
+    // Функция для извлечения ссылки на комментарий с релизом из комментариев
+    function extractReleaseLink(comments, taskId) {
+        if (!comments || !Array.isArray(comments) || !taskId) {
+            return null;
+        }
+
+        // Паттерн для поиска ссылки на релиз в GitLab
+        const gitlabReleasePattern = /https?:\/\/[^\s\)\n]*gitlab[^\s\)\n]*\/releases\/[^\s\)\n]+/i;
+        
+        // Ищем в комментариях (от новых к старым)
+        for (let i = comments.length - 1; i >= 0; i--) {
+            const comment = comments[i];
+            
+            // В Jira комментарии обычно имеют body как строку
+            let bodyText = '';
+            if (typeof comment.body === 'string') {
+                bodyText = comment.body;
+            } else if (comment.body && typeof comment.body === 'object') {
+                // Если это ADF (Atlassian Document Format), пытаемся извлечь текст
+                bodyText = JSON.stringify(comment.body);
+            } else if (comment.content) {
+                bodyText = typeof comment.content === 'string' ? comment.content : JSON.stringify(comment.content);
+            }
+            
+            if (!bodyText) {
+                continue;
+            }
+            
+            // Проверяем, есть ли ссылка на releases в GitLab
+            const gitlabMatch = bodyText.match(gitlabReleasePattern);
+            if (gitlabMatch) {
+                // Нашли комментарий с ссылкой на релиз, формируем ссылку на этот комментарий в Jira
+                const commentId = comment.id;
+                if (commentId) {
+                    // Формат ссылки на комментарий: https://jira.parcsis.org/browse/TASK-KEY#comment-COMMENT_ID
+                    const jiraCommentLink = `https://jira.parcsis.org/browse/${encodeURIComponent(taskId)}#comment-${commentId}`;
+                    return jiraCommentLink;
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    // Функция загрузки задач патча
+    async function loadPatchTasks(searchTerm = '') {
+        const taskSelect = document.getElementById('taskId');
+
+        // Уничтожаем предыдущий экземпляр Tom Select, если он существует
+        if (tasksSelect) {
+            tasksSelect.destroy();
+            tasksSelect = null;
+        }
+
+        try {
+            const url = searchTerm 
+                ? `/patch/api/patch-tasks?search=${encodeURIComponent(searchTerm)}`
+                : '/patch/api/patch-tasks';
+            
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.error) {
+                taskSelect.innerHTML = `<option value="">Ошибка: ${data.error}</option>`;
+                taskSelect.disabled = true;
+                return;
+            }
+
+            if (data.tasks && data.tasks.length > 0) {
+                // Инициализируем Tom Select
+                tasksSelect = new TomSelect('#taskId', {
+                    maxItems: 1,
+                    valueField: 'value',
+                    labelField: 'text',
+                    searchField: ['key', 'summary', 'text'],
+                    create: function(input) {
+                        // Позволяем создавать новую опцию, если пользователь ввел ключ задачи вручную
+                        const value = input.trim().toUpperCase();
+                        if (/^(CASEM|REN)-\d+$/.test(value)) {
+                            return {
+                                value: value,
+                                text: value,
+                                key: value,
+                                summary: ''
+                            };
+                        }
+                        return null;
+                    },
+                    createOnBlur: true,
+                    options: data.tasks,
+                    placeholder: 'Выберите задачу или начните вводить для поиска...',
+                    render: {
+                        option: (item, escape) => {
+                            if (item.summary) {
+                                return `
+                                    <div>
+                                        <strong>${escape(item.key)}</strong>
+                                        <div class="text-muted small">${escape(item.summary)}</div>
+                                    </div>
+                                `;
+                            }
+                            return `<div>${escape(item.text)}</div>`;
+                        },
+                        item: (item, escape) => {
+                            return `<div>${escape(item.key || item.value)}</div>`;
+                        },
+                        no_results: () => {
+                            return '<div class="no-results">Задачи не найдены. Попробуйте ввести ключ задачи вручную (например: CASEM-123)</div>';
+                        }
+                    },
+                    load: function(query, callback) {
+                        // Загружаем задачи при поиске
+                        if (!query.length) {
+                            callback();
+                            return;
+                        }
+                        
+                        fetch(`/patch/api/patch-tasks?search=${encodeURIComponent(query)}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.error) {
+                                    callback();
+                                    return;
+                                }
+                                callback(data.tasks || []);
+                            })
+                            .catch(() => {
+                                callback();
+                            });
+                    },
+                    onChange: function(value) {
+                        // При выборе задачи загружаем её детали
+                        if (!value) return;
+                        
+                        const taskKey = value;
+                        loadTaskDetails(taskKey);
+                    }
+                });
+            } else {
+                // Если нет задач, все равно инициализируем Tom Select с возможностью ввода вручную
+                tasksSelect = new TomSelect('#taskId', {
+                    maxItems: 1,
+                    valueField: 'value',
+                    labelField: 'text',
+                    create: function(input) {
+                        const value = input.trim().toUpperCase();
+                        if (/^(CASEM|REN)-\d+$/.test(value)) {
+                            return {
+                                value: value,
+                                text: value,
+                                key: value,
+                                summary: ''
+                            };
+                        }
+                        return null;
+                    },
+                    createOnBlur: true,
+                    placeholder: 'Введите ключ задачи (например: CASEM-123)',
+                    options: [],
+                    onChange: function(value) {
+                        // При выборе задачи загружаем её детали
+                        if (!value) return;
+                        
+                        const taskKey = value;
+                        loadTaskDetails(taskKey);
+                    }
+                });
+            }
+        } catch (error) {
+            taskSelect.innerHTML = `<option value="">Ошибка загрузки: ${error.message}</option>`;
+            taskSelect.disabled = true;
+        }
+    }
+
+    // Функция загрузки деталей задачи и автоматического заполнения формы
+    async function loadTaskDetails(taskKey) {
+        if (!taskKey) return;
+
+        try {
+            const response = await fetch(`/patch/api/task/${encodeURIComponent(taskKey)}`);
+            if (!response.ok) {
+                console.warn('Could not load task details:', response.statusText);
+                return;
+            }
+            
+            const data = await response.json();
+
+            if (data.error) {
+                console.warn('Could not load task details:', data.error);
+                return;
+            }
+
+            // Заполняем название задачи
+            const taskNameDisplay = document.getElementById('taskNameDisplay');
+            const taskInfoContainer = document.getElementById('taskInfoContainer');
+            if (taskNameDisplay && data.taskName) {
+                taskNameDisplay.value = data.taskName;
+                taskInfoContainer.style.display = 'block';
+            }
+            
+            // Заполняем Fix Versions
+            const fixVersionsContainer = document.getElementById('fixVersionsContainer');
+            const fixVersionsDisplay = document.getElementById('fixVersionsDisplay');
+            if (fixVersionsDisplay && data.fixVersions && data.fixVersions.length > 0) {
+                fixVersionsDisplay.innerHTML = data.fixVersions.map(fv => 
+                    `<span class="badge bg-primary me-1">${escapeHtml(fv.name)}</span>`
+                ).join('');
+                fixVersionsContainer.style.display = 'block';
+            }
+            
+            // Извлекаем версии сборки из описания
+            if (data.description) {
+                extractBuildVersions(data.description);
+            }
+            
+            // Извлекаем ссылку на комментарий с релизом из комментариев
+            if (data.comments && Array.isArray(data.comments) && data.comments.length > 0 && data.taskId) {
+                const commentLink = extractReleaseLink(data.comments, data.taskId);
+                if (commentLink) {
+                    const buildMessageLinkInput = document.getElementById('buildMessageLink');
+                    if (buildMessageLinkInput) {
+                        // Заполняем только если поле пустое
+                        if (!buildMessageLinkInput.value.trim()) {
+                            buildMessageLinkInput.value = commentLink;
+                        }
+                    }
+                }
+            }
+            
+            // Обновляем список зависимостей
+            const subtasksContainer = document.getElementById('subtasksContainer');
+            if (!subtasksContainer) {
+                console.error('subtasksContainer not found');
+                return;
+            }
+            
+            if (data.dependencies && Array.isArray(data.dependencies) && data.dependencies.length > 0) {
+                // Очищаем контейнер перед добавлением новых зависимостей
+                subtasksContainer.innerHTML = '';
+                data.dependencies.forEach(dep => {
+                    const key = dep.key || dep;
+                    const summary = dep.summary || '';
+                    if (key) {
+                        addSubtaskRow(key, summary);
+                    }
+                });
+            } else {
+                // Если зависимостей нет, оставляем одну пустую строку
+                if (subtasksContainer.children.length === 0) {
+                    addSubtaskRow('', '');
+                }
+            }
+        } catch (error) {
+            console.error('Error loading task details:', error);
+        }
+    }
+
+    // Функция для добавления строки зависимости
+    function addSubtaskRow(key = '', summary = '') {
+        const subtasksContainer = document.getElementById('subtasksContainer');
+        if (!subtasksContainer) {
+            console.error('subtasksContainer not found');
+            return;
+        }
+        
+        const div = document.createElement('div');
+        div.className = 'input-group mb-2 subtask-item';
+        div.innerHTML = `
+            <input type="text" class="form-control subtask-key" name="subtasks[]" 
+                value="${key}" placeholder="CASEM-XXXXX">
+            <input type="text" class="form-control subtask-summary" 
+                value="${summary}" placeholder="Описание задачи" readonly>
+            <button type="button" class="btn btn-outline-danger remove-subtask">
+                <i class="bi bi-trash"></i>
+            </button>
+        `;
+        subtasksContainer.appendChild(div);
+        
+        // Добавляем обработчик для загрузки описания при вводе ключа
+        const keyInput = div.querySelector('.subtask-key');
+        const summaryInput = div.querySelector('.subtask-summary');
+        
+        let debounceTimer;
+        keyInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                const taskKey = keyInput.value.trim().toUpperCase();
+                if (taskKey && /^[A-Z]+-\d+$/.test(taskKey)) {
+                    try {
+                        const response = await fetch(`/patch/api/task/${taskKey}`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            summaryInput.value = data.taskName || '';
+                        }
+                    } catch (error) {
+                        console.error('Ошибка загрузки данных подзадачи:', error);
+                    }
+                } else {
+                    summaryInput.value = '';
+                }
+            }, 500);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const subtasksContainer = document.getElementById('subtasksContainer');
+        const addSubtaskBtn = document.getElementById('addSubtask');
+        
+        // Загружаем задачи патча при загрузке страницы
+        loadPatchTasks();
+
+        // Если задача передана через query параметр, устанавливаем её после инициализации Tom Select
+        <% if (taskData && taskData.taskId) { %>
+            setTimeout(() => {
+                if (tasksSelect) {
+                    tasksSelect.setValue('<%= taskData.taskId %>');
+                    loadTaskDetails('<%= taskData.taskId %>');
+                }
+            }, 500);
+        <% } %>
+
+        // Добавление новой подзадачи
+        addSubtaskBtn.addEventListener('click', () => {
+            addSubtaskRow('', '');
+        });
+
+        // Удаление подзадачи
+        subtasksContainer.addEventListener('click', (e) => {
+            if (e.target.closest('.remove-subtask')) {
+                e.target.closest('.subtask-item').remove();
+            }
+        });
+
+        function addSubtaskRow(key = '', summary = '') {
+            const div = document.createElement('div');
+            div.className = 'input-group mb-2 subtask-item';
+            div.innerHTML = `
+                <input type="text" class="form-control subtask-key" name="subtasks[]" 
+                    value="${key}" placeholder="CASEM-XXXXX">
+                <input type="text" class="form-control subtask-summary" 
+                    value="${summary}" placeholder="Описание задачи" readonly>
+                <button type="button" class="btn btn-outline-danger remove-subtask">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+            subtasksContainer.appendChild(div);
+            
+            // Добавляем обработчик для загрузки описания при вводе ключа
+            const keyInput = div.querySelector('.subtask-key');
+            const summaryInput = div.querySelector('.subtask-summary');
+            
+            let debounceTimer;
+            keyInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
+                    const taskKey = keyInput.value.trim().toUpperCase();
+                    if (taskKey && /^[A-Z]+-\d+$/.test(taskKey)) {
+                        try {
+                            const response = await fetch(`/patch/api/task/${taskKey}`);
+                            if (response.ok) {
+                                const data = await response.json();
+                                summaryInput.value = data.taskName || '';
+                            }
+                        } catch (error) {
+                            console.error('Ошибка загрузки данных подзадачи:', error);
+                        }
+                    } else {
+                        summaryInput.value = '';
+                    }
+                }, 500);
+            });
+        }
+
+        // Валидация формы
+        const form = document.getElementById('patchForm');
+        form.addEventListener('submit', (e) => {
+            const submitButton = form.querySelector('button[type="submit"]');
+            
+            if (submitButton && submitButton.disabled) {
+                e.preventDefault();
+                return false;
+            }
+
+            // Получаем выбранную задачу из Tom Select
+            let taskKey = null;
+            if (tasksSelect && tasksSelect.items && tasksSelect.items.length > 0) {
+                taskKey = tasksSelect.items[0];
+            } else {
+                const taskSelectElement = document.getElementById('taskId');
+                taskKey = taskSelectElement.value ? taskSelectElement.value.trim() : null;
+            }
+
+            // Устанавливаем значение в скрытое поле или обновляем select
+            if (taskKey && tasksSelect) {
+                tasksSelect.setValue(taskKey);
+            }
+
+            // Блокируем кнопку отправки
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
+                submitButton.classList.add('disabled');
+            }
+        });
+    });
+</script>
+
+<style>
+    /* === Tom Select: Dark Mode Fixes === */
+    [data-bs-theme="dark"] .ts-control,
+    body.dark .ts-control {
+        background-color: #212529 !important;
+        color: #f8f9fa !important;
+        border-color: #495057 !important;
+    }
+
+    [data-bs-theme="dark"] .ts-control:focus,
+    body.dark .ts-control:focus {
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+    }
+
+    [data-bs-theme="dark"] .ts-control input,
+    body.dark .ts-control input {
+        color: #f8f9fa !important;
+        caret-color: #0d6efd !important;
+    }
+
+    [data-bs-theme="dark"] .ts-dropdown,
+    body.dark .ts-dropdown {
+        background-color: #212529 !important;
+        border-color: #343a40 !important;
+        color: #f8f9fa !important;
+    }
+
+    [data-bs-theme="dark"] .ts-dropdown .option {
+        background-color: transparent !important;
+        color: #dee2e6 !important;
+    }
+
+    [data-bs-theme="dark"] .ts-dropdown .option:hover,
+    [data-bs-theme="dark"] .ts-dropdown .option.active,
+    body.dark .ts-dropdown .option.active {
+        background-color: #495057 !important;
+        color: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] .ts-dropdown .option span.text-muted {
+        color: #adb5bd !important;
+    }
+
+    [data-bs-theme="dark"] .ts-dropdown mark,
+    body.dark .ts-dropdown mark {
+        background-color: transparent !important;
+        color: #0d6efd !important;
+        font-weight: 600;
+    }
+
+    [data-bs-theme="dark"] .ts-wrapper.single .ts-control>.item {
+        color: #e9ecef !important;
+    }
+</style>
