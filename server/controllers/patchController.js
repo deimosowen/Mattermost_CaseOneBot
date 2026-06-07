@@ -129,7 +129,7 @@ router.get('/api/task/:taskId', async (req, res) => {
         if (!task) {
             return res.status(404).json({ error: 'Задача не найдена' });
         }
-        console.log(JSON.stringify(task, null, 2));
+
         const responseData = {
             taskId: task.key,
             taskName: task.summary,

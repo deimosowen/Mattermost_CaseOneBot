@@ -341,9 +341,15 @@ router.get('/api/latest-log', async (req, res) => {
         if (stats.size > maxSize) {
             // Если файл большой, читаем только последние 100 KB
             const buffer = Buffer.allocUnsafe(maxSize);
-            const fd = fs.openSync(latestLog.path, 'r');
-            fs.readSync(fd, buffer, 0, maxSize, stats.size - maxSize);
-            fs.closeSync(fd);
+            let fd;
+            try {
+                fd = fs.openSync(latestLog.path, 'r');
+                fs.readSync(fd, buffer, 0, maxSize, stats.size - maxSize);
+            } finally {
+                if (fd !== undefined) {
+                    fs.closeSync(fd);
+                }
+            }
             logContent = buffer.toString('utf8');
             logContent = '... (показаны последние 100 KB из ' + (stats.size / 1024).toFixed(2) + ' KB)\n\n' + logContent;
         } else {

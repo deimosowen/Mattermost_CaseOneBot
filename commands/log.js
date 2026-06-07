@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { postMessage, postMessageInTreed, uploadFile, getMe, createDirectChannel } = require('../mattermost/utils');
+const { ADMIN_ID } = require('../config');
 const logger = require('../logger');
 
 /**
@@ -30,15 +31,22 @@ function getLatestLogFile() {
  */
 module.exports = async ({ post_id, channel_id, user_id, channel_type }) => {
     try {
+        const replyToSource = async (message) => {
+            if (channel_type === 'D' && post_id) {
+                return postMessageInTreed(post_id, message);
+            }
+            return postMessage(channel_id, message);
+        };
+
+        if (!ADMIN_ID || ADMIN_ID !== user_id) {
+            await replyToSource('Команда доступна только администратору.');
+            return;
+        }
+
         const latestLog = getLatestLogFile();
         
         if (!latestLog) {
-            const errorMessage = 'Логи не найдены';
-            if (channel_type === 'D') {
-                postMessageInTreed(post_id, errorMessage);
-            } else {
-                postMessage(channel_id, errorMessage);
-            }
+            await replyToSource('Логи не найдены');
             return;
         }
         
@@ -47,16 +55,15 @@ module.exports = async ({ post_id, channel_id, user_id, channel_type }) => {
         const logFileName = latestLog.name;
         
         // Определяем, куда отправлять
+        const wasDirectRequest = channel_type === 'D';
         let targetChannelId = channel_id;
-        let isDirect = channel_type === 'D';
         
         // Если не личный канал, отправляем в личное сообщение
-        if (!isDirect) {
+        if (!wasDirectRequest) {
             try {
                 const bot = await getMe();
                 const directChannel = await createDirectChannel([user_id, bot.id]);
                 targetChannelId = directChannel.id;
-                isDirect = true;
             } catch (error) {
                 logger.error(`Error creating direct channel: ${error.message}`);
                 // Если не удалось создать личный канал, отправляем в текущий канал
@@ -75,7 +82,7 @@ module.exports = async ({ post_id, channel_id, user_id, channel_type }) => {
         const message = `📋 Последний файл лога: \`${logFileName}\``;
         
         // Отправляем сообщение с файлом
-        if (isDirect && post_id) {
+        if (wasDirectRequest && post_id) {
             postMessageInTreed(post_id, message, [fileId]);
         } else {
             postMessage(targetChannelId, message, null, [fileId]);

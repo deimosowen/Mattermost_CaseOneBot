@@ -18,6 +18,7 @@ const reviewTaskService = require('../services/reviewTaskService');
 const JiraStatusType = require('../types/jiraStatusTypes');
 const { getEnabledReviewChannelIdsForUser } = require('../services/reviewChannelAvailabilityService');
 const logger = require('../logger');
+const CONFLUENCE_LINK_ONLY_CHANNEL_ID = '5n7ic16hqfn8ibfgek48bohesh';
 
 /**
  * Обработчики сообщений для разных каналов
@@ -34,7 +35,7 @@ const channelMessageHandlers = {
         return null;
     },
 
-    '5n7ic16hqfn8ibfgek48bohesh': async (task) => {
+    [CONFLUENCE_LINK_ONLY_CHANNEL_ID]: async (task) => {
         const confluenceURL = task.confluenceURL;
         if (confluenceURL) {
             return `[${confluenceURL}](${confluenceURL})`;

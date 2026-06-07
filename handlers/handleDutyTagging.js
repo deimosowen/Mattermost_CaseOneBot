@@ -174,19 +174,17 @@ module.exports = async (post, eventData) => {
                 continue;
             }
 
-            // Получаем текущего дежурного для канала из настройки
-            const currentDuty = await getCurrentDuty(setting.channel_id);
-            if (!currentDuty || !currentDuty.user_id) {
-                logger.debug(`No current duty found for channel ${setting.channel_id}`);
-                continue;
-            }
+            const messageTemplate = setting.message_template || '{duty_mention}';
+            const needsCurrentDuty = messageTemplate.includes('{duty_mention}');
+            let currentDuty = null;
 
-            // Проверяем, находится ли текущий дежурный в списке исключений
-            // (проверяем до обработки шаблона, чтобы пропустить всю настройку, если текущий дежурный исключен)
-            const dutyUserId = await getUserIdFromUsername(currentDuty.user_id);
-            if (isUserExcluded(dutyUserId, setting.excluded_user_ids)) {
-                logger.debug(`Duty ${currentDuty.user_id} (${dutyUserId}) is in exclusion list, skipping tag`);
-                continue;
+            if (needsCurrentDuty) {
+                // Получаем текущего дежурного только для шаблонов, где он реально нужен.
+                currentDuty = await getCurrentDuty(setting.channel_id);
+                if (!currentDuty || !currentDuty.user_id) {
+                    logger.debug(`No current duty found for channel ${setting.channel_id}`);
+                    continue;
+                }
             }
 
             // Формируем контекст для обработчиков тегов
@@ -197,13 +195,12 @@ module.exports = async (post, eventData) => {
             };
 
             // Обрабатываем шаблон сообщения, заменяя все теги
-            const messageTemplate = setting.message_template || '{duty_mention}';
             const mentionMessage = await processMessageTemplate(messageTemplate, tagContext);
 
             // Тэгаем дежурного в треде
             await postMessageInTreed(post.id, mentionMessage);
 
-            logger.debug(`Tagged duty ${currentDuty.user_id} in thread ${post.root_id} for tag ${setting.tag} with template: ${messageTemplate}`);
+            logger.debug(`Processed duty tag in thread ${post.root_id} for tag ${setting.tag} with template: ${messageTemplate}`);
 
             // Обрабатываем только первое совпадение, чтобы не тэгать несколько раз
             break;
@@ -212,4 +209,3 @@ module.exports = async (post, eventData) => {
         logger.error(`Error in handleDutyTagging: ${error.message}\nStack trace:\n${error.stack}`);
     }
 };
-
