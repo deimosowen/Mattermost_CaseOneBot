@@ -1,3 +1,128 @@
+jest.mock('../../../db/index.js', () => {
+    const state = {
+        rows: [],
+        nextId: 1,
+    };
+
+    const sortRows = (rows) => [...rows].sort((a, b) => {
+        const channelCompare = a.main_channel_id.localeCompare(b.main_channel_id);
+        if (channelCompare !== 0) return channelCompare;
+        return a.prefix.localeCompare(b.prefix);
+    });
+
+    const dbMock = {
+        __reset() {
+            state.rows = [];
+            state.nextId = 1;
+        },
+
+        get: jest.fn(async (sql, params = []) => {
+            if (sql.includes('SELECT 1 FROM invite_channels')) {
+                return { ok: 1 };
+            }
+
+            if (sql.includes('SELECT id FROM invite_channels WHERE main_channel_id = ? AND prefix = ?')) {
+                const [mainChannelId, prefix] = params;
+                const row = state.rows.find(item =>
+                    item.main_channel_id === mainChannelId && item.prefix === prefix
+                );
+                return row ? { id: row.id } : undefined;
+            }
+
+            return undefined;
+        }),
+
+        all: jest.fn(async (sql, params = []) => {
+            if (sql.includes('SELECT * FROM invite_channels WHERE main_channel_id = ?')) {
+                const [mainChannelId] = params;
+                return sortRows(state.rows.filter(item => item.main_channel_id === mainChannelId));
+            }
+
+            if (sql.includes('SELECT * FROM invite_channels ORDER BY main_channel_id, prefix')) {
+                return sortRows(state.rows);
+            }
+
+            if (sql.includes('SELECT DISTINCT main_channel_id FROM invite_channels')) {
+                return [...new Set(state.rows.map(item => item.main_channel_id))]
+                    .sort()
+                    .map(main_channel_id => ({ main_channel_id }));
+            }
+
+            if (sql.includes('SELECT prefix FROM invite_channels WHERE main_channel_id = ?')) {
+                const [mainChannelId] = params;
+                return state.rows
+                    .filter(item => item.main_channel_id === mainChannelId)
+                    .sort((a, b) => a.prefix.localeCompare(b.prefix))
+                    .map(item => ({ prefix: item.prefix }));
+            }
+
+            return [];
+        }),
+
+        run: jest.fn((sql, params = [], callback = () => {}) => {
+            if (sql.includes('INSERT INTO invite_channels')) {
+                const [mainChannelId, prefix] = params;
+                const duplicate = state.rows.some(item =>
+                    item.main_channel_id === mainChannelId && item.prefix === prefix
+                );
+
+                if (duplicate) {
+                    const error = new Error('SQLITE_CONSTRAINT: UNIQUE constraint failed: invite_channels.main_channel_id, invite_channels.prefix');
+                    callback.call({ lastID: undefined, changes: 0 }, error);
+                    return;
+                }
+
+                const id = state.nextId++;
+                state.rows.push({
+                    id,
+                    main_channel_id: mainChannelId,
+                    prefix,
+                    updated_at: new Date().toISOString(),
+                });
+                callback.call({ lastID: id, changes: 1 }, null);
+                return;
+            }
+
+            if (sql.includes('DELETE FROM invite_channels WHERE main_channel_id LIKE ?')) {
+                const [pattern] = params;
+                const prefix = pattern.replace('%', '');
+                const before = state.rows.length;
+                state.rows = state.rows.filter(item => !item.main_channel_id.startsWith(prefix));
+                callback.call({ changes: before - state.rows.length }, null);
+                return;
+            }
+
+            if (sql.includes('DELETE FROM invite_channels WHERE id = ?')) {
+                const [id] = params;
+                const before = state.rows.length;
+                state.rows = state.rows.filter(item => item.id !== id);
+                callback.call({ changes: before - state.rows.length }, null);
+                return;
+            }
+
+            if (sql.includes('UPDATE invite_channels')) {
+                const [mainChannelId, prefix, id] = params;
+                const row = state.rows.find(item => item.id === id);
+
+                if (!row) {
+                    callback.call({ changes: 0 }, null);
+                    return;
+                }
+
+                row.main_channel_id = mainChannelId;
+                row.prefix = prefix;
+                row.updated_at = new Date().toISOString();
+                callback.call({ changes: 1 }, null);
+                return;
+            }
+
+            callback.call({ changes: 0 }, null);
+        }),
+    };
+
+    return dbMock;
+});
+
 const db = require('../../../db/index.js');
 const {
     getAllInviteChannels,
@@ -17,49 +142,22 @@ describe('inviteChannels model', () => {
     const testPrefix2 = 'project-';
     const testPrefix3 = 'dev-';
 
-    beforeAll(async () => {
-        // Проверяем, что таблица существует
-        try {
-            await db.get('SELECT 1 FROM invite_channels LIMIT 1');
-        } catch (err) {
-            throw new Error('Таблица invite_channels не существует. Выполните миграцию: db-migrate up');
-        }
-    });
-
-    beforeEach(async () => {
-        // Очищаем тестовые данные перед каждым тестом
-        // Используем промис для db.run
-        await new Promise((resolve, reject) => {
-            db.run('DELETE FROM invite_channels WHERE main_channel_id LIKE ?', [`test-%`], function (err) {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
-    });
-
-    afterAll(async () => {
-        // Очищаем тестовые данные после всех тестов
-        await new Promise((resolve, reject) => {
-            db.run('DELETE FROM invite_channels WHERE main_channel_id LIKE ?', [`test-%`], function (err) {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
+    beforeEach(() => {
+        db.__reset();
+        jest.clearAllMocks();
     });
 
     describe('addInviteChannel', () => {
         test('добавляет новую конфигурацию канала и префикса', async () => {
             const id = await addInviteChannel(testMainChannelId, testPrefix1);
-            
+
             expect(id).toBeGreaterThan(0);
-            
-            // Проверяем через getAllInviteChannels, чтобы убедиться, что данные сохранились
+
             const all = await getAllInviteChannels();
             const added = all.find(ic => ic.main_channel_id === testMainChannelId && ic.prefix === testPrefix1);
             expect(added).toBeDefined();
             expect(added.id).toBe(id);
-            
-            // Теперь проверяем через inviteChannelExists
+
             const exists = await inviteChannelExists(testMainChannelId, testPrefix1);
             expect(exists).toBe(true);
         });
@@ -84,10 +182,10 @@ describe('inviteChannels model', () => {
 
         test('не позволяет добавить дубликат (та же пара main_channel_id + prefix)', async () => {
             await addInviteChannel(testMainChannelId, testPrefix1);
-            
+
             await expect(
                 addInviteChannel(testMainChannelId, testPrefix1)
-            ).rejects.toThrow();
+            ).rejects.toThrow('SQLITE_CONSTRAINT');
         });
     });
 
@@ -99,8 +197,8 @@ describe('inviteChannels model', () => {
 
             const all = await getAllInviteChannels();
             expect(Array.isArray(all)).toBe(true);
-            
-            const testChannels = all.filter(ic => 
+
+            const testChannels = all.filter(ic =>
                 ic.main_channel_id === testMainChannelId || ic.main_channel_id === 'test-channel-456'
             );
             expect(testChannels.length).toBeGreaterThanOrEqual(3);
@@ -180,7 +278,7 @@ describe('inviteChannels model', () => {
     describe('removeInviteChannel', () => {
         test('удаляет конфигурацию по ID', async () => {
             const id1 = await addInviteChannel(testMainChannelId, testPrefix1);
-            const id2 = await addInviteChannel(testMainChannelId, testPrefix2);
+            await addInviteChannel(testMainChannelId, testPrefix2);
 
             const result = await removeInviteChannel(id1);
             expect(result).toBe(1);
@@ -200,11 +298,10 @@ describe('inviteChannels model', () => {
     describe('updateInviteChannel', () => {
         test('обновляет конфигурацию', async () => {
             const id = await addInviteChannel(testMainChannelId, testPrefix1);
-            
-            // Проверяем, что запись действительно создана
+
             const existsBefore = await inviteChannelExists(testMainChannelId, testPrefix1);
             expect(existsBefore).toBe(true);
-            
+
             const newPrefix = 'new-prefix-';
 
             const result = await updateInviteChannel(id, testMainChannelId, newPrefix);
@@ -224,7 +321,7 @@ describe('inviteChannels model', () => {
     describe('inviteChannelExists', () => {
         test('возвращает true для существующей конфигурации', async () => {
             await addInviteChannel(testMainChannelId, testPrefix1);
-            
+
             const exists = await inviteChannelExists(testMainChannelId, testPrefix1);
             expect(exists).toBe(true);
         });
@@ -235,4 +332,3 @@ describe('inviteChannels model', () => {
         });
     });
 });
-
