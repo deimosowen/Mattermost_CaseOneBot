@@ -1,692 +1,734 @@
 <% layout('layout') -%>
-<% block('title', 'Настройки ревью' ); -%>
+    <% block('title', 'Настройки ревью' ); -%>
 
-<div class="container my-5">
-    <div class="row">
-        <div class="col-12 col-lg-10 mx-auto">
-            <% if (error) { %>
-                <div class="alert alert-danger" role="alert">
-                    <i class="bi bi-exclamation-triangle me-2"></i><%= error %>
-                </div>
-            <% } %>
-
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h4 class="mb-0">
-                        <i class="bi bi-check-circle me-2"></i>Настройки ревью
-                        <% if (channel) { %>
-                            <small class="text-muted">— <%= channel.name %></small>
-                        <% } else { %>
-                            <div class="alert alert-warning mt-3 mb-0" role="alert">
-                                <i class="bi bi-exclamation-triangle me-2"></i>
-                                Для настройки ревью необходимо указать <code>channel_id</code> в параметрах URL.
-                                <br>Пример: <code>/review/settings?channel_id=your_channel_id</code>
-                            </div>
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-12 col-lg-10 mx-auto">
+                    <% if (error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <%= error %>
+                        </div>
                         <% } %>
-                    </h4>
-                </div>
-                <div class="card-body">
-                    <form id="settingsForm">
-                        <input type="hidden" name="channel_id" value="<%= channel ? channel.id : '' %>">
-                        
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Статус автоматического распределения</label>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="isEnabled" 
-                                    <%= settings && settings.is_enabled ? 'checked' : '' %>>
-                                <label class="form-check-label" for="isEnabled">
-                                    <%= settings && settings.is_enabled ? 'Включено' : 'Отключено' %>
-                                </label>
+
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header">
+                                    <h4 class="mb-0">
+                                        <i class="bi bi-check-circle me-2"></i>Настройки ревью
+                                        <% if (channel) { %>
+                                            <small class="text-muted">— <%= channel.name %></small>
+                                            <% } else { %>
+                                                <div class="alert alert-warning mt-3 mb-0" role="alert">
+                                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                                    Для настройки ревью необходимо указать <code>channel_id</code> в
+                                                    параметрах URL.
+                                                    <br>Пример: <code>/review/settings?channel_id=your_channel_id</code>
+                                                </div>
+                                                <% } %>
+                                    </h4>
+                                </div>
+                                <div class="card-body">
+                                    <form id="settingsForm">
+                                        <input type="hidden" name="channel_id" value="<%= channel ? channel.id : '' %>">
+
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">Статус автоматического
+                                                распределения</label>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="isEnabled"
+                                                    <%=settings && settings.is_enabled ? 'checked' : '' %>>
+                                                <label class="form-check-label" for="isEnabled">
+                                                    <%= settings && settings.is_enabled ? 'Включено' : 'Отключено' %>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">Тип ревью</label>
+                                            <select class="form-select" id="reviewType" name="review_type" <%=settings
+                                                && !settings.is_enabled ? 'disabled' : '' %>>
+                                                <option value="manual" <%=settings && settings.review_type==='manual'
+                                                    ? 'selected' : '' %>>
+                                                    Ручное назначение
+                                                </option>
+                                                <option value="queue" <%=settings && settings.review_type==='queue'
+                                                    ? 'selected' : '' %>>
+                                                    Автоматическое распределение по очереди
+                                                </option>
+                                            </select>
+                                            <div class="form-text">
+                                                <strong>Ручное назначение:</strong> ревьюеры назначаются вручную<br>
+                                                <strong>По очереди:</strong> ревьюеры распределяются автоматически
+                                                согласно очереди
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">Архитектурное ревью</label>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="allowArchReview"
+                                                    name="allow_arch_review" <%=settings && settings.allow_arch_review
+                                                    ? 'checked' : '' %>>
+                                                <label class="form-check-label" for="allowArchReview">
+                                                    Допускается для канала
+                                                </label>
+                                            </div>
+                                            <div class="mt-2" id="archReviewTagBlock">
+                                                <label for="archReviewTag" class="form-label">Тег для архитектурного
+                                                    ревью</label>
+                                                <input type="text" class="form-control" id="archReviewTag"
+                                                    name="arch_review_tag" placeholder="@c1-back-arch"
+                                                    value="<%= settings && settings.arch_review_tag ? settings.arch_review_tag : '' %>">
+                                                <div class="form-text">Указывается в сообщении вместо ревьюверов
+                                                    (например @c1-back-arch)</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex gap-2">
+                                            <button type="button" class="btn btn-primary" id="saveSettingsBtn">
+                                                <i class="bi bi-save me-1"></i>Сохранить настройки
+                                            </button>
+                                            <% if (settings && settings.is_enabled) { %>
+                                                <button type="button" class="btn btn-outline-danger" id="disableBtn">
+                                                    <i class="bi bi-x-circle me-1"></i>Отключить
+                                                </button>
+                                                <% } %>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Тип ревью</label>
-                            <select class="form-select" id="reviewType" name="review_type" 
-                                <%= settings && !settings.is_enabled ? 'disabled' : '' %>>
-                                <option value="manual" <%= settings && settings.review_type === 'manual' ? 'selected' : '' %>>
-                                    Ручное назначение
-                                </option>
-                                <option value="queue" <%= settings && settings.review_type === 'queue' ? 'selected' : '' %>>
-                                    Автоматическое распределение по очереди
-                                </option>
-                            </select>
-                            <div class="form-text">
-                                <strong>Ручное назначение:</strong> ревьюеры назначаются вручную<br>
-                                <strong>По очереди:</strong> ревьюеры распределяются автоматически согласно очереди
-                            </div>
-                        </div>
-
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-primary" id="saveSettingsBtn">
-                                <i class="bi bi-save me-1"></i>Сохранить настройки
-                            </button>
-                            <% if (settings && settings.is_enabled) { %>
-                                <button type="button" class="btn btn-outline-danger" id="disableBtn">
-                                    <i class="bi bi-x-circle me-1"></i>Отключить
-                                </button>
-                            <% } %>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <% if (settings && settings.review_type === 'queue') { %>
-                <div class="card shadow-sm">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            <i class="bi bi-people me-2"></i>Очередь ревьюеров
-                        </h5>
-                        <div>
-                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addReviewerModal">
-                                <i class="bi bi-person-plus me-1"></i>Добавить
-                            </button>
-                            <% if (reviewers && reviewers.length > 0) { %>
-                                <button type="button" class="btn btn-sm btn-outline-danger" id="clearQueueBtn">
-                                    <i class="bi bi-trash me-1"></i>Очистить
-                                </button>
-                            <% } %>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <% if (reviewers && reviewers.length > 0) { %>
-                            <div class="table-responsive">
-                                <table class="table table-hover" id="reviewersTable">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 50px;">#</th>
-                                            <th>Имя</th>
-                                            <th>Username</th>
-                                            <th style="width: 100px;" class="text-end">Действия</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="reviewersTableBody">
-                                        <% reviewers.forEach((reviewer, index) => { %>
-                                            <tr data-id="<%= reviewer.id %>">
-                                                <td class="align-middle">
-                                                    <span class="badge bg-secondary"><%= index + 1 %></span>
-                                                </td>
-                                                <td class="align-middle">
-                                                    <%= reviewer.displayName %>
-                                                </td>
-                                                <td class="align-middle">
-                                                    <code>@<%= reviewer.username %></code>
-                                                </td>
-                                                <td class="text-end align-middle">
-                                                    <button type="button" class="btn btn-sm btn-outline-danger remove-reviewer-btn" 
-                                                        data-id="<%= reviewer.id %>" data-username="<%= reviewer.username %>">
-                                                        <i class="bi bi-trash"></i>
+                            <% if (settings && settings.review_type==='queue' ) { %>
+                                <div class="card shadow-sm">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-people me-2"></i>Очередь ревьюеров
+                                        </h5>
+                                        <div>
+                                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal"
+                                                data-bs-target="#addReviewerModal">
+                                                <i class="bi bi-person-plus me-1"></i>Добавить
+                                            </button>
+                                            <% if (reviewers && reviewers.length> 0) { %>
+                                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    id="clearQueueBtn">
+                                                    <i class="bi bi-trash me-1"></i>Очистить
+                                                </button>
+                                                <% } %>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <% if (reviewers && reviewers.length> 0) { %>
+                                            <div class="table-responsive">
+                                                <table class="table table-hover" id="reviewersTable">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width: 50px;">#</th>
+                                                            <th>Имя</th>
+                                                            <th>Username</th>
+                                                            <th style="width: 100px;" class="text-end">Действия</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="reviewersTableBody">
+                                                        <% reviewers.forEach((reviewer, index)=> { %>
+                                                            <tr data-id="<%= reviewer.id %>">
+                                                                <td class="align-middle">
+                                                                    <span class="badge bg-secondary">
+                                                                        <%= index + 1 %>
+                                                                    </span>
+                                                                </td>
+                                                                <td class="align-middle">
+                                                                    <%= reviewer.displayName %>
+                                                                </td>
+                                                                <td class="align-middle">
+                                                                    <code>@<%= reviewer.username %></code>
+                                                                </td>
+                                                                <td class="text-end align-middle">
+                                                                    <button type="button"
+                                                                        class="btn btn-sm btn-outline-danger remove-reviewer-btn"
+                                                                        data-id="<%= reviewer.id %>"
+                                                                        data-username="<%= reviewer.username %>">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                            <% }); %>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <div class="form-text mt-2">
+                                                <i class="bi bi-info-circle me-1"></i>Перетащите строки для изменения
+                                                порядка
+                                            </div>
+                                            <% } else { %>
+                                                <div class="text-center py-4">
+                                                    <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                                                    <p class="text-muted mt-3">Очередь ревьюеров пуста</p>
+                                                    <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                                                        data-bs-target="#addReviewerModal">
+                                                        <i class="bi bi-person-plus me-1"></i>Добавить первого ревьюера
                                                     </button>
-                                                </td>
-                                            </tr>
-                                        <% }); %>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="form-text mt-2">
-                                <i class="bi bi-info-circle me-1"></i>Перетащите строки для изменения порядка
-                            </div>
-                        <% } else { %>
-                            <div class="text-center py-4">
-                                <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
-                                <p class="text-muted mt-3">Очередь ревьюеров пуста</p>
-                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addReviewerModal">
-                                    <i class="bi bi-person-plus me-1"></i>Добавить первого ревьюера
-                                </button>
-                            </div>
-                        <% } %>
-                    </div>
+                                                </div>
+                                                <% } %>
+                                    </div>
+                                </div>
+                                <% } else if (settings && settings.is_enabled && settings.review_type==='manual' ) { %>
+                                    <div class="card shadow-sm">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">
+                                                <i class="bi bi-info-circle me-2"></i>Информация
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="mb-0">
+                                                При типе ревью <strong>"Ручное назначение"</strong> ревьюеры назначаются
+                                                вручную при создании задачи на ревью.
+                                                Очередь ревьюеров не используется.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <% } %>
                 </div>
-            <% } else if (settings && settings.is_enabled && settings.review_type === 'manual') { %>
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="bi bi-info-circle me-2"></i>Информация
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <p class="mb-0">
-                            При типе ревью <strong>"Ручное назначение"</strong> ревьюеры назначаются вручную при создании задачи на ревью.
-                            Очередь ревьюеров не используется.
-                        </p>
-                    </div>
-                </div>
-            <% } %>
-        </div>
-    </div>
-</div>
-
-<!-- Modal для добавления ревьюера -->
-<div class="modal fade" id="addReviewerModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Добавить ревьюера</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="addReviewerForm">
-                    <input type="hidden" name="channel_id" value="<%= channel ? channel.id : '' %>">
-                    <div class="mb-3">
-                        <label for="reviewerSelect" class="form-label">Выберите пользователя</label>
-                        <input type="text" class="form-control" id="reviewerSelect" name="username" 
-                            placeholder="Загрузка пользователей...">
-                        <div class="form-text">Выберите пользователя из списка участников канала</div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" id="addReviewerBtn" disabled>Добавить</button>
             </div>
         </div>
-    </div>
-</div>
 
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/js/tom-select.complete.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-<style>
-    /* Исправление для темной темы Tom Select */
-    [data-bs-theme="dark"] .ts-control {
-        background-color: var(--bs-body-bg);
-        color: var(--bs-body-color);
-        border-color: var(--bs-border-color);
-    }
-    [data-bs-theme="dark"] .ts-dropdown {
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-    }
-    [data-bs-theme="dark"] .ts-dropdown .option {
-        color: var(--bs-body-color);
-    }
-    [data-bs-theme="dark"] .ts-dropdown .option.active {
-        background-color: var(--bs-primary);
-    }
-</style>
-<script>
-    const channelId = '<%= channel ? channel.id : '' %>';
-    const existingReviewers = <%- JSON.stringify((reviewers || []).map(r => r.user_id)) %>;
-    let sortable;
-    let reviewerSelect = null;
+        <!-- Modal для добавления ревьюера -->
+        <div class="modal fade" id="addReviewerModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Добавить ревьюера</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addReviewerForm">
+                            <input type="hidden" name="channel_id" value="<%= channel ? channel.id : '' %>">
+                            <div class="mb-3">
+                                <label for="reviewerSelect" class="form-label">Выберите пользователя</label>
+                                <input type="text" class="form-control" id="reviewerSelect" name="username"
+                                    placeholder="Загрузка пользователей...">
+                                <div class="form-text">Выберите пользователя из списка участников канала</div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" id="addReviewerBtn" disabled>Добавить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    // Инициализация всех обработчиков событий
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOM loaded, initializing event handlers');
-        
-        const tbody = document.getElementById('reviewersTableBody');
-        if (tbody) {
-            sortable = new Sortable(tbody, {
-                handle: 'tr',
-                animation: 150,
-                onEnd: async (evt) => {
-                    const order = Array.from(tbody.querySelectorAll('tr')).map(tr => tr.dataset.id);
-                    await updateReviewersOrder(order);
-                }
-            });
-        }
-
-        // Обработчик переключения статуса
-        const isEnabledCheckbox = document.getElementById('isEnabled');
-        if (isEnabledCheckbox) {
-            isEnabledCheckbox.addEventListener('change', (e) => {
-                const reviewTypeSelect = document.getElementById('reviewType');
-                if (reviewTypeSelect) {
-                    reviewTypeSelect.disabled = !e.target.checked;
-                }
-            });
-        }
-
-        // Инициализация модального окна для добавления ревьюера
-        const addReviewerModal = document.getElementById('addReviewerModal');
-        if (addReviewerModal) {
-            addReviewerModal.addEventListener('shown.bs.modal', async () => {
-                // Используем 'shown.bs.modal' вместо 'show.bs.modal' чтобы модальное окно было полностью отрендерено
-                await loadChannelUsersForModal();
-            });
-            addReviewerModal.addEventListener('hidden.bs.modal', () => {
-                // Очищаем выбор при закрытии модального окна
-                if (reviewerSelect) {
-                    reviewerSelect.destroy();
-                    reviewerSelect = null;
-                }
-                const reviewerInput = document.getElementById('reviewerSelect');
-                if (reviewerInput) {
-                    reviewerInput.value = '';
-                    reviewerInput.placeholder = 'Загрузка пользователей...';
-                }
-                const addBtn = document.getElementById('addReviewerBtn');
-                if (addBtn) {
-                    addBtn.disabled = true;
-                }
-            });
-        }
-
-        // Сохранение настроек
-        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-        if (saveSettingsBtn) {
-            saveSettingsBtn.addEventListener('click', async () => {
-                const isEnabled = document.getElementById('isEnabled').checked;
-                const reviewType = document.getElementById('reviewType').value;
-                const saveBtn = document.getElementById('saveSettingsBtn');
-
-                if (saveBtn) {
-                    saveBtn.disabled = true;
-                    const originalHTML = saveBtn.innerHTML;
-                    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Сохранение...';
-                }
-
-                try {
-                    if (isEnabled) {
-                        const response = await fetch('/review/settings/enable', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ channel_id: channelId, review_type: reviewType })
-                        });
-                        const data = await response.json();
-                        if (data.success) {
-                            location.reload();
-                        } else {
-                            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
-                            if (saveBtn) {
-                                saveBtn.disabled = false;
-                                saveBtn.innerHTML = originalHTML;
-                            }
-                        }
-                    } else {
-                        const response = await fetch('/review/settings/disable', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ channel_id: channelId })
-                        });
-                        const data = await response.json();
-                        if (data.success) {
-                            location.reload();
-                        } else {
-                            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
-                            if (saveBtn) {
-                                saveBtn.disabled = false;
-                                saveBtn.innerHTML = originalHTML;
-                            }
-                        }
-                    }
-                } catch (error) {
-                    alert('Ошибка при сохранении: ' + error.message);
-                    if (saveBtn) {
-                        saveBtn.disabled = false;
-                        saveBtn.innerHTML = originalHTML;
-                    }
-                }
-            });
-        }
-
-        // Отключение
-        const disableBtn = document.getElementById('disableBtn');
-        if (disableBtn) {
-            disableBtn.addEventListener('click', async () => {
-                if (!confirm('Вы уверены, что хотите отключить автоматическое распределение?')) {
-                    return;
-                }
-
-                const disableBtn = document.getElementById('disableBtn');
-                if (disableBtn) {
-                    disableBtn.disabled = true;
-                    const originalHTML = disableBtn.innerHTML;
-                    disableBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отключение...';
-                }
-
-                try {
-                    const response = await fetch('/review/settings/disable', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ channel_id: channelId })
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
-                        if (disableBtn) {
-                            disableBtn.disabled = false;
-                            disableBtn.innerHTML = originalHTML;
-                        }
-                    }
-                } catch (error) {
-                    alert('Ошибка: ' + error.message);
-                    if (disableBtn) {
-                        disableBtn.disabled = false;
-                        disableBtn.innerHTML = originalHTML;
-                    }
-                }
-            });
-        }
-
-        // Добавление ревьюера
-        const addReviewerBtn = document.getElementById('addReviewerBtn');
-        if (addReviewerBtn) {
-            addReviewerBtn.addEventListener('click', async () => {
-                let username = '';
-                
-                // Получаем username из Tom Select или из обычного поля
-                if (reviewerSelect && reviewerSelect.getValue()) {
-                    username = reviewerSelect.getValue();
-                } else {
-                    const reviewerInput = document.getElementById('reviewerSelect');
-                    if (reviewerInput) {
-                        username = reviewerInput.value.trim();
-                    }
-                }
-
-                if (!username) {
-                    alert('Выберите пользователя');
-                    return;
-                }
-
-                // Убираем @ если есть
-                username = username.replace('@', '');
-
-                const addBtn = document.getElementById('addReviewerBtn');
-                if (addBtn) {
-                    addBtn.disabled = true;
-                    addBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Добавление...';
-                }
-
-                try {
-                    const response = await fetch('/review/settings/reviewer/add', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ channel_id: channelId, username: username })
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        // Закрываем модальное окно и перезагружаем страницу
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('addReviewerModal'));
-                        if (modal) {
-                            modal.hide();
-                        }
-                        location.reload();
-                    } else {
-                        alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
-                        if (addBtn) {
-                            addBtn.disabled = false;
-                            addBtn.innerHTML = 'Добавить';
-                        }
-                    }
-                } catch (error) {
-                    alert('Ошибка: ' + error.message);
-                    if (addBtn) {
-                        addBtn.disabled = false;
-                        addBtn.innerHTML = 'Добавить';
-                    }
-                }
-            });
-        }
-
-        // Очистка очереди
-        const clearQueueBtn = document.getElementById('clearQueueBtn');
-        if (clearQueueBtn) {
-            clearQueueBtn.addEventListener('click', async () => {
-                if (!confirm('Вы уверены, что хотите очистить всю очередь ревьюеров? Это действие нельзя отменить.')) {
-                    return;
-                }
-
-                const clearBtn = document.getElementById('clearQueueBtn');
-                if (clearBtn) {
-                    clearBtn.disabled = true;
-                    const originalHTML = clearBtn.innerHTML;
-                    clearBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Очистка...';
-                }
-
-                try {
-                    const response = await fetch('/review/settings/reviewers/clear', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ channel_id: channelId })
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
-                        if (clearBtn) {
-                            clearBtn.disabled = false;
-                            clearBtn.innerHTML = originalHTML;
-                        }
-                    }
-                } catch (error) {
-                    alert('Ошибка: ' + error.message);
-                    if (clearBtn) {
-                        clearBtn.disabled = false;
-                        clearBtn.innerHTML = originalHTML;
-                    }
-                }
-            });
-        }
-
-        // Удаление ревьюера (используем делегирование событий)
-        document.addEventListener('click', async (e) => {
-            // Проверяем, был ли клик на кнопке удаления или на иконке внутри неё
-            const btn = e.target.closest('.remove-reviewer-btn');
-            if (!btn) return;
-            
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const reviewerId = btn.dataset.id;
-            const username = btn.dataset.username;
-            
-            if (!reviewerId) {
-                alert('Ошибка: не указан ID ревьюера');
-                return;
-            }
-            
-            if (!confirm(`Удалить ревьюера @${username} из очереди?`)) {
-                return;
+        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/css/tom-select.bootstrap5.min.css"
+            rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/js/tom-select.complete.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+        <style>
+            /* Исправление для темной темы Tom Select */
+            [data-bs-theme="dark"] .ts-control {
+                background-color: var(--bs-body-bg);
+                color: var(--bs-body-color);
+                border-color: var(--bs-border-color);
             }
 
-            // Блокируем кнопку и показываем индикатор загрузки
-            btn.disabled = true;
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-
-            try {
-                const response = await fetch('/review/settings/reviewer/remove', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ channel_id: channelId, reviewer_id: reviewerId })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
-                    btn.disabled = false;
-                    btn.innerHTML = originalHTML;
-                }
-            } catch (error) {
-                console.error('Error removing reviewer:', error);
-                alert('Ошибка: ' + error.message);
-                btn.disabled = false;
-                btn.innerHTML = originalHTML;
+            [data-bs-theme="dark"] .ts-dropdown {
+                background-color: var(--bs-body-bg);
+                border-color: var(--bs-border-color);
             }
-        });
-    });
 
-    // Загрузка пользователей канала для модального окна
-    async function loadChannelUsersForModal() {
-        const reviewerInput = document.getElementById('reviewerSelect');
-        const addBtn = document.getElementById('addReviewerBtn');
-        
-        if (!reviewerInput || !channelId) {
-            console.error('Missing reviewerInput or channelId:', { reviewerInput, channelId });
-            return;
-        }
-
-        // Уничтожаем предыдущий экземпляр Tom Select, если он существует
-        if (reviewerSelect) {
-            reviewerSelect.destroy();
-            reviewerSelect = null;
-        }
-
-        reviewerInput.placeholder = 'Загрузка пользователей...';
-        reviewerInput.disabled = true;
-        if (addBtn) addBtn.disabled = true;
-
-        try {
-            const response = await fetch(`/review/api/channel-users?channelId=${encodeURIComponent(channelId)}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            [data-bs-theme="dark"] .ts-dropdown .option {
+                color: var(--bs-body-color);
             }
-            const data = await response.json();
-            
-            console.log('Channel users loaded:', { 
-                totalUsers: data.users?.length || 0, 
-                existingReviewers: existingReviewers.length 
-            });
-            
-            if (data.error) {
-                reviewerInput.placeholder = `Ошибка: ${data.error}`;
-                reviewerInput.disabled = true;
-                if (addBtn) addBtn.disabled = true;
-                return;
-            }
-            
-            if (data.users && data.users.length > 0) {
-                // Фильтруем уже добавленных ревьюеров
-                // Приводим к строкам для корректного сравнения
-                const existingReviewerIds = existingReviewers.map(id => String(id));
-                const availableUsers = data.users.filter(user => {
-                    const userId = String(user.id);
-                    return !existingReviewerIds.includes(userId);
-                });
-                
-                if (availableUsers.length === 0) {
-                    reviewerInput.placeholder = 'Все пользователи уже добавлены в очередь';
-                    reviewerInput.disabled = true;
-                    if (addBtn) addBtn.disabled = true;
-                    return;
-                }
 
-                // Создаем опции для Tom Select
-                const options = availableUsers.map(user => ({
-                    value: user.username,
-                    text: `${user.displayName} (@${user.username})`,
-                    username: user.username,
-                    displayName: user.displayName
-                }));
-                
-                // Включаем поле ПЕРЕД инициализацией Tom Select
-                reviewerInput.disabled = false;
-                
-                // Небольшая задержка для гарантии, что DOM готов
-                setTimeout(() => {
+            [data-bs-theme="dark"] .ts-dropdown .option.active {
+                background-color: var(--bs-primary);
+            }
+        </style>
+        <% var _reviewSettingsData={ channelId: (channel && channel.id) ? channel.id : '' , reviewerIds: (reviewers ||
+            []).map(function(r) { return r.user_id; }) }; %>
+            <script type="application/json"
+                id="review-settings-data"><%- JSON.stringify(_reviewSettingsData) %></script>
+            <script>
+                (function () {
+                    var dataEl = document.getElementById('review-settings-data');
+                    var data = { channelId: '', reviewerIds: [] };
                     try {
-                        // Проверяем, что элемент все еще существует и видим
-                        if (!reviewerInput || !reviewerInput.parentElement) {
-                            console.error('Reviewer input element not found or removed from DOM');
+                        if (dataEl && dataEl.textContent) data = JSON.parse(dataEl.textContent);
+                    } catch (e) { }
+                    window.channelId = data.channelId;
+                    window.existingReviewers = Array.isArray(data.reviewerIds) ? data.reviewerIds : [];
+                })();
+                const channelId = window.channelId;
+                const existingReviewers = window.existingReviewers;
+                let sortable;
+                let reviewerSelect = null;
+
+                // Инициализация всех обработчиков событий
+                document.addEventListener('DOMContentLoaded', () => {
+                    console.log('DOM loaded, initializing event handlers');
+
+                    const tbody = document.getElementById('reviewersTableBody');
+                    if (tbody) {
+                        sortable = new Sortable(tbody, {
+                            handle: 'tr',
+                            animation: 150,
+                            onEnd: async (evt) => {
+                                const order = Array.from(tbody.querySelectorAll('tr')).map(tr => tr.dataset.id);
+                                await updateReviewersOrder(order);
+                            }
+                        });
+                    }
+
+                    // Обработчик переключения статуса
+                    const isEnabledCheckbox = document.getElementById('isEnabled');
+                    if (isEnabledCheckbox) {
+                        isEnabledCheckbox.addEventListener('change', (e) => {
+                            const reviewTypeSelect = document.getElementById('reviewType');
+                            if (reviewTypeSelect) {
+                                reviewTypeSelect.disabled = !e.target.checked;
+                            }
+                        });
+                    }
+
+                    // Инициализация модального окна для добавления ревьюера
+                    const addReviewerModal = document.getElementById('addReviewerModal');
+                    if (addReviewerModal) {
+                        addReviewerModal.addEventListener('shown.bs.modal', async () => {
+                            // Используем 'shown.bs.modal' вместо 'show.bs.modal' чтобы модальное окно было полностью отрендерено
+                            await loadChannelUsersForModal();
+                        });
+                        addReviewerModal.addEventListener('hidden.bs.modal', () => {
+                            // Очищаем выбор при закрытии модального окна
+                            if (reviewerSelect) {
+                                reviewerSelect.destroy();
+                                reviewerSelect = null;
+                            }
+                            const reviewerInput = document.getElementById('reviewerSelect');
+                            if (reviewerInput) {
+                                reviewerInput.value = '';
+                                reviewerInput.placeholder = 'Загрузка пользователей...';
+                            }
+                            const addBtn = document.getElementById('addReviewerBtn');
+                            if (addBtn) {
+                                addBtn.disabled = true;
+                            }
+                        });
+                    }
+
+                    // Сохранение настроек (все поля одним запросом)
+                    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+                    if (saveSettingsBtn) {
+                        saveSettingsBtn.addEventListener('click', async () => {
+                            const isEnabled = document.getElementById('isEnabled').checked;
+                            const reviewType = document.getElementById('reviewType').value;
+                            const allowArchReview = document.getElementById('allowArchReview').checked;
+                            const archReviewTag = (document.getElementById('archReviewTag') || {}).value || '';
+                            const saveBtn = document.getElementById('saveSettingsBtn');
+
+                            if (saveBtn) {
+                                saveBtn.disabled = true;
+                                const originalHTML = saveBtn.innerHTML;
+                                saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Сохранение...';
+                            }
+
+                            try {
+                                const response = await fetch('/review/settings/save', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        channel_id: channelId,
+                                        is_enabled: isEnabled,
+                                        review_type: reviewType,
+                                        allow_arch_review: allowArchReview,
+                                        arch_review_tag: archReviewTag.trim()
+                                    })
+                                });
+                                const data = await response.json();
+                                if (data.success) {
+                                    location.reload();
+                                } else {
+                                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                                    if (saveBtn) {
+                                        saveBtn.disabled = false;
+                                        saveBtn.innerHTML = originalHTML;
+                                    }
+                                }
+                            } catch (error) {
+                                alert('Ошибка при сохранении: ' + error.message);
+                                if (saveBtn) {
+                                    saveBtn.disabled = false;
+                                    saveBtn.innerHTML = originalHTML;
+                                }
+                            }
+                        });
+                    }
+
+                    // Отключение
+                    const disableBtn = document.getElementById('disableBtn');
+                    if (disableBtn) {
+                        disableBtn.addEventListener('click', async () => {
+                            if (!confirm('Вы уверены, что хотите отключить автоматическое распределение?')) {
+                                return;
+                            }
+
+                            const disableBtn = document.getElementById('disableBtn');
+                            if (disableBtn) {
+                                disableBtn.disabled = true;
+                                const originalHTML = disableBtn.innerHTML;
+                                disableBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отключение...';
+                            }
+
+                            try {
+                                const response = await fetch('/review/settings/disable', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ channel_id: channelId })
+                                });
+                                const data = await response.json();
+                                if (data.success) {
+                                    location.reload();
+                                } else {
+                                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                                    if (disableBtn) {
+                                        disableBtn.disabled = false;
+                                        disableBtn.innerHTML = originalHTML;
+                                    }
+                                }
+                            } catch (error) {
+                                alert('Ошибка: ' + error.message);
+                                if (disableBtn) {
+                                    disableBtn.disabled = false;
+                                    disableBtn.innerHTML = originalHTML;
+                                }
+                            }
+                        });
+                    }
+
+                    // Добавление ревьюера
+                    const addReviewerBtn = document.getElementById('addReviewerBtn');
+                    if (addReviewerBtn) {
+                        addReviewerBtn.addEventListener('click', async () => {
+                            let username = '';
+
+                            // Получаем username из Tom Select или из обычного поля
+                            if (reviewerSelect && reviewerSelect.getValue()) {
+                                username = reviewerSelect.getValue();
+                            } else {
+                                const reviewerInput = document.getElementById('reviewerSelect');
+                                if (reviewerInput) {
+                                    username = reviewerInput.value.trim();
+                                }
+                            }
+
+                            if (!username) {
+                                alert('Выберите пользователя');
+                                return;
+                            }
+
+                            // Убираем @ если есть
+                            username = username.replace('@', '');
+
+                            const addBtn = document.getElementById('addReviewerBtn');
+                            if (addBtn) {
+                                addBtn.disabled = true;
+                                addBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Добавление...';
+                            }
+
+                            try {
+                                const response = await fetch('/review/settings/reviewer/add', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ channel_id: channelId, username: username })
+                                });
+                                const data = await response.json();
+                                if (data.success) {
+                                    // Закрываем модальное окно и перезагружаем страницу
+                                    const modal = bootstrap.Modal.getInstance(document.getElementById('addReviewerModal'));
+                                    if (modal) {
+                                        modal.hide();
+                                    }
+                                    location.reload();
+                                } else {
+                                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                                    if (addBtn) {
+                                        addBtn.disabled = false;
+                                        addBtn.innerHTML = 'Добавить';
+                                    }
+                                }
+                            } catch (error) {
+                                alert('Ошибка: ' + error.message);
+                                if (addBtn) {
+                                    addBtn.disabled = false;
+                                    addBtn.innerHTML = 'Добавить';
+                                }
+                            }
+                        });
+                    }
+
+                    // Очистка очереди
+                    const clearQueueBtn = document.getElementById('clearQueueBtn');
+                    if (clearQueueBtn) {
+                        clearQueueBtn.addEventListener('click', async () => {
+                            if (!confirm('Вы уверены, что хотите очистить всю очередь ревьюеров? Это действие нельзя отменить.')) {
+                                return;
+                            }
+
+                            const clearBtn = document.getElementById('clearQueueBtn');
+                            if (clearBtn) {
+                                clearBtn.disabled = true;
+                                const originalHTML = clearBtn.innerHTML;
+                                clearBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Очистка...';
+                            }
+
+                            try {
+                                const response = await fetch('/review/settings/reviewers/clear', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ channel_id: channelId })
+                                });
+                                const data = await response.json();
+                                if (data.success) {
+                                    location.reload();
+                                } else {
+                                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                                    if (clearBtn) {
+                                        clearBtn.disabled = false;
+                                        clearBtn.innerHTML = originalHTML;
+                                    }
+                                }
+                            } catch (error) {
+                                alert('Ошибка: ' + error.message);
+                                if (clearBtn) {
+                                    clearBtn.disabled = false;
+                                    clearBtn.innerHTML = originalHTML;
+                                }
+                            }
+                        });
+                    }
+
+                    // Удаление ревьюера (используем делегирование событий)
+                    document.addEventListener('click', async (e) => {
+                        // Проверяем, был ли клик на кнопке удаления или на иконке внутри неё
+                        const btn = e.target.closest('.remove-reviewer-btn');
+                        if (!btn) return;
+
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const reviewerId = btn.dataset.id;
+                        const username = btn.dataset.username;
+
+                        if (!reviewerId) {
+                            alert('Ошибка: не указан ID ревьюера');
                             return;
                         }
-                        
-                        // Убеждаемся, что поле доступно
-                        reviewerInput.disabled = false;
-                        reviewerInput.style.display = 'block';
-                        
-                        console.log('Initializing Tom Select with', options.length, 'options');
-                        
-                        // Инициализируем Tom Select (без множественного выбора, только один пользователь)
-                        reviewerSelect = new TomSelect('#reviewerSelect', {
-                            valueField: 'value',
-                            labelField: 'text',
-                            searchField: ['text', 'username', 'displayName'],
-                            create: false,
-                            options: options,
-                            placeholder: 'Выберите пользователя...',
-                            disabled: false,
-                            maxItems: 1,
-                            render: {
-                                option: (item, escape) => {
-                                    const displayName = item.displayName || item.username;
-                                    return `
+
+                        if (!confirm(`Удалить ревьюера @${username} из очереди?`)) {
+                            return;
+                        }
+
+                        // Блокируем кнопку и показываем индикатор загрузки
+                        btn.disabled = true;
+                        const originalHTML = btn.innerHTML;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+                        try {
+                            const response = await fetch('/review/settings/reviewer/remove', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ channel_id: channelId, reviewer_id: reviewerId })
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                                btn.disabled = false;
+                                btn.innerHTML = originalHTML;
+                            }
+                        } catch (error) {
+                            console.error('Error removing reviewer:', error);
+                            alert('Ошибка: ' + error.message);
+                            btn.disabled = false;
+                            btn.innerHTML = originalHTML;
+                        }
+                    });
+                });
+
+                // Загрузка пользователей канала для модального окна
+                async function loadChannelUsersForModal() {
+                    const reviewerInput = document.getElementById('reviewerSelect');
+                    const addBtn = document.getElementById('addReviewerBtn');
+
+                    if (!reviewerInput || !channelId) {
+                        console.error('Missing reviewerInput or channelId:', { reviewerInput, channelId });
+                        return;
+                    }
+
+                    // Уничтожаем предыдущий экземпляр Tom Select, если он существует
+                    if (reviewerSelect) {
+                        reviewerSelect.destroy();
+                        reviewerSelect = null;
+                    }
+
+                    reviewerInput.placeholder = 'Загрузка пользователей...';
+                    reviewerInput.disabled = true;
+                    if (addBtn) addBtn.disabled = true;
+
+                    try {
+                        const response = await fetch(`/review/api/channel-users?channelId=${encodeURIComponent(channelId)}`);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+
+                        console.log('Channel users loaded:', {
+                            totalUsers: data.users?.length || 0,
+                            existingReviewers: existingReviewers.length
+                        });
+
+                        if (data.error) {
+                            reviewerInput.placeholder = `Ошибка: ${data.error}`;
+                            reviewerInput.disabled = true;
+                            if (addBtn) addBtn.disabled = true;
+                            return;
+                        }
+
+                        if (data.users && data.users.length > 0) {
+                            // Фильтруем уже добавленных ревьюеров
+                            // Приводим к строкам для корректного сравнения
+                            const existingReviewerIds = existingReviewers.map(id => String(id));
+                            const availableUsers = data.users.filter(user => {
+                                const userId = String(user.id);
+                                return !existingReviewerIds.includes(userId);
+                            });
+
+                            if (availableUsers.length === 0) {
+                                reviewerInput.placeholder = 'Все пользователи уже добавлены в очередь';
+                                reviewerInput.disabled = true;
+                                if (addBtn) addBtn.disabled = true;
+                                return;
+                            }
+
+                            // Создаем опции для Tom Select
+                            const options = availableUsers.map(user => ({
+                                value: user.username,
+                                text: `${user.displayName} (@${user.username})`,
+                                username: user.username,
+                                displayName: user.displayName
+                            }));
+
+                            // Включаем поле ПЕРЕД инициализацией Tom Select
+                            reviewerInput.disabled = false;
+
+                            // Небольшая задержка для гарантии, что DOM готов
+                            setTimeout(() => {
+                                try {
+                                    // Проверяем, что элемент все еще существует и видим
+                                    if (!reviewerInput || !reviewerInput.parentElement) {
+                                        console.error('Reviewer input element not found or removed from DOM');
+                                        return;
+                                    }
+
+                                    // Убеждаемся, что поле доступно
+                                    reviewerInput.disabled = false;
+                                    reviewerInput.style.display = 'block';
+
+                                    console.log('Initializing Tom Select with', options.length, 'options');
+
+                                    // Инициализируем Tom Select (без множественного выбора, только один пользователь)
+                                    reviewerSelect = new TomSelect('#reviewerSelect', {
+                                        valueField: 'value',
+                                        labelField: 'text',
+                                        searchField: ['text', 'username', 'displayName'],
+                                        create: false,
+                                        options: options,
+                                        placeholder: 'Выберите пользователя...',
+                                        disabled: false,
+                                        maxItems: 1,
+                                        render: {
+                                            option: (item, escape) => {
+                                                const displayName = item.displayName || item.username;
+                                                return `
                                         <div>
                                             <strong>${escape(displayName)}</strong>
                                             <span class="text-muted"> — ${escape(item.username)}</span>
                                         </div>
                                     `;
-                                },
-                                item: (item, escape) => `<div>@${escape(item.value)}</div>`
-                            }
-                        });
-                        
-                        console.log('Tom Select initialized successfully');
-                        
-                        // Убеждаемся, что Tom Select активирован
-                        if (reviewerSelect) {
-                            reviewerSelect.enable();
-                            
-                            // Включаем кнопку добавления при выборе пользователя
-                            reviewerSelect.on('change', (value) => {
-                                console.log('Reviewer selected:', value);
-                                if (addBtn) {
-                                    addBtn.disabled = !value || value.length === 0;
+                                            },
+                                            item: (item, escape) => `<div>@${escape(item.value)}</div>`
+                                        }
+                                    });
+
+                                    console.log('Tom Select initialized successfully');
+
+                                    // Убеждаемся, что Tom Select активирован
+                                    if (reviewerSelect) {
+                                        reviewerSelect.enable();
+
+                                        // Включаем кнопку добавления при выборе пользователя
+                                        reviewerSelect.on('change', (value) => {
+                                            console.log('Reviewer selected:', value);
+                                            if (addBtn) {
+                                                addBtn.disabled = !value || value.length === 0;
+                                            }
+                                        });
+                                    }
+                                } catch (error) {
+                                    console.error('Error initializing Tom Select:', error);
+                                    reviewerInput.placeholder = `Ошибка инициализации: ${error.message}`;
+                                    reviewerInput.disabled = true;
+                                    if (addBtn) addBtn.disabled = true;
                                 }
-                            });
+                            }, 100);
+                        } else {
+                            reviewerInput.placeholder = 'В канале нет пользователей';
+                            reviewerInput.disabled = true;
+                            if (addBtn) addBtn.disabled = true;
                         }
                     } catch (error) {
-                        console.error('Error initializing Tom Select:', error);
-                        reviewerInput.placeholder = `Ошибка инициализации: ${error.message}`;
+                        reviewerInput.placeholder = `Ошибка загрузки: ${error.message}`;
                         reviewerInput.disabled = true;
                         if (addBtn) addBtn.disabled = true;
                     }
-                }, 100);
-            } else {
-                reviewerInput.placeholder = 'В канале нет пользователей';
-                reviewerInput.disabled = true;
-                if (addBtn) addBtn.disabled = true;
-            }
-        } catch (error) {
-            reviewerInput.placeholder = `Ошибка загрузки: ${error.message}`;
-            reviewerInput.disabled = true;
-            if (addBtn) addBtn.disabled = true;
-        }
-    }
+                }
 
-    // Обновление порядка ревьюеров
-    async function updateReviewersOrder(order) {
-        const tbody = document.getElementById('reviewersTableBody');
-        if (!tbody) return;
+                // Обновление порядка ревьюеров
+                async function updateReviewersOrder(order) {
+                    const tbody = document.getElementById('reviewersTableBody');
+                    if (!tbody) return;
 
-        // Показываем индикатор загрузки
-        const rows = tbody.querySelectorAll('tr');
-        rows.forEach(row => {
-            row.style.opacity = '0.5';
-            row.style.pointerEvents = 'none';
-        });
+                    // Показываем индикатор загрузки
+                    const rows = tbody.querySelectorAll('tr');
+                    rows.forEach(row => {
+                        row.style.opacity = '0.5';
+                        row.style.pointerEvents = 'none';
+                    });
 
-        try {
-            const response = await fetch('/review/settings/reviewers/order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channel_id: channelId, order: order })
-            });
-            const data = await response.json();
-            if (data.success) {
-                // Обновляем номера в таблице
-                rows.forEach((row, index) => {
-                    const badge = row.querySelector('.badge');
-                    if (badge) {
-                        badge.textContent = index + 1;
+                    try {
+                        const response = await fetch('/review/settings/reviewers/order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ channel_id: channelId, order: order })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            // Обновляем номера в таблице
+                            rows.forEach((row, index) => {
+                                const badge = row.querySelector('.badge');
+                                if (badge) {
+                                    badge.textContent = index + 1;
+                                }
+                                row.style.opacity = '1';
+                                row.style.pointerEvents = 'auto';
+                            });
+                        } else {
+                            alert('Ошибка при обновлении порядка: ' + (data.error || 'Неизвестная ошибка'));
+                            location.reload();
+                        }
+                    } catch (error) {
+                        alert('Ошибка: ' + error.message);
+                        location.reload();
                     }
-                    row.style.opacity = '1';
-                    row.style.pointerEvents = 'auto';
-                });
-            } else {
-                alert('Ошибка при обновлении порядка: ' + (data.error || 'Неизвестная ошибка'));
-                location.reload();
-            }
-        } catch (error) {
-            alert('Ошибка: ' + error.message);
-            location.reload();
-        }
-    }
-</script>
-
+                }
+            </script>

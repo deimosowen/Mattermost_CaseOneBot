@@ -19,10 +19,12 @@ const reviewController = require('./controllers/reviewController');
 const adminController = require('./controllers/adminController');
 const reminderController = require('./controllers/reminderController');
 const commandsController = require('./controllers/commandsController');
+const profileController = require('./controllers/profileController');
 
 const passport = require('./middleware/passport');
 const requireAuth = require('./middleware/auth');
 const userDataMiddleware = require('./middleware/userData');
+const menuAccessMiddleware = require('./middleware/menuAccess');
 
 const logger = require('../logger');
 
@@ -107,6 +109,7 @@ function buildApp() {
     ];
 
     app.use(requireAuth(publicPaths, publicPatterns));
+    app.use(menuAccessMiddleware);
 
     // Защищенные маршруты
     app.use('/', homeController);
@@ -122,6 +125,7 @@ function buildApp() {
     app.use('/admin', adminController);
     app.use('/reminders', reminderController);
     app.use('/commands', commandsController);
+    app.use('/profile', profileController);
 
     return app;
 }

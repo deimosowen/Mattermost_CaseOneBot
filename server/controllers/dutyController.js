@@ -1,15 +1,19 @@
 const express = require('express');
 const moment = require('moment');
 const cronstrue = require('cronstrue');
-const { rotateDuty, changeNextDuty } = require('../../services/dutyService');
+const { rotateDuty, changeNextDuty, forceChangeNextDuty } = require('../../services/dutyService');
 const { getDutySchedule, getDutyUsers,
     getCurrentDuty, updateUserActivityStatus,
     getUnscheduledList, removeDutyUser, addDutyUser,
     updateDutyUsersOrder, getDutySchedules, getAllChannelsWithCurrentDuty,
-    getDutyTagSettings, addDutyTagSetting, updateDutyTagSetting, deleteDutyTagSetting } = require('../../db/models/duty');
+    getDutyTagSettings, addDutyTagSetting, updateDutyTagSetting, deleteDutyTagSetting,
+    getDutyUserById, setCurrentDuty, deleteCurrentDuty, deleteDutySchedule,
+    deleteAllDutyUsers, deleteUnscheduledUsersByUser, deleteAllUnscheduledUsers } = require('../../db/models/duty');
 const { getUserByUsernameOrEmail, postMessage, getChannelById, getUser, getUserByUsername, getChannelMembers } = require('../../mattermost/utils');
 const { TZ } = require('../../config');
 const logger = require('../../logger');
+const cronManager = require('../../cron/cronManager');
+const CronServiceTypes = require('../../cron/сronServiceTypes');
 require('cronstrue/locales/ru');
 
 const router = express.Router();
@@ -27,10 +31,10 @@ router.get('/', async (req, res) => {
             const userDetails = await getUserByUsernameOrEmail(user.user_name);
 
             let status;
-            if (user.is_disabled) {
-                status = 'Отключен';
-            } else if (currentDuty && user.user_id === currentDuty.user_id) {
+            if (currentDuty && user.user_id === currentDuty.user_id) {
                 status = 'Текущий';
+            } else if (user.is_disabled) {
+                status = 'Отключен';
             } else {
                 status = 'Активный';
             }
@@ -40,6 +44,7 @@ router.get('/', async (req, res) => {
                 username: userDetails?.username,
                 name: `${userDetails?.first_name} ${userDetails?.last_name}`,
                 status: status,
+                isDisabled: Boolean(user.is_disabled),
                 isUnsheduled: unscheduledUsers.some(u => u.user_id === user.user_id),
                 return_date: user.return_date ? moment(user.return_date).format('DD-MM-YYYY') : null,
             };
@@ -94,6 +99,7 @@ router.get('/', async (req, res) => {
 
         // Получаем настройки тэгания
         const tagSettings = await getDutyTagSettings(channel_id);
+        const isAdmin = res.locals.user?.isAdmin || req.user?.isAdmin || false;
 
         // Подготавливаем JSON строки для передачи в шаблон
         const scheduleJson = (schedule !== null && schedule !== undefined) ? JSON.stringify(schedule) : 'null';
@@ -108,6 +114,7 @@ router.get('/', async (req, res) => {
             scheduleJson,
             currentDutyIndex,
             isCurrentDutyUnscheduled,
+            isAdmin,
             tagSettings: tagSettings || [],
             tagSettingsJson
         });
@@ -138,8 +145,16 @@ router.post('/update-status', async (req, res) => {
 
 router.post('/change-next', async (req, res) => {
     try {
-        const { channel_id } = req.body;
-        const nextDuty = await changeNextDuty(channel_id);
+        const { channel_id, force } = req.body;
+        const shouldForce = force === 'true' || force === true || force === '1';
+
+        if (shouldForce && !(res.locals.user?.isAdmin || req.user?.isAdmin)) {
+            return res.status(403).send('Forbidden: Admin access required');
+        }
+
+        const nextDuty = shouldForce
+            ? await forceChangeNextDuty(channel_id)
+            : await changeNextDuty(channel_id);
         postMessage(channel_id, nextDuty);
         res.redirect(`/duty?channel_id=${channel_id}`);
     } catch (error) {
@@ -176,10 +191,59 @@ router.post('/add-user', async (req, res) => {
 router.post('/delete-user', async (req, res) => {
     try {
         const { id, channel_id } = req.body;
+        const dutyUser = await getDutyUserById(id, channel_id);
+        if (!dutyUser) {
+            return res.redirect(`/duty?channel_id=${channel_id}`);
+        }
+
         await removeDutyUser(id, channel_id);
+        await deleteUnscheduledUsersByUser(channel_id, dutyUser.user_id);
+
+        const currentDuty = await getCurrentDuty(channel_id);
+        if (currentDuty?.user_id === dutyUser.user_id) {
+            const remainingUsers = await getDutyUsers(channel_id);
+            if (remainingUsers.length > 0) {
+                const nextUser = remainingUsers.find(user => !user.is_disabled) || remainingUsers[0];
+                await setCurrentDuty(channel_id, nextUser.user_id);
+            } else {
+                await deleteCurrentDuty(channel_id);
+            }
+        }
+
         res.redirect(`/duty?channel_id=${channel_id}`);
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.redirect(`/duty?channel_id=${req.body.channel_id}`);
+    }
+});
+
+router.post('/delete-duty', async (req, res) => {
+    const { channel_id } = req.body;
+
+    try {
+        if (!channel_id) {
+            return res.redirect('/duty/list');
+        }
+
+        const dutySchedule = await getDutySchedule(channel_id);
+        if (dutySchedule?.id) {
+            try {
+                const dutyService = cronManager.get(CronServiceTypes.DUTY);
+                dutyService?.removeJob(dutySchedule.id);
+            } catch (cronError) {
+                logger.error(`Failed to remove duty cron job: ${cronError.message}`);
+            }
+        }
+
+        await deleteDutySchedule(channel_id);
+        await deleteAllDutyUsers(channel_id);
+        await deleteCurrentDuty(channel_id);
+        await deleteAllUnscheduledUsers(channel_id);
+
+        res.redirect('/duty/list');
+    } catch (error) {
+        logger.error(`Error deleting duty ${channel_id}: ${error.message}\nStack trace:\n${error.stack}`);
+        res.redirect('/duty/list');
     }
 });
 

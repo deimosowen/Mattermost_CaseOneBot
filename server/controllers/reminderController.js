@@ -1,12 +1,16 @@
 const express = require('express');
 const logger = require('../../logger');
-const { getReminders, addReminder, deleteReminder } = require('../../db/models/reminders');
+const { getReminders, getReminderById, addReminder, updateReminderWorkingDays, deleteReminder } = require('../../db/models/reminders');
 const { getChannelById } = require('../../mattermost/utils');
 const cronValidator = require('cron-validator');
 const cronManager = require('../../cron/cronManager');
 const CronServiceTypes = require('../../cron/сronServiceTypes');
 
 const router = express.Router();
+
+function parseBoolean(value) {
+    return value === true || value === 1 || value === '1' || value === 'true' || value === 'on';
+}
 
 // Страница управления напоминаниями
 router.get('/', async (req, res) => {
@@ -55,7 +59,7 @@ router.get('/', async (req, res) => {
 // API: Добавление напоминания
 router.post('/api/reminders', async (req, res) => {
     try {
-        const { channel_id, channel_name, user_id, user_name, schedule, message } = req.body;
+        const { channel_id, channel_name, user_id, user_name, schedule, message, use_working_days } = req.body;
         
         if (!channel_id || !schedule || !message) {
             return res.status(400).json({ error: 'Не указаны обязательные поля: channel_id, schedule, message' });
@@ -66,7 +70,15 @@ router.post('/api/reminders', async (req, res) => {
         }
         
         logger.debug(`Adding reminder: channel_id=${channel_id}, schedule=${schedule}`);
-        const id = await addReminder(channel_id, channel_name || channel_id, user_id || 'system', user_name || 'System', schedule, message);
+        const id = await addReminder(
+            channel_id,
+            channel_name || channel_id,
+            user_id || 'system',
+            user_name || 'System',
+            schedule,
+            message,
+            parseBoolean(use_working_days)
+        );
         logger.info(`Reminder added successfully: id=${id}, channel_id=${channel_id}, schedule=${schedule}`);
         
         // Добавляем задачу в cron
@@ -89,6 +101,36 @@ router.post('/api/reminders', async (req, res) => {
         res.json({ success: true, id, message: 'Напоминание добавлено' });
     } catch (error) {
         logger.error(`Error adding reminder: ${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// API: Переключение учета рабочих дней
+router.patch('/api/reminders/:id/working-days', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const useWorkingDays = parseBoolean(req.body.use_working_days);
+
+        const changes = await updateReminderWorkingDays(parseInt(id), useWorkingDays);
+        if (!changes) {
+            return res.status(404).json({ error: 'Напоминание не найдено' });
+        }
+
+        try {
+            const reminderService = cronManager.get(CronServiceTypes.REMINDER);
+            const updatedReminder = await getReminderById(parseInt(id));
+            if (reminderService && updatedReminder) {
+                reminderService.removeJob(parseInt(id));
+                reminderService.addJob(updatedReminder);
+                logger.info(`Reminder working-days setting updated in cron: id=${id}`);
+            }
+        } catch (cronError) {
+            logger.error(`Failed to refresh reminder cron job: ${cronError.message}`);
+        }
+
+        res.json({ success: true, message: 'Настройка рабочих дней обновлена' });
+    } catch (error) {
+        logger.error(`Error updating reminder working days: ${error.message}`);
         res.status(500).json({ error: error.message });
     }
 });

@@ -114,6 +114,53 @@ describe('DutyService', () => {
             expect(result).toBeTruthy();
         });
 
+        test('сменяет дежурного, даже если текущий уже отключен', async () => {
+            const allUsers = [
+                { id: 1, user_id: 'user-1', user_name: 'john.doe', is_disabled: false },
+                { id: 2, user_id: 'user-2', user_name: 'jane.smith', is_disabled: true },
+                { id: 3, user_id: 'user-3', user_name: 'bob.wilson', is_disabled: false },
+            ];
+
+            getDutyFromDB.mockResolvedValueOnce({ user_id: 'user-2', duty_type: DutyType.REGULAR });
+            getDutyUsers.mockResolvedValueOnce(allUsers);
+
+            const currentDate = moment().format('YYYY-MM-DD');
+            const currentDateISO = moment(currentDate).toISOString();
+
+            getUserByUsernameOrEmail
+                .mockResolvedValueOnce({ id: 'user-1', email: 'john@example.com' })
+                .mockResolvedValueOnce({ id: 'user-2', email: 'jane@example.com' })
+                .mockResolvedValueOnce({ id: 'user-3', email: 'bob@example.com' });
+
+            absenceService.checkEmployeeAvailabilityByDate.mockResolvedValueOnce({
+                'john@example.com': { [currentDateISO]: true },
+                'jane@example.com': { [currentDateISO]: false },
+                'bob@example.com': { [currentDateISO]: true },
+            });
+
+            const result = await dutyService.changeNextDuty(channelId);
+
+            expect(setCurrentDuty).toHaveBeenCalledWith(channelId, 'user-3', DutyType.REGULAR);
+            expect(result).toBe('Следующий дежурный: user-3');
+        });
+
+        test('forceChangeNextDuty не проверяет доступность и выбирает следующего по полной очереди', async () => {
+            const allUsers = [
+                { id: 1, user_id: 'user-1', user_name: 'john.doe', is_disabled: false },
+                { id: 2, user_id: 'user-2', user_name: 'jane.smith', is_disabled: true },
+                { id: 3, user_id: 'user-3', user_name: 'bob.wilson', is_disabled: false },
+            ];
+
+            getDutyFromDB.mockResolvedValueOnce({ user_id: 'user-1', duty_type: DutyType.REGULAR });
+            getDutyUsers.mockResolvedValueOnce(allUsers);
+
+            const result = await dutyService.forceChangeNextDuty(channelId);
+
+            expect(absenceService.checkEmployeeAvailabilityByDate).not.toHaveBeenCalled();
+            expect(setCurrentDuty).toHaveBeenCalledWith(channelId, 'user-2', DutyType.REGULAR);
+            expect(result).toBe('Следующий дежурный: user-2');
+        });
+
         test('не сбрасывает счетчик, пропуская пользователя в отпуске при следующей смене', async () => {
             // Сценарий: user-1 дежурный, user-2 в отпуске, user-3 следующий
             // Смена должна перейти к user-3 (пропуская user-2), сохраняя порядок в полном списке
@@ -334,6 +381,34 @@ describe('DutyService', () => {
             const result = await dutyService.changeNextDuty(channelId);
 
             expect(result).toBe(resources.duty.noExistingError);
+        });
+    });
+
+    describe('createDutyCallback retries', () => {
+        test('не пробрасывает ошибку наружу, если Mattermost post не подтвердился', async () => {
+            jest.useFakeTimers();
+
+            const allUsers = [
+                { id: 1, user_id: 'user-1', user_name: 'john.doe', is_disabled: false },
+                { id: 2, user_id: 'user-2', user_name: 'jane.smith', is_disabled: false },
+            ];
+
+            getDutyFromDB.mockResolvedValueOnce({ user_id: 'user-1', duty_type: DutyType.REGULAR });
+            getDutyUsers.mockResolvedValueOnce(allUsers);
+            getUserByUsernameOrEmail
+                .mockResolvedValueOnce({ id: 'user-1', email: 'john@example.com' })
+                .mockResolvedValueOnce({ id: 'user-2', email: 'jane@example.com' });
+            postMessage.mockResolvedValueOnce(null);
+
+            const callback = dutyService.createDutyCallback(channelId, false);
+
+            await expect(callback()).resolves.toBeUndefined();
+
+            expect(setCurrentDuty).not.toHaveBeenCalled();
+            expect(logger.error).toHaveBeenCalledWith('Duty change not applied: Mattermost post not confirmed');
+
+            jest.clearAllTimers();
+            jest.useRealTimers();
         });
     });
 });

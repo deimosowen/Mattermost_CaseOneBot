@@ -35,7 +35,8 @@
                                             <select class="form-select" id="taskKey" name="taskKey" required>
                                                 <option value="">Загрузка задач...</option>
                                             </select>
-                                            <div class="form-text">Выберите задачу из списка или начните вводить для поиска. Показываются ваши задачи в статусе "In Progress"</div>
+                                            <div class="form-text">Выберите задачу из списка или начните вводить для
+                                                поиска. Показываются ваши задачи в статусе "In Progress"</div>
                                         </div>
 
                                         <div class="mb-3">
@@ -59,7 +60,25 @@
                                             </div>
                                         </div>
 
-                                        <div class="mb-3">
+                                        <div class="mb-3" id="reviewTypeBlock" style="display: none;">
+                                            <label class="form-label">
+                                                <strong>Тип ревью</strong>
+                                            </label>
+                                            <div class="btn-group w-100" role="group" id="reviewTypeGroup">
+                                                <input type="radio" class="btn-check" name="reviewType"
+                                                    id="reviewTypeNormal" value="normal" checked>
+                                                <label class="btn btn-outline-primary" for="reviewTypeNormal">
+                                                    <i class="bi bi-person-check me-1"></i>Обычное ревью
+                                                </label>
+                                                <input type="radio" class="btn-check" name="reviewType"
+                                                    id="reviewTypeArch" value="arch">
+                                                <label class="btn btn-outline-primary" for="reviewTypeArch">
+                                                    <i class="bi bi-diagram-3 me-1"></i>Архитектурное ревью
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3" id="contentTypeBlock">
                                             <label class="form-label">
                                                 <strong>Тип контента</strong>
                                             </label>
@@ -82,9 +101,11 @@
                                             <label for="mergeRequest" class="form-label">
                                                 <strong>Merge Request URL</strong>
                                             </label>
-                                            <input type="url" class="form-control" id="mergeRequest" name="mergeRequest"
-                                                placeholder="https://gitlab.example.com/project/-/merge_requests/123">
-                                            <div class="form-text">Ссылка на Merge Request в GitLab</div>
+                                            <select class="form-select" id="mergeRequest" name="mergeRequest">
+                                                <option value="">Выберите MR из списка или введите ссылку...</option>
+                                            </select>
+                                            <div class="form-text">Выберите из списка по задаче или введите ссылку на
+                                                Merge Request вручную</div>
                                         </div>
 
                                         <div class="mb-3" id="messageContainer" style="display: none;">
@@ -146,7 +167,7 @@
                                                 Используйте панель форматирования для добавления Markdown разметки</div>
                                         </div>
 
-                                        <div class="mb-3">
+                                        <div class="mb-3" id="reviewersBlock">
                                             <label for="reviewers" class="form-label">
                                                 <strong>Ревьюверы (опционально)</strong>
                                             </label>
@@ -156,14 +177,26 @@
                                                 выбрано, будет назначен автоматически</div>
                                         </div>
 
-                                        <div class="alert alert-info" role="alert">
+                                        <div class="mb-3" id="archReviewTagBlock" style="display: none;">
+                                            <label for="archReviewTag" class="form-label">
+                                                <strong>Тег для архитектурного ревью</strong>
+                                            </label>
+                                            <input type="text" class="form-control" id="archReviewTag"
+                                                name="archReviewTag" placeholder="@c1-back-arch" readonly>
+                                            <div class="form-text">Указывается в сообщении (настраивается в настройках
+                                                канала)</div>
+                                        </div>
+
+                                        <div class="alert alert-info" role="alert" id="reviewInfoAlert">
                                             <i class="bi bi-info-circle me-2"></i>
                                             <strong>Как это работает:</strong><br>
-                                            • Задача будет переведена в статус <strong>IN REVIEW</strong> в Jira<br>
-                                            • Сообщение будет отправлено в выбранный канал<br>
-                                            • Если ревьювер не указан, он будет назначен автоматически (если
-                                            настроено)<br>
-                                            • Если задача уже в статусе To Do, она сначала переведется в In Progress
+                                            <span id="reviewInfoText">
+                                                • Задача будет переведена в статус <strong>IN REVIEW</strong> в Jira<br>
+                                                • Сообщение будет отправлено в выбранный канал<br>
+                                                • Если ревьювер не указан, он будет назначен автоматически (если
+                                                настроено)<br>
+                                                • Если задача уже в статусе To Do, она сначала переведется в In Progress
+                                            </span>
                                         </div>
 
                                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
@@ -203,6 +236,7 @@
         <script>
             let reviewersSelect = null;
             let tasksSelect = null;
+            let mrSelect = null;
 
             // Функция загрузки задач пользователя
             async function loadUserTasks(searchTerm = '') {
@@ -215,10 +249,10 @@
                 }
 
                 try {
-                    const url = searchTerm 
+                    const url = searchTerm
                         ? `/review/api/user-tasks?search=${encodeURIComponent(searchTerm)}`
                         : '/review/api/user-tasks';
-                    
+
                     const response = await fetch(url);
                     const data = await response.json();
 
@@ -235,7 +269,7 @@
                             valueField: 'value',
                             labelField: 'text',
                             searchField: ['key', 'summary', 'text'],
-                            create: function(input) {
+                            create: function (input) {
                                 // Позволяем создавать новую опцию, если пользователь ввел ключ задачи вручную
                                 const value = input.trim().toUpperCase();
                                 if (/^(CASEM|REN)-\d+$/.test(value)) {
@@ -270,13 +304,13 @@
                                     return '<div class="no-results">Задачи не найдены. Попробуйте ввести ключ задачи вручную (например: CASEM-123)</div>';
                                 }
                             },
-                            load: function(query, callback) {
+                            load: function (query, callback) {
                                 // Загружаем задачи при поиске
                                 if (!query.length) {
                                     callback();
                                     return;
                                 }
-                                
+
                                 fetch(`/review/api/user-tasks?search=${encodeURIComponent(query)}`)
                                     .then(response => response.json())
                                     .then(data => {
@@ -290,10 +324,10 @@
                                         callback();
                                     });
                             },
-                            onChange: function(value) {
+                            onChange: function (value) {
                                 // При выборе задачи загружаем её детали и заполняем Merge Request
                                 if (!value) return;
-                                
+
                                 const taskKey = value;
                                 loadTaskDetails(taskKey);
                             }
@@ -304,7 +338,7 @@
                             maxItems: 1,
                             valueField: 'value',
                             labelField: 'text',
-                            create: function(input) {
+                            create: function (input) {
                                 const value = input.trim().toUpperCase();
                                 if (/^(CASEM|REN)-\d+$/.test(value)) {
                                     return {
@@ -319,10 +353,10 @@
                             createOnBlur: true,
                             placeholder: 'Введите ключ задачи (например: CASEM-123)',
                             options: [],
-                            onChange: function(value) {
+                            onChange: function (value) {
                                 // При выборе задачи загружаем её детали и заполняем Merge Request
                                 if (!value) return;
-                                
+
                                 const taskKey = value;
                                 loadTaskDetails(taskKey);
                             }
@@ -334,7 +368,7 @@
                 }
             }
 
-            // Функция загрузки деталей задачи и автоматического заполнения Merge Request
+            // Функция загрузки деталей задачи и заполнения выпадающего списка Merge Request
             async function loadTaskDetails(taskKey) {
                 if (!taskKey) return;
 
@@ -347,17 +381,48 @@
                         return;
                     }
 
-                    // Заполняем поле Merge Request, если оно есть и если выбран тип "Pull Request"
-                    const contentTypePR = document.getElementById('contentTypePR');
-                    if (contentTypePR && contentTypePR.checked && data.mergeRequestUrl) {
-                        const mergeRequestInput = document.getElementById('mergeRequest');
-                        if (mergeRequestInput && !mergeRequestInput.value.trim()) {
-                            mergeRequestInput.value = data.mergeRequestUrl;
+                    var list = data.mergeRequestUrls || [];
+                    var selectEl = document.getElementById('mergeRequest');
+                    if (mrSelect) {
+                        mrSelect.destroy();
+                        mrSelect = null;
+                    }
+                    if (selectEl) {
+                        selectEl.innerHTML = '<option value="">Выберите MR из списка или введите ссылку...</option>';
+                        initMergeRequestSelect();
+                        if (mrSelect) {
+                            list.forEach(function (mr) {
+                                mrSelect.addOption({ value: mr.url, text: mr.title || mr.url });
+                            });
+                            if (list.length === 1) {
+                                mrSelect.setValue(list[0].url);
+                            }
                         }
                     }
                 } catch (error) {
                     console.warn('Error loading task details:', error);
                 }
+            }
+
+            function initMergeRequestSelect() {
+                var el = document.getElementById('mergeRequest');
+                if (!el || mrSelect) return;
+                mrSelect = new TomSelect('#mergeRequest', {
+                    maxItems: 1,
+                    valueField: 'value',
+                    labelField: 'text',
+                    searchField: ['text', 'value'],
+                    create: function (input) {
+                        var v = (input || '').trim();
+                        if (/^https?:\/\/.+\/merge_requests\/\d+/i.test(v) || v.indexOf('merge_requests') !== -1) {
+                            return { value: v, text: v };
+                        }
+                        return null;
+                    },
+                    createOnBlur: true,
+                    placeholder: 'Выберите MR из списка или введите ссылку...',
+                    options: []
+                });
             }
 
             // Функция загрузки пользователей канала
@@ -440,22 +505,109 @@
                 }
             }
 
-            // Загрузка пользователей канала при выборе канала
+            // Загрузка настроек канала (архитектурное ревью)
+            let channelArchSettings = { allow_arch_review: false, arch_review_tag: '' };
+            async function loadChannelSettings(channelId) {
+                if (!channelId) {
+                    document.getElementById('reviewTypeBlock').style.display = 'none';
+                    document.getElementById('reviewersBlock').style.display = 'block';
+                    document.getElementById('archReviewTagBlock').style.display = 'none';
+                    return;
+                }
+                try {
+                    const res = await fetch(`/review/api/channel-settings?channel_id=${encodeURIComponent(channelId)}`);
+                    const data = await res.json();
+                    channelArchSettings = { allow_arch_review: Boolean(data.allow_arch_review), arch_review_tag: data.arch_review_tag || '' };
+                    const typeBlock = document.getElementById('reviewTypeBlock');
+                    const tagInput = document.getElementById('archReviewTag');
+                    if (channelArchSettings.allow_arch_review) {
+                        typeBlock.style.display = 'block';
+                        if (channelArchSettings.arch_review_tag && tagInput) {
+                            tagInput.value = channelArchSettings.arch_review_tag;
+                            tagInput.placeholder = channelArchSettings.arch_review_tag;
+                        }
+                        var rt = document.querySelector('input[name="reviewType"]:checked');
+                        toggleReviewTypeBlocks(rt ? rt.value : 'normal');
+                    } else {
+                        typeBlock.style.display = 'none';
+                        document.getElementById('reviewTypeNormal').checked = true;
+                        toggleReviewTypeBlocks('normal');
+                    }
+                } catch (e) {
+                    channelArchSettings = { allow_arch_review: false, arch_review_tag: '' };
+                    document.getElementById('reviewTypeBlock').style.display = 'none';
+                    toggleReviewTypeBlocks('normal');
+                }
+            }
+
+            function toggleReviewTypeBlocks(reviewType) {
+                const isArch = reviewType === 'arch';
+                document.getElementById('reviewersBlock').style.display = isArch ? 'none' : 'block';
+                document.getElementById('archReviewTagBlock').style.display = isArch ? 'block' : 'none';
+                // Для архитектурного ревью — только MR, скрываем выбор типа контента
+                var contentTypeBlock = document.getElementById('contentTypeBlock');
+                if (!contentTypeBlock) contentTypeBlock = document.getElementById('reviewTypeBlock').nextElementSibling;
+                if (contentTypeBlock) {
+                    if (isArch) {
+                        contentTypeBlock.style.setProperty('display', 'none', 'important');
+                        contentTypeBlock.classList.add('d-none');
+                        contentTypeBlock.hidden = true;
+                    } else {
+                        contentTypeBlock.style.removeProperty('display');
+                        contentTypeBlock.classList.remove('d-none');
+                        contentTypeBlock.hidden = false;
+                    }
+                }
+                if (isArch) {
+                    var pr = document.getElementById('contentTypePR');
+                    if (pr) pr.checked = true;
+                    document.getElementById('mergeRequestContainer').style.display = 'block';
+                    document.getElementById('messageContainer').style.display = 'none';
+                }
+                const infoText = document.getElementById('reviewInfoText');
+                if (infoText) {
+                    if (isArch) {
+                        infoText.innerHTML = '• Задача будет переведена в статус <strong>IN REVIEW</strong> в Jira<br>• В сообщении будет указан статус <strong>IN ARCH-REVIEW</strong> и тег архитектурного ревью<br>• Сообщение будет отправлено в выбранный канал';
+                    } else {
+                        infoText.innerHTML = '• Задача будет переведена в статус <strong>IN REVIEW</strong> в Jira<br>• Сообщение будет отправлено в выбранный канал<br>• Если ревьювер не указан, он будет назначен автоматически (если настроено)<br>• Если задача уже в статусе To Do, она сначала переведется в In Progress';
+                    }
+                }
+            }
+
+            // Загрузка пользователей канала и настроек при выборе канала
             document.getElementById('channelId').addEventListener('change', async function () {
-                await loadChannelUsers(this.value);
+                const channelId = this.value;
+                await loadChannelUsers(channelId);
+                await loadChannelSettings(channelId);
             });
 
             // Автоматическая загрузка при загрузке страницы
             document.addEventListener('DOMContentLoaded', () => {
-                // Загружаем задачи пользователя
                 loadUserTasks();
-
-                // Загружаем пользователей канала, если канал уже выбран
                 const channelSelect = document.getElementById('channelId');
                 const selectedChannelId = channelSelect.value;
                 if (selectedChannelId) {
                     loadChannelUsers(selectedChannelId);
+                    loadChannelSettings(selectedChannelId);
                 }
+                // Переключение типа ревью: делегирование на форму, чтобы срабатывало при выборе arch
+                var reviewForm = document.getElementById('reviewForm');
+                if (reviewForm) {
+                    reviewForm.addEventListener('change', function (e) {
+                        if (e.target && e.target.name === 'reviewType') {
+                            toggleReviewTypeBlocks(e.target.value);
+                        }
+                    });
+                }
+                document.querySelectorAll('input[name="reviewType"]').forEach(radio => {
+                    radio.addEventListener('change', function () {
+                        toggleReviewTypeBlocks(this.value);
+                    });
+                });
+                // Текущее состояние типа ревью
+                var rt = document.querySelector('input[name="reviewType"]:checked');
+                if (rt) toggleReviewTypeBlocks(rt.value);
+                initMergeRequestSelect();
             });
 
             // Переключение между PR и Message
@@ -485,10 +637,12 @@
                     reviewer = reviewersSelect.items.join(', ');
                 }
 
-                // Получаем тип контента
-                const contentType = document.querySelector('input[name="contentType"]:checked').value;
-                const mergeRequest = contentType === 'pr' ? document.getElementById('mergeRequest').value.trim() : null;
-                const messageText = contentType === 'message' ? document.getElementById('messageText').value.trim() : null;
+                const reviewTypeEl = document.querySelector('input[name="reviewType"]:checked');
+                const reviewType = reviewTypeEl ? reviewTypeEl.value : 'normal';
+                // Для архитектурного ревью всегда только PR (MR)
+                const contentTypeFinal = reviewType === 'arch' ? 'pr' : document.querySelector('input[name="contentType"]:checked').value;
+                const mergeRequest = contentTypeFinal === 'pr' ? (mrSelect ? (mrSelect.getValue() || '').trim() : document.getElementById('mergeRequest').value.trim()) : null;
+                const messageText = contentTypeFinal === 'message' ? document.getElementById('messageText').value.trim() : null;
 
                 // Получаем выбранную задачу
                 let taskKey = null;
@@ -506,13 +660,18 @@
                     return;
                 }
 
+                const archReviewTagEl = document.getElementById('archReviewTag');
+                const archReviewTag = (reviewType === 'arch' && archReviewTagEl) ? archReviewTagEl.value.trim() : '';
+
                 const formData = {
                     taskKey: taskKey,
                     channelId: document.getElementById('channelId').value,
-                    contentType: contentType,
+                    contentType: contentTypeFinal,
                     mergeRequest: mergeRequest,
                     messageText: messageText,
-                    reviewer: reviewer
+                    reviewer: reviewer,
+                    reviewType: reviewType,
+                    archReviewTag: archReviewTag
                 };
 
                 try {
@@ -554,6 +713,7 @@
                         document.getElementById('reviewers').disabled = true;
                         document.getElementById('mergeRequestContainer').style.display = 'block';
                         document.getElementById('messageContainer').style.display = 'none';
+                        if (mrSelect) { mrSelect.clear(); mrSelect.clearOptions(); }
                     } else {
                         resultContainer.innerHTML = `
                     <div class="alert alert-danger" role="alert">
@@ -586,13 +746,17 @@
                     const taskSelectElement = document.getElementById('taskKey');
                     taskKey = taskSelectElement.value ? taskSelectElement.value.trim() : null;
                 }
-                const contentType = document.querySelector('input[name="contentType"]:checked').value;
-                const mergeRequest = contentType === 'pr' ? document.getElementById('mergeRequest').value.trim() : null;
+                const reviewTypeEl = document.querySelector('input[name="reviewType"]:checked');
+                const reviewType = reviewTypeEl ? reviewTypeEl.value : 'normal';
+                const contentType = reviewType === 'arch' ? 'pr' : document.querySelector('input[name="contentType"]:checked').value;
+                const mergeRequest = contentType === 'pr' ? (mrSelect ? (mrSelect.getValue() || '').trim() : document.getElementById('mergeRequest').value.trim()) : null;
                 const messageText = contentType === 'message' ? document.getElementById('messageText').value.trim() : null;
                 let reviewer = null;
                 if (reviewersSelect && reviewersSelect.items && reviewersSelect.items.length > 0) {
                     reviewer = reviewersSelect.items.join(', ');
                 }
+                const archReviewTagEl = document.getElementById('archReviewTag');
+                const archReviewTag = (reviewType === 'arch' && archReviewTagEl) ? archReviewTagEl.value.trim() : '';
 
                 if (!taskKey) {
                     alert('Укажите ключ задачи для предпросмотра');
@@ -605,7 +769,9 @@
                         contentType: contentType,
                         mergeRequest: mergeRequest || '',
                         messageText: messageText || '',
-                        reviewer: reviewer || ''
+                        reviewer: reviewer || '',
+                        reviewType: reviewType,
+                        archReviewTag: archReviewTag
                     });
 
                     const response = await fetch(`/review/api/preview?${params.toString()}`);

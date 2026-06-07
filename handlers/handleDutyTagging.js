@@ -164,11 +164,13 @@ module.exports = async (post, eventData) => {
                     continue;
                 }
             }
-            // Проверяем, есть ли в сообщении нужный тег
-            // Извлекаем весь текст из поста (включая attachments для интеграций)
+            // Проверяем, есть ли в сообщении нужный тег (строгое совпадение: тег не часть другого)
+            // Упоминания @c1-back, @c1-front и т.д. срабатывают; c1-back не срабатывает при c1-back-arch
             const postText = extractPostText(post);
-            const tagPattern = new RegExp(`\\b${setting.tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+            const escapedTag = setting.tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const tagPattern = new RegExp(`\\b${escapedTag}(?![-\\w])`, 'i');
             if (!tagPattern.test(postText)) {
+
                 continue;
             }
 

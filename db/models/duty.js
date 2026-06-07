@@ -40,12 +40,17 @@ const getDutyUsers = async (channel_id) => {
     return db.all('SELECT * FROM duty_list WHERE channel_id = ? ORDER BY order_number ASC', channel_id);
 };
 
+// Получение пользователя из очереди дежурных
+const getDutyUserById = async (id, channel_id) => {
+    return db.get('SELECT * FROM duty_list WHERE id = ? AND channel_id = ?', [id, channel_id]);
+};
+
 // Установка текущего дежурного
 const setCurrentDuty = async (channel_id, user_id, duty_type = DutyType.REGULAR) => {
-    return db.run(`
+    return db.runAsync(`
         INSERT OR REPLACE INTO duty_current (channel_id, user_id, duty_type)
         VALUES (?, ?, ?)`,
-        channel_id, user_id, duty_type
+        [channel_id, user_id, duty_type]
     );
 };
 
@@ -78,22 +83,22 @@ const updateDutyUsersOrder = async (channel_id, order) => {
 
 // Удаление дежурного пользователя в канале
 const removeDutyUser = async (id, channel_id) => {
-    return db.run('DELETE FROM duty_list WHERE id = ? AND channel_id = ?', id, channel_id);
+    return db.runAsync('DELETE FROM duty_list WHERE id = ? AND channel_id = ?', [id, channel_id]);
 };
 
 // Удаление дежурного расписания
 const deleteDutySchedule = async (channel_id) => {
-    return db.run('DELETE FROM duty_schedule WHERE channel_id = ?', channel_id);
+    return db.runAsync('DELETE FROM duty_schedule WHERE channel_id = ?', [channel_id]);
 };
 
 // Удаление всех дежурных пользователей
 const deleteAllDutyUsers = async (channel_id) => {
-    return db.run('DELETE FROM duty_list WHERE channel_id = ?', channel_id);
+    return db.runAsync('DELETE FROM duty_list WHERE channel_id = ?', [channel_id]);
 };
 
 // Удаление текущего дежурного
 const deleteCurrentDuty = async (channel_id) => {
-    return db.run('DELETE FROM duty_current WHERE channel_id = ?', channel_id);
+    return db.runAsync('DELETE FROM duty_current WHERE channel_id = ?', [channel_id]);
 };
 
 // Получение списка внеочередных дежурных
@@ -118,6 +123,16 @@ const addUnscheduledUser = async (channel_id, user_id) => {
 // Удаление пользователя из списка внеочередных дежурных
 const deleteUnscheduledUser = async (id) => {
     return db.run('DELETE FROM duty_unscheduled_list WHERE id = ?', id);
+};
+
+// Удаление внеочередных дежурств пользователя в канале
+const deleteUnscheduledUsersByUser = async (channel_id, user_id) => {
+    return db.runAsync('DELETE FROM duty_unscheduled_list WHERE channel_id = ? AND user_id = ?', [channel_id, user_id]);
+};
+
+// Удаление всех внеочередных дежурных канала
+const deleteAllUnscheduledUsers = async (channel_id) => {
+    return db.runAsync('DELETE FROM duty_unscheduled_list WHERE channel_id = ?', [channel_id]);
 };
 
 // Получение всех внеочередных пользователей
@@ -222,6 +237,7 @@ module.exports = {
     getDutySchedule,
     addDutyUser,
     getDutyUsers,
+    getDutyUserById,
     setCurrentDuty,
     getCurrentDuty,
     deleteDutySchedule,
@@ -232,6 +248,8 @@ module.exports = {
     getFirstUnscheduledUser,
     addUnscheduledUser,
     deleteUnscheduledUser,
+    deleteUnscheduledUsersByUser,
+    deleteAllUnscheduledUsers,
     removeDutyUser,
     updateDutyUsersOrder,
     getAllUnscheduledUsers,

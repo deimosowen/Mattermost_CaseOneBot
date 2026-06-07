@@ -78,6 +78,11 @@
                                                             class="badge <%= statusBadgeClasses[employee.status] || 'bg-secondary' %>">
                                                             <%= employee.status %>
                                                         </span>
+                                                        <% if(employee.status==='Текущий' && employee.isDisabled) { %>
+                                                            <span class="badge bg-danger ms-1">
+                                                                Отключен
+                                                            </span>
+                                                            <% } %>
                                                         <% if(employee.return_date) { %>
                                                             </br>
                                                             <span class="badge bg-warning text-dark">
@@ -105,6 +110,19 @@
                                                                 <button type="submit"
                                                                     class="btn btn-outline-light btn-sm me-2">Сменить</button>
                                                             </form>
+                                                            <% if (isAdmin) { %>
+                                                                <form action="/duty/change-next" method="post"
+                                                                    style="display: inline;"
+                                                                    onsubmit="return confirm('Принудительно сменить дежурного без проверок доступности?');">
+                                                                    <input type="hidden" name="channel_id"
+                                                                        value="<%= channel_id %>">
+                                                                    <input type="hidden" name="force" value="true">
+                                                                    <button type="submit"
+                                                                        class="btn btn-outline-danger btn-sm me-2">
+                                                                        Форс смена
+                                                                    </button>
+                                                                </form>
+                                                                <% } %>
                                                             <form action="/duty/update-status" method="post"
                                                                 style="display: inline;"
                                                                 id="statusForm-<%= employee.id %>">
@@ -115,8 +133,25 @@
                                                                 <input type="hidden" name="channel_id"
                                                                     value="<%= channel_id %>">
                                                                 <input type="hidden" name="status" value="-1">
-                                                                <button type="submit"
-                                                                    class="btn btn-outline-warning btn-sm">Сдвинуть</button>
+                                                                <div class="btn-group">
+                                                                    <button type="submit"
+                                                                        class="btn btn-outline-warning btn-sm">Сдвинуть</button>
+                                                                    <button type="button"
+                                                                        class="btn btn-outline-warning dropdown-toggle dropdown-toggle-split btn-sm"
+                                                                        data-bs-toggle="dropdown"
+                                                                        aria-expanded="false"
+                                                                        data-bs-reference="parent">
+                                                                        <span class="visually-hidden">Действия</span>
+                                                                    </button>
+                                                                    <ul class="dropdown-menu">
+                                                                        <li><button type="button"
+                                                                                class="dropdown-item text-danger"
+                                                                                onclick="deleteUser('<%= employee.id %>')">
+                                                                                <i class="bi bi-trash me-2"></i>Удалить
+                                                                            </button>
+                                                                        </li>
+                                                                    </ul>
+                                                                </div>
                                                             </form>
                                                             <% } else { %>
                                                                 <form action="/duty/update-status" method="post"
@@ -150,9 +185,14 @@
                                                                                         до
                                                                                         даты</a>
                                                                                 </li>
+                                                                                <li>
+                                                                                    <hr class="dropdown-divider">
+                                                                                </li>
                                                                                 <li><button type="button"
                                                                                         class="dropdown-item text-danger"
-                                                                                        onclick="deleteUser('<%= employee.id %>')">Удалить</button>
+                                                                                        onclick="deleteUser('<%= employee.id %>')">
+                                                                                        <i class="bi bi-trash me-2"></i>Удалить
+                                                                                    </button>
                                                                                 </li>
                                                                             </ul>
                                                                         </div>
@@ -160,8 +200,26 @@
                                                                             %>
                                                                             <input type="hidden" name="status"
                                                                                 value="0">
-                                                                            <button type="submit"
-                                                                                class="btn btn-outline-primary btn-sm">Включить</button>
+                                                                            <div class="btn-group">
+                                                                                <button type="submit"
+                                                                                    class="btn btn-outline-primary btn-sm">Включить</button>
+                                                                                <button type="button"
+                                                                                    class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split btn-sm"
+                                                                                    data-bs-toggle="dropdown"
+                                                                                    aria-expanded="false"
+                                                                                    data-bs-reference="parent">
+                                                                                    <span
+                                                                                        class="visually-hidden">Действия</span>
+                                                                                </button>
+                                                                                <ul class="dropdown-menu">
+                                                                                    <li><button type="button"
+                                                                                            class="dropdown-item text-danger"
+                                                                                            onclick="deleteUser('<%= employee.id %>')">
+                                                                                            <i class="bi bi-trash me-2"></i>Удалить
+                                                                                        </button>
+                                                                                    </li>
+                                                                                </ul>
+                                                                            </div>
                                                                             <% } %>
                                                                 </form>
                                                                 <% } %>

@@ -4,6 +4,7 @@ const {
     postMessage,
     postMessageInTreed,
     getChannelMembers,
+    getEnabledReviewChannelIdsForUser,
     getReviewTaskByKey,
     getReviewTaskByPostId,
     addReviewTask,
@@ -86,6 +87,21 @@ describe('review command', () => {
             reviewer: null,
         }));
         expect(addTaskNotification).toHaveBeenCalledWith('rt-1');
+    });
+
+    test('не отправляет в канал, исключенный персональными настройками', async () => {
+        getEnabledReviewChannelIdsForUser.mockResolvedValueOnce([]);
+
+        await reviewCommand({
+            post_id: 'post-1',
+            user_id: 'user-1',
+            user_name: 'john',
+            channel_id: 'test-channel-1',
+            args: ['CASEM-1', null, null],
+        });
+
+        expect(postMessage).not.toHaveBeenCalled();
+        expect(addReviewTask).not.toHaveBeenCalled();
     });
 
     test('если To Do -> In Progress не удалось — пишет ошибку и останавливается', async () => {

@@ -1,11 +1,33 @@
 const express = require('express');
 const requireAdmin = require('../middleware/admin');
 const logger = require('../../logger');
+const {
+    listUsers,
+    listGroups,
+    upsertUserAccess,
+    deleteUser,
+    createGroup,
+    updateGroup,
+    deleteGroup,
+    getMenuItems,
+    sanitizeMenuKeys
+} = require('../../db/models/accessControl');
+const { ADMIN_ID } = require('../../config');
 
 const router = express.Router();
 
 // Все маршруты требуют админ-прав
 router.use(requireAdmin);
+
+function parseBoolean(value, defaultValue = false) {
+    if (value === undefined || value === null || value === '') return defaultValue;
+    return value === true || value === 'true' || value === '1' || value === 'on' || value === 1;
+}
+
+function parsePermissions(value) {
+    if (!value) return [];
+    return sanitizeMenuKeys(Array.isArray(value) ? value : [value]);
+}
 
 // Тестовая страница админа
 router.get('/', (req, res) => {
@@ -17,6 +39,120 @@ router.get('/', (req, res) => {
             email: req.user?.email
         }
     });
+});
+
+// Страница управления пользователями и группами
+router.get('/users', async (req, res) => {
+    try {
+        const [users, groups] = await Promise.all([
+            listUsers(),
+            listGroups()
+        ]);
+
+        res.render('adminUsers', {
+            error: null,
+            users,
+            groups,
+            menuItems: getMenuItems()
+        });
+    } catch (error) {
+        logger.error(`Error in admin users page: ${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).render('adminUsers', {
+            error: 'Ошибка при загрузке пользователей и групп',
+            users: [],
+            groups: [],
+            menuItems: getMenuItems()
+        });
+    }
+});
+
+// API: обновить группу/статус пользователя
+router.put('/api/users/:mattermostUserId', async (req, res) => {
+    try {
+        const result = await upsertUserAccess(req.params.mattermostUserId, {
+            group_id: parseInt(req.body.group_id, 10),
+            is_enabled: parseBoolean(req.body.is_enabled, false)
+        });
+
+        res.json({ success: true, id: result.id, message: 'Пользователь обновлен' });
+    } catch (error) {
+        logger.error(`Error updating admin user: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// API: удалить пользователя из управления доступом
+router.delete('/api/users/:id', async (req, res) => {
+    try {
+        const users = await listUsers();
+        const user = users.find((item) => item.id === parseInt(req.params.id, 10));
+        if (user?.mattermost_user_id && ADMIN_ID && user.mattermost_user_id === ADMIN_ID) {
+            return res.status(400).json({ error: 'Пользователя из ADMIN_ID нельзя удалить' });
+        }
+
+        const changes = await deleteUser(parseInt(req.params.id, 10));
+        if (!changes) {
+            return res.status(404).json({ error: 'Пользователь не найден' });
+        }
+
+        res.json({ success: true, message: 'Пользователь удален' });
+    } catch (error) {
+        logger.error(`Error deleting admin user: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// API: создать группу
+router.post('/api/groups', async (req, res) => {
+    try {
+        const id = await createGroup({
+            name: req.body.name,
+            description: req.body.description,
+            is_admin: parseBoolean(req.body.is_admin, false),
+            permissions: parsePermissions(req.body.permissions)
+        });
+
+        res.json({ success: true, id, message: 'Группа создана' });
+    } catch (error) {
+        logger.error(`Error creating admin group: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// API: обновить группу
+router.put('/api/groups/:id', async (req, res) => {
+    try {
+        const changes = await updateGroup(parseInt(req.params.id, 10), {
+            name: req.body.name,
+            description: req.body.description,
+            is_admin: parseBoolean(req.body.is_admin, false),
+            permissions: parsePermissions(req.body.permissions)
+        });
+
+        if (!changes) {
+            return res.status(404).json({ error: 'Группа не найдена' });
+        }
+
+        res.json({ success: true, message: 'Группа обновлена' });
+    } catch (error) {
+        logger.error(`Error updating admin group: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// API: удалить группу
+router.delete('/api/groups/:id', async (req, res) => {
+    try {
+        const changes = await deleteGroup(parseInt(req.params.id, 10));
+        if (!changes) {
+            return res.status(404).json({ error: 'Группа не найдена' });
+        }
+
+        res.json({ success: true, message: 'Группа удалена' });
+    } catch (error) {
+        logger.error(`Error deleting admin group: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
 });
 
 // Страница управления каналами для приглашений

@@ -1,0 +1,770 @@
+<% layout('layout') -%>
+    <% block('title', 'Пользователи и группы' ); -%>
+
+        <%
+            const safeUsers = users || [];
+            const safeGroups = groups || [];
+            const safeMenuItems = menuItems || [];
+            const enabledUsersCount = safeUsers.filter(item => item.is_enabled).length;
+            const disabledUsersCount = safeUsers.length - enabledUsersCount;
+            const adminGroupsCount = safeGroups.filter(item => item.is_admin).length;
+        %>
+
+        <div class="container-fluid my-4 admin-users-page">
+            <div class="row">
+                <div class="col-12 col-xxl-11 mx-auto">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+                        <div>
+                            <h2 class="mb-1">
+                                <i class="bi bi-person-gear me-2"></i>Пользователи и группы
+                            </h2>
+                            <div class="text-muted">Доступ к разделам приложения и административным правам</div>
+                        </div>
+                        <a href="/admin" class="btn btn-outline-secondary btn-sm align-self-start align-self-lg-center">
+                            <i class="bi bi-arrow-left me-1"></i>Назад в админку
+                        </a>
+                    </div>
+
+                    <% if (error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i><%= error %>
+                        </div>
+                        <% } %>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-6 col-lg-3">
+                            <div class="metric-tile">
+                                <div class="metric-icon text-primary bg-primary-subtle">
+                                    <i class="bi bi-people"></i>
+                                </div>
+                                <div>
+                                    <div class="metric-value"><%= safeUsers.length %></div>
+                                    <div class="metric-label">Пользователи</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-lg-3">
+                            <div class="metric-tile">
+                                <div class="metric-icon text-success bg-success-subtle">
+                                    <i class="bi bi-toggle-on"></i>
+                                </div>
+                                <div>
+                                    <div class="metric-value"><%= enabledUsersCount %></div>
+                                    <div class="metric-label">Активны</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-lg-3">
+                            <div class="metric-tile">
+                                <div class="metric-icon text-warning bg-warning-subtle">
+                                    <i class="bi bi-toggle-off"></i>
+                                </div>
+                                <div>
+                                    <div class="metric-value"><%= disabledUsersCount %></div>
+                                    <div class="metric-label">Отключены</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-lg-3">
+                            <div class="metric-tile">
+                                <div class="metric-icon text-danger bg-danger-subtle">
+                                    <i class="bi bi-shield-check"></i>
+                                </div>
+                                <div>
+                                    <div class="metric-value"><%= adminGroupsCount %></div>
+                                    <div class="metric-label">Админ-группы</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="nav nav-tabs admin-tabs mb-3" id="adminUsersTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="users-tab" data-bs-toggle="tab"
+                                data-bs-target="#users-pane" type="button" role="tab" aria-controls="users-pane"
+                                aria-selected="true">
+                                <i class="bi bi-people me-1"></i>Пользователи
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="groups-tab" data-bs-toggle="tab"
+                                data-bs-target="#groups-pane" type="button" role="tab" aria-controls="groups-pane"
+                                aria-selected="false">
+                                <i class="bi bi-diagram-3 me-1"></i>Группы
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="users-pane" role="tabpanel"
+                            aria-labelledby="users-tab" tabindex="0">
+                            <div class="card shadow-sm">
+                                <div class="card-header">
+                                    <div class="row g-2 align-items-center">
+                                        <div class="col-12 col-lg">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                                <input type="search" class="form-control" id="userSearch"
+                                                    placeholder="Имя, username, email или Mattermost ID">
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-md-6 col-lg-auto">
+                                            <select class="form-select form-select-sm" id="groupFilter">
+                                                <option value="">Все группы</option>
+                                                <% safeGroups.forEach(group => { %>
+                                                    <option value="<%= group.id %>"><%= group.name %></option>
+                                                    <% }) %>
+                                            </select>
+                                        </div>
+                                        <div class="col-12 col-md-6 col-lg-auto">
+                                            <select class="form-select form-select-sm" id="statusFilter">
+                                                <option value="">Любой доступ</option>
+                                                <option value="enabled">Активные</option>
+                                                <option value="disabled">Отключенные</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body p-0">
+                                    <% if (safeUsers.length > 0) { %>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover align-middle mb-0 admin-users-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Пользователь</th>
+                                                        <th>Mattermost ID</th>
+                                                        <th>Группа</th>
+                                                        <th>Доступ</th>
+                                                        <th class="text-end">Действия</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="usersTableBody">
+                                                    <% safeUsers.forEach(accessUser => {
+                                                        const fallbackGroup = safeGroups.find(group => group.name === 'Пользователи');
+                                                        const selectedGroupId = accessUser.group_id || fallbackGroup?.id || '';
+                                                        const searchText = [
+                                                            accessUser.display_name,
+                                                            accessUser.username,
+                                                            accessUser.email,
+                                                            accessUser.mattermost_user_id
+                                                        ].filter(Boolean).join(' ').toLowerCase();
+                                                    %>
+                                                        <tr data-user-id="<%= accessUser.mattermost_user_id %>"
+                                                            data-search="<%= searchText %>"
+                                                            data-group-id="<%= selectedGroupId %>"
+                                                            data-status="<%= accessUser.is_enabled ? 'enabled' : 'disabled' %>">
+                                                            <td>
+                                                                <div class="d-flex align-items-center gap-3">
+                                                                    <div class="user-avatar">
+                                                                        <%= (accessUser.display_name || accessUser.username || accessUser.mattermost_user_id || '?').slice(0, 1).toUpperCase() %>
+                                                                    </div>
+                                                                    <div class="min-w-0">
+                                                                        <div class="fw-semibold text-truncate">
+                                                                            <%= accessUser.display_name || accessUser.username || accessUser.mattermost_user_id %>
+                                                                        </div>
+                                                                        <div class="text-muted small text-truncate">
+                                                                            <% if (accessUser.username) { %>@<%= accessUser.username %><% } %>
+                                                                            <% if (accessUser.email) { %><%= accessUser.username ? ' · ' : '' %><%= accessUser.email %><% } %>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <code class="user-select-all compact-code"><%= accessUser.mattermost_user_id %></code>
+                                                            </td>
+                                                            <td>
+                                                                <select class="form-select form-select-sm user-group"
+                                                                    <%= accessUser.is_configured_admin ? 'disabled' : '' %>>
+                                                                    <% safeGroups.forEach(group => { %>
+                                                                        <option value="<%= group.id %>"
+                                                                            <%= String(group.id) === String(selectedGroupId) ? 'selected' : '' %>>
+                                                                            <%= group.name %>
+                                                                        </option>
+                                                                        <% }) %>
+                                                                </select>
+                                                            </td>
+                                                            <td>
+                                                                <% if (accessUser.is_configured_admin) { %>
+                                                                    <span class="badge text-bg-danger">
+                                                                        <i class="bi bi-shield-lock me-1"></i>ADMIN_ID
+                                                                    </span>
+                                                                    <% } else { %>
+                                                                        <div class="form-check form-switch access-switch">
+                                                                            <input class="form-check-input user-enabled"
+                                                                                type="checkbox"
+                                                                                id="enabled-<%= accessUser.mattermost_user_id %>"
+                                                                                <%= accessUser.is_enabled ? 'checked' : '' %>>
+                                                                            <label class="form-check-label small"
+                                                                                for="enabled-<%= accessUser.mattermost_user_id %>">
+                                                                                <%= accessUser.is_enabled ? 'Активен' : 'Отключен' %>
+                                                                            </label>
+                                                                        </div>
+                                                                        <% } %>
+                                                            </td>
+                                                            <td class="text-end">
+                                                                <div class="btn-group btn-group-sm" role="group">
+                                                                    <button type="button" class="btn btn-outline-primary"
+                                                                        title="Сохранить"
+                                                                        onclick='saveUser(<%- JSON.stringify(accessUser.mattermost_user_id) %>)'>
+                                                                        <i class="bi bi-save"></i>
+                                                                    </button>
+                                                                    <% if (accessUser.id) { %>
+                                                                        <button type="button"
+                                                                            class="btn btn-outline-danger"
+                                                                            title="Сбросить индивидуальные настройки"
+                                                                            onclick="resetUser(<%= accessUser.id %>, <%= accessUser.is_configured_admin ? 'true' : 'false' %>)">
+                                                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                                                        </button>
+                                                                        <% } %>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <% }) %>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div class="empty-state d-none" id="usersEmptyState">
+                                            <i class="bi bi-search"></i>
+                                            <div>Ничего не найдено</div>
+                                        </div>
+                                        <% } else { %>
+                                            <div class="empty-state">
+                                                <i class="bi bi-person-x"></i>
+                                                <div>В user_info пока нет пользователей</div>
+                                            </div>
+                                            <% } %>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="groups-pane" role="tabpanel" aria-labelledby="groups-tab"
+                            tabindex="0">
+                            <div class="row g-4">
+                                <div class="col-12 col-xl-4">
+                                    <div class="card shadow-sm">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">
+                                                <i class="bi bi-plus-circle me-2"></i>Новая группа
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label" for="newGroupName">Название</label>
+                                                <input type="text" class="form-control" id="newGroupName"
+                                                    placeholder="Например: Ревьюеры">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label" for="newGroupDescription">Описание</label>
+                                                <input type="text" class="form-control" id="newGroupDescription">
+                                            </div>
+                                            <div class="form-check form-switch mb-3">
+                                                <input class="form-check-input" type="checkbox" id="newGroupIsAdmin">
+                                                <label class="form-check-label" for="newGroupIsAdmin">
+                                                    Администраторы
+                                                </label>
+                                            </div>
+
+                                            <div class="permissions-grid compact mb-3">
+                                                <% safeMenuItems.forEach(item => { %>
+                                                    <label class="permission-pill" for="newPerm-<%= item.key %>">
+                                                        <input class="form-check-input new-group-permission"
+                                                            type="checkbox" value="<%= item.key %>"
+                                                            id="newPerm-<%= item.key %>">
+                                                        <i class="bi <%= item.icon || 'bi-app' %>"></i>
+                                                        <span><%= item.title %></span>
+                                                    </label>
+                                                    <% }) %>
+                                            </div>
+
+                                            <button type="button" class="btn btn-success w-100" onclick="createGroup()">
+                                                <i class="bi bi-plus-circle me-1"></i>Создать
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-xl-8">
+                                    <div class="groups-stack">
+                                        <% safeGroups.forEach(group => { %>
+                                            <div class="card shadow-sm group-editor" data-group-id="<%= group.id %>">
+                                                <div class="card-header">
+                                                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-2">
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <span class="group-icon <%= group.is_admin ? 'admin' : '' %>">
+                                                                <i class="bi <%= group.is_admin ? 'bi-shield-check' : 'bi-people' %>"></i>
+                                                            </span>
+                                                            <div>
+                                                                <h5 class="mb-0"><%= group.name %></h5>
+                                                                <div class="text-muted small">
+                                                                    <%= group.users_count %> польз. · <%= group.permissions.length %> пунктов меню
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="d-flex gap-2 align-items-start">
+                                                            <% if (group.is_admin) { %>
+                                                                <span class="badge text-bg-danger">Полный доступ</span>
+                                                                <% } else { %>
+                                                                    <span class="badge text-bg-secondary">Обычная группа</span>
+                                                                    <% } %>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row g-3 align-items-end">
+                                                        <div class="col-12 col-lg-4">
+                                                            <label class="form-label">Название</label>
+                                                            <input type="text" class="form-control group-name"
+                                                                value="<%= group.name %>">
+                                                        </div>
+                                                        <div class="col-12 col-lg-6">
+                                                            <label class="form-label">Описание</label>
+                                                            <input type="text" class="form-control group-description"
+                                                                value="<%= group.description || '' %>">
+                                                        </div>
+                                                        <div class="col-12 col-lg-2">
+                                                            <div class="form-check form-switch">
+                                                                <input class="form-check-input group-is-admin"
+                                                                    type="checkbox" id="groupAdmin-<%= group.id %>"
+                                                                    <%= group.is_admin ? 'checked' : '' %>>
+                                                                <label class="form-check-label"
+                                                                    for="groupAdmin-<%= group.id %>">
+                                                                    Админ
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="permissions-grid mt-3">
+                                                        <% safeMenuItems.forEach(item => { %>
+                                                            <label class="permission-pill"
+                                                                for="perm-<%= group.id %>-<%= item.key %>">
+                                                                <input class="form-check-input group-permission"
+                                                                    type="checkbox" value="<%= item.key %>"
+                                                                    id="perm-<%= group.id %>-<%= item.key %>"
+                                                                    <%= group.permissions.includes(item.key) ? 'checked' : '' %>>
+                                                                <i class="bi <%= item.icon || 'bi-app' %>"></i>
+                                                                <span><%= item.title %></span>
+                                                            </label>
+                                                            <% }) %>
+                                                    </div>
+
+                                                    <div class="mt-3 d-flex flex-wrap gap-2 justify-content-end">
+                                                        <button type="button" class="btn btn-outline-primary btn-sm"
+                                                            onclick="saveGroup(<%= group.id %>)">
+                                                            <i class="bi bi-save me-1"></i>Сохранить
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                                            onclick='deleteGroup(<%= group.id %>, <%- JSON.stringify(group.name) %>, <%= group.users_count %>)'>
+                                                            <i class="bi bi-trash me-1"></i>Удалить
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <% }) %>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function showToast(message, type = 'success') {
+                if (window.Toastify) {
+                    Toastify({
+                        text: message,
+                        duration: 2600,
+                        gravity: 'top',
+                        position: 'right',
+                        close: true,
+                        style: {
+                            background: type === 'error' ? '#dc3545' : '#198754'
+                        }
+                    }).showToast();
+                    return;
+                }
+                alert(message);
+            }
+
+            async function requestJson(url, options = {}) {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(options.headers || {})
+                    }
+                });
+                const result = await response.json();
+                if (!response.ok || result.error) {
+                    throw new Error(result.error || 'Ошибка запроса');
+                }
+                return result;
+            }
+
+            function getUserRow(mattermostUserId) {
+                return Array.from(document.querySelectorAll('[data-user-id]'))
+                    .find(row => row.dataset.userId === mattermostUserId);
+            }
+
+            function updateUserRowState(row) {
+                const groupSelect = row.querySelector('.user-group');
+                const enabledInput = row.querySelector('.user-enabled');
+                if (groupSelect) {
+                    row.dataset.groupId = groupSelect.value;
+                }
+                if (enabledInput) {
+                    row.dataset.status = enabledInput.checked ? 'enabled' : 'disabled';
+                    const label = row.querySelector('.access-switch .form-check-label');
+                    if (label) {
+                        label.textContent = enabledInput.checked ? 'Активен' : 'Отключен';
+                    }
+                }
+            }
+
+            function getActiveButton() {
+                const element = document.activeElement;
+                return element && element.tagName === 'BUTTON' ? element : null;
+            }
+
+            async function withButtonLoading(button, callback) {
+                const originalHtml = button?.innerHTML;
+                if (button) {
+                    button.disabled = true;
+                    button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                }
+                try {
+                    await callback();
+                } finally {
+                    if (button) {
+                        button.disabled = false;
+                        button.innerHTML = originalHtml;
+                    }
+                }
+            }
+
+            async function saveUser(mattermostUserId) {
+                const row = getUserRow(mattermostUserId);
+                if (!row) return;
+
+                const button = getActiveButton();
+                await withButtonLoading(button, async () => {
+                    try {
+                        await requestJson(`/admin/api/users/${encodeURIComponent(mattermostUserId)}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                group_id: row.querySelector('.user-group').value,
+                                is_enabled: row.querySelector('.user-enabled')?.checked ?? true
+                            })
+                        });
+                        updateUserRowState(row);
+                        showToast('Пользователь сохранен');
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    }
+                });
+            }
+
+            async function resetUser(id, isConfiguredAdmin) {
+                if (isConfiguredAdmin) {
+                    showToast('Пользователя из ADMIN_ID нельзя сбросить', 'error');
+                    return;
+                }
+                if (!confirm('Сбросить индивидуальные настройки доступа?')) return;
+
+                const button = getActiveButton();
+                await withButtonLoading(button, async () => {
+                    try {
+                        await requestJson(`/admin/api/users/${id}`, { method: 'DELETE' });
+                        location.reload();
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    }
+                });
+            }
+
+            function readGroupPermissions(container, selector) {
+                return Array.from(container.querySelectorAll(`${selector}:checked`)).map((input) => input.value);
+            }
+
+            async function createGroup() {
+                const button = getActiveButton();
+                await withButtonLoading(button, async () => {
+                    const permissions = readGroupPermissions(document, '.new-group-permission');
+                    try {
+                        await requestJson('/admin/api/groups', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                name: document.getElementById('newGroupName').value,
+                                description: document.getElementById('newGroupDescription').value,
+                                is_admin: document.getElementById('newGroupIsAdmin').checked,
+                                permissions
+                            })
+                        });
+                        location.reload();
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    }
+                });
+            }
+
+            async function saveGroup(id) {
+                const editor = document.querySelector(`[data-group-id="${id}"]`);
+                const button = getActiveButton();
+                await withButtonLoading(button, async () => {
+                    const permissions = readGroupPermissions(editor, '.group-permission');
+                    try {
+                        await requestJson(`/admin/api/groups/${id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                name: editor.querySelector('.group-name').value,
+                                description: editor.querySelector('.group-description').value,
+                                is_admin: editor.querySelector('.group-is-admin').checked,
+                                permissions
+                            })
+                        });
+                        showToast('Группа сохранена');
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    }
+                });
+            }
+
+            async function deleteGroup(id, name, usersCount) {
+                if (usersCount > 0) {
+                    showToast('Сначала перенесите пользователей из этой группы', 'error');
+                    return;
+                }
+                if (!confirm(`Удалить группу "${name}"?`)) return;
+
+                const button = getActiveButton();
+                await withButtonLoading(button, async () => {
+                    try {
+                        await requestJson(`/admin/api/groups/${id}`, { method: 'DELETE' });
+                        location.reload();
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    }
+                });
+            }
+
+            function applyUserFilters() {
+                const query = document.getElementById('userSearch')?.value.trim().toLowerCase() || '';
+                const groupId = document.getElementById('groupFilter')?.value || '';
+                const status = document.getElementById('statusFilter')?.value || '';
+                const rows = Array.from(document.querySelectorAll('#usersTableBody tr'));
+                let visibleCount = 0;
+
+                rows.forEach(row => {
+                    const matchesSearch = !query || row.dataset.search.includes(query);
+                    const matchesGroup = !groupId || row.dataset.groupId === groupId;
+                    const matchesStatus = !status || row.dataset.status === status;
+                    const isVisible = matchesSearch && matchesGroup && matchesStatus;
+                    row.classList.toggle('d-none', !isVisible);
+                    if (isVisible) visibleCount++;
+                });
+
+                document.getElementById('usersEmptyState')?.classList.toggle('d-none', visibleCount > 0);
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                document.getElementById('userSearch')?.addEventListener('input', applyUserFilters);
+                document.getElementById('groupFilter')?.addEventListener('change', applyUserFilters);
+                document.getElementById('statusFilter')?.addEventListener('change', applyUserFilters);
+
+                document.querySelectorAll('.user-group').forEach(select => {
+                    select.addEventListener('change', () => {
+                        const row = select.closest('[data-user-id]');
+                        if (row) updateUserRowState(row);
+                        applyUserFilters();
+                    });
+                });
+
+                document.querySelectorAll('.user-enabled').forEach(input => {
+                    input.addEventListener('change', () => {
+                        const row = input.closest('[data-user-id]');
+                        if (row) updateUserRowState(row);
+                        applyUserFilters();
+                    });
+                });
+            });
+        </script>
+
+        <style>
+            .admin-users-page {
+                max-width: 1680px;
+            }
+
+            .metric-tile {
+                align-items: center;
+                background: var(--bs-body-bg);
+                border: 1px solid var(--bs-border-color);
+                border-radius: 8px;
+                display: flex;
+                gap: 0.85rem;
+                min-height: 76px;
+                padding: 1rem;
+            }
+
+            .metric-icon {
+                align-items: center;
+                border-radius: 8px;
+                display: inline-flex;
+                flex: 0 0 42px;
+                height: 42px;
+                justify-content: center;
+                width: 42px;
+            }
+
+            .metric-value {
+                font-size: 1.35rem;
+                font-weight: 700;
+                line-height: 1.1;
+            }
+
+            .metric-label {
+                color: var(--bs-secondary-color);
+                font-size: 0.875rem;
+            }
+
+            .admin-tabs .nav-link {
+                align-items: center;
+                display: inline-flex;
+                min-height: 42px;
+            }
+
+            .admin-users-table thead th {
+                background: var(--bs-secondary-bg);
+                border-bottom: 1px solid var(--bs-border-color);
+                color: var(--bs-secondary-color);
+                font-size: 0.8rem;
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+
+            .admin-users-table td,
+            .admin-users-table th {
+                padding: 0.85rem 1rem;
+            }
+
+            .user-avatar {
+                align-items: center;
+                background: var(--bs-tertiary-bg);
+                border: 1px solid var(--bs-border-color);
+                border-radius: 8px;
+                color: var(--bs-emphasis-color);
+                display: inline-flex;
+                flex: 0 0 38px;
+                font-weight: 700;
+                height: 38px;
+                justify-content: center;
+                width: 38px;
+            }
+
+            .compact-code {
+                display: inline-block;
+                max-width: 210px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                vertical-align: middle;
+                white-space: nowrap;
+            }
+
+            .min-w-0 {
+                min-width: 0;
+            }
+
+            .access-switch {
+                min-width: 112px;
+            }
+
+            .groups-stack {
+                display: grid;
+                gap: 1rem;
+            }
+
+            .group-icon {
+                align-items: center;
+                background: var(--bs-secondary-bg);
+                border-radius: 8px;
+                display: inline-flex;
+                flex: 0 0 38px;
+                height: 38px;
+                justify-content: center;
+                width: 38px;
+            }
+
+            .group-icon.admin {
+                background: var(--bs-danger-bg-subtle);
+                color: var(--bs-danger);
+            }
+
+            .permissions-grid {
+                display: grid;
+                gap: 0.55rem;
+                grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            }
+
+            .permissions-grid.compact {
+                grid-template-columns: 1fr;
+                max-height: 360px;
+                overflow: auto;
+                padding-right: 0.25rem;
+            }
+
+            .permission-pill {
+                align-items: center;
+                border: 1px solid var(--bs-border-color);
+                border-radius: 8px;
+                cursor: pointer;
+                display: flex;
+                gap: 0.55rem;
+                min-height: 42px;
+                padding: 0.55rem 0.7rem;
+                transition: background-color 0.15s ease, border-color 0.15s ease;
+            }
+
+            .permission-pill:hover {
+                background-color: var(--bs-tertiary-bg);
+            }
+
+            .permission-pill .form-check-input {
+                flex: 0 0 auto;
+                margin: 0;
+            }
+
+            .permission-pill i {
+                color: var(--bs-secondary-color);
+                flex: 0 0 auto;
+            }
+
+            .permission-pill span {
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
+
+            .empty-state {
+                color: var(--bs-secondary-color);
+                display: grid;
+                gap: 0.5rem;
+                justify-items: center;
+                padding: 3rem 1rem;
+                text-align: center;
+            }
+
+            .empty-state i {
+                font-size: 2.5rem;
+            }
+
+            @media (max-width: 767.98px) {
+                .admin-users-table td,
+                .admin-users-table th {
+                    padding: 0.75rem;
+                }
+
+                .compact-code {
+                    max-width: 150px;
+                }
+            }
+        </style>

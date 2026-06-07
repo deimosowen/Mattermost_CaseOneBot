@@ -104,13 +104,16 @@ function getMergeRequestUrl(task, mergeRequest) {
  * @param {Object} task - Задача из Jira
  * @param {string|null} mergeRequest - URL merge request
  * @param {string} userName - Имя пользователя
- * @param {string|null} reviewer - Ревьювер
+ * @param {string|null} reviewer - Ревьювер (для обычного ревью)
  * @param {string|null} messageText - Дополнительный текст сообщения (для UI)
  * @param {string|null} contentType - Тип контента: 'pr' или 'message' (для UI)
+ * @param {boolean} isArchReview - Архитектурное ревью (IN ARCH-REVIEW)
+ * @param {string|null} archReviewTag - Тег для архитектурного ревью (например @c1-back-arch)
  * @returns {Promise<string>} - Сформированное сообщение
  */
-async function prepareReviewMessage(task, mergeRequest, userName, reviewer, messageText = null, contentType = null) {
-    let msg = `**${JiraStatusType.INREVIEW.toUpperCase()}** [${task.key}](https://jira.parcsis.org/browse/${task.key}) ${task.summary}`;
+async function prepareReviewMessage(task, mergeRequest, userName, reviewer, messageText = null, contentType = null, isArchReview = false, archReviewTag = null) {
+    const statusLabel = isArchReview ? 'IN ARCH-REVIEW' : JiraStatusType.INREVIEW.toUpperCase();
+    let msg = `**${statusLabel}** [${task.key}](https://jira.parcsis.org/browse/${task.key}) ${task.summary}`;
 
     // Добавляем merge request или текст сообщения
     if (contentType === 'pr') {
@@ -127,13 +130,17 @@ async function prepareReviewMessage(task, mergeRequest, userName, reviewer, mess
 
     msg += `\nАвтор: ${userName}`;
 
-    // Обрабатываем ревьювера
-    const reviewerResolved = await getReviewer(reviewer, task);
-    if (reviewerResolved) {
-        if (reviewerResolved.includes(',')) {
-            msg += `\nРевьюверы: ${reviewerResolved}`;
-        } else {
-            msg += `\nРевьювер: ${reviewerResolved}`;
+    if (isArchReview && archReviewTag) {
+        msg += `\nРевьюверы: ${archReviewTag}`;
+    } else {
+        // Обрабатываем ревьювера для обычного ревью
+        const reviewerResolved = await getReviewer(reviewer, task);
+        if (reviewerResolved) {
+            if (reviewerResolved.includes(',')) {
+                msg += `\nРевьюверы: ${reviewerResolved}`;
+            } else {
+                msg += `\nРевьювер: ${reviewerResolved}`;
+            }
         }
     }
 

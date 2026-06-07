@@ -1,0 +1,151 @@
+<% layout('layout') -%>
+    <% block('title', 'Личный кабинет' ); -%>
+
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-12 col-xl-10 mx-auto">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                        <div>
+                            <h2 class="mb-1">
+                                <i class="bi bi-person-circle me-2"></i>Личный кабинет
+                            </h2>
+                            <div class="text-muted">
+                                <%= user && user.displayName ? user.displayName : 'Пользователь' %>
+                            </div>
+                        </div>
+                        <a href="/" class="btn btn-outline-secondary btn-sm align-self-start align-self-md-center">
+                            <i class="bi bi-arrow-left me-1"></i>На главную
+                        </a>
+                    </div>
+
+                    <% if (error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i><%= error %>
+                        </div>
+                        <% } %>
+
+                    <% if (success) { %>
+                        <div class="alert alert-success" role="alert">
+                            <i class="bi bi-check-circle me-2"></i>Настройки сохранены
+                        </div>
+                        <% } %>
+
+                    <div class="row g-4">
+                        <div class="col-12 col-lg-3">
+                            <div class="list-group shadow-sm profile-nav">
+                                <% (sections || []).forEach((section, index) => { %>
+                                    <a href="#<%= section.key %>"
+                                        class="list-group-item list-group-item-action <%= index === 0 ? 'active' : '' %>">
+                                        <i class="bi <%= section.icon %> me-2"></i><%= section.title %>
+                                    </a>
+                                    <% }) %>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-9">
+                            <section id="review-publications" class="card shadow-sm">
+                                <div class="card-header d-flex flex-column flex-md-row justify-content-between gap-2">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            <i class="bi bi-send-check me-2"></i>Ревью-публикации
+                                        </h5>
+                                        <div class="text-muted small">
+                                            Каналы, куда Jira-хук может отправлять перевод задачи в ревью
+                                        </div>
+                                    </div>
+                                    <span class="badge text-bg-secondary align-self-start align-self-md-center">
+                                        <%= reviewChannels ? reviewChannels.length : 0 %>
+                                    </span>
+                                </div>
+                                <div class="card-body">
+                                    <% if (reviewChannels && reviewChannels.length > 0) { %>
+                                        <form action="/profile/review-publications" method="post">
+                                            <div class="table-responsive">
+                                                <table class="table align-middle">
+                                                    <thead>
+                                                        <tr>
+                                                            <th scope="col">Канал</th>
+                                                            <th scope="col">Channel ID</th>
+                                                            <th scope="col">Статус</th>
+                                                            <th scope="col" class="text-end">Исключить</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <% reviewChannels.forEach((channel) => { %>
+                                                            <tr>
+                                                                <td>
+                                                                    <div class="fw-semibold"><%= channel.name %></div>
+                                                                </td>
+                                                                <td><code><%= channel.id %></code></td>
+                                                                <td>
+                                                                    <% if (channel.isExcluded) { %>
+                                                                        <span class="badge text-bg-warning">Не отправлять</span>
+                                                                        <% } else { %>
+                                                                            <span class="badge text-bg-success">Отправлять</span>
+                                                                            <% } %>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <div class="form-check form-switch d-inline-flex align-items-center">
+                                                                        <input class="form-check-input"
+                                                                            type="checkbox"
+                                                                            role="switch"
+                                                                            name="excluded_channel_ids"
+                                                                            value="<%= channel.id %>"
+                                                                            id="exclude-<%= channel.id %>"
+                                                                            <%= channel.isExcluded ? 'checked' : '' %>>
+                                                                        <label class="form-check-label ms-2"
+                                                                            for="exclude-<%= channel.id %>">
+                                                                            Выключить
+                                                                        </label>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            <% }) %>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <div class="d-flex justify-content-end mt-3">
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="bi bi-save me-1"></i>Сохранить
+                                                </button>
+                                            </div>
+                                        </form>
+                                        <% } else { %>
+                                            <div class="text-center py-5">
+                                                <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                                                <p class="text-muted mt-3 mb-1">Доступных каналов ревью нет</p>
+                                                <p class="text-muted small mb-0">
+                                                    Канал появится здесь, если он включен администратором и вы состоите в нем.
+                                                </p>
+                                            </div>
+                                            <% } %>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .profile-nav {
+                position: sticky;
+                top: 6rem;
+            }
+
+            .profile-nav .list-group-item {
+                border-color: var(--bs-border-color);
+            }
+
+            .profile-nav .list-group-item.active {
+                background-color: var(--bs-primary);
+                border-color: var(--bs-primary);
+            }
+
+            @media (max-width: 991.98px) {
+                .profile-nav {
+                    position: static;
+                }
+            }
+        </style>

@@ -2,7 +2,6 @@ const {
     getPost,
     postMessage,
     postMessageInTreed,
-    getChannelMembers,
     getUserByUsername,
 } = require('../mattermost/utils');
 
@@ -17,7 +16,7 @@ const JiraService = require('../services/jiraService');
 const reviewDistributionService = require('../services/reviewDistributionService');
 const reviewTaskService = require('../services/reviewTaskService');
 const JiraStatusType = require('../types/jiraStatusTypes');
-const { getAllReviewChannelIds } = require('../db/models/reviewChannels');
+const { getEnabledReviewChannelIdsForUser } = require('../services/reviewChannelAvailabilityService');
 const logger = require('../logger');
 
 /**
@@ -67,12 +66,6 @@ async function getMessageTextForChannel(channelId, task) {
 /** Утилиты/гварды */
 const hasValue = (v) => v != null && v !== '';
 
-/** Проверка, состоит ли пользователь в канале */
-async function isUserInChannel(channelId, userId) {
-    const members = await getChannelMembers(channelId);
-    return members.some((m) => m.user_id === userId);
-}
-
 /** Найти запись reviewTask по треду */
 async function findReviewTaskByThread(post_id) {
     const post = await getPost(post_id);
@@ -117,12 +110,9 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
         const mergeRequestLink = reviewTaskService.getMergeRequestUrl(task, mergeRequest);
         let taskStatus = task.status;
 
-        // 3) Получаем список каналов ревью из БД и обрабатываем все целевые каналы
-        const reviewChannelIds = await getAllReviewChannelIds();
+        // 3) Получаем доступные пользователю каналы ревью и обрабатываем все целевые каналы
+        const reviewChannelIds = await getEnabledReviewChannelIdsForUser(user_id);
         for (const channelId of reviewChannelIds) {
-            const userInChannel = await isUserInChannel(channelId, user_id);
-            if (!userInChannel) continue;
-
             // 3.1) Перевести по цепочке ToDo -> InProgress -> InReview
             const moveResult = await reviewTaskService.moveTaskToInReview(key, taskStatus, post_id);
             if (!moveResult.ok) return;

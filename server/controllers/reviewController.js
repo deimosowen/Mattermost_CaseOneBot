@@ -2,7 +2,10 @@ const express = require('express');
 const reviewDistributionService = require('../../services/reviewDistributionService');
 const { getReviewQueue, addReviewerToQueue, removeReviewerFromQueue, updateReviewQueueOrder, clearReviewQueue } = require('../../db/models/reviewQueue');
 const { getChannelById, getUserByUsername, getChannelMembers, getUser, postMessage } = require('../../mattermost/utils');
-const { getAllReviewChannelIds } = require('../../db/models/reviewChannels');
+const {
+    getAvailableReviewChannelsForUser,
+    getEnabledReviewChannelIdsForUser
+} = require('../../services/reviewChannelAvailabilityService');
 const JiraService = require('../../services/jiraService');
 const reviewTaskService = require('../../services/reviewTaskService');
 const JiraStatusType = require('../../types/jiraStatusTypes');
@@ -101,6 +104,54 @@ router.post('/settings/enable', async (req, res) => {
         }
     } catch (error) {
         logger.error(`Error enabling auto distribution: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Сохранение всех настроек ревью канала (включая архитектурное ревью)
+router.post('/settings/save', async (req, res) => {
+    const { channel_id, is_enabled, review_type, allow_arch_review, arch_review_tag } = req.body;
+
+    if (!channel_id) {
+        return res.status(400).json({ error: 'Не указан channel_id' });
+    }
+
+    if (review_type && !['manual', 'queue'].includes(review_type)) {
+        return res.status(400).json({ error: 'Неверный тип ревью. Доступные: manual, queue' });
+    }
+
+    try {
+        const success = await reviewDistributionService.saveChannelSettings(channel_id, {
+            is_enabled: Boolean(is_enabled),
+            review_type: review_type || 'manual',
+            allow_arch_review: Boolean(allow_arch_review),
+            arch_review_tag: (arch_review_tag != null && arch_review_tag !== undefined) ? String(arch_review_tag).trim() : ''
+        });
+        if (success) {
+            res.json({ success: true, message: 'Настройки сохранены' });
+        } else {
+            res.status(500).json({ error: 'Ошибка при сохранении настроек' });
+        }
+    } catch (error) {
+        logger.error(`Error saving review settings: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// API: настройки канала для страницы ревью (архитектурное ревью и тег)
+router.get('/api/channel-settings', async (req, res) => {
+    try {
+        const { channel_id } = req.query;
+        if (!channel_id) {
+            return res.status(400).json({ error: 'Не указан channel_id' });
+        }
+        const settings = await reviewDistributionService.getChannelSettings(channel_id);
+        res.json({
+            allow_arch_review: Boolean(settings?.allow_arch_review),
+            arch_review_tag: settings?.arch_review_tag || ''
+        });
+    } catch (error) {
+        logger.error(`Error getting channel settings: ${error.message}`);
         res.status(500).json({ error: error.message });
     }
 });
@@ -220,29 +271,10 @@ router.get('/', async (req, res) => {
             });
         }
 
-        // Получаем список каналов ревью из БД
-        const reviewChannelIds = await getAllReviewChannelIds();
-
-        // Фильтруем только каналы из списка ревью, в которых пользователь состоит
-        const availableChannels = [];
-        for (const channelId of reviewChannelIds) {
-            try {
-                // Проверяем, является ли пользователь участником канала
-                const members = await getChannelMembers(channelId);
-                const isMember = members.some(member => String(member.user_id) === String(user_id));
-
-                if (isMember) {
-                    // Получаем информацию о канале для отображения имени
-                    const channel = await getChannelById(channelId);
-                    availableChannels.push({
-                        id: channelId,
-                        name: channel ? (channel.display_name || channel.name || channelId) : channelId
-                    });
-                }
-            } catch (err) {
-                logger.warn(`Could not check membership for channel ${channelId}:`, err);
-            }
-        }
+        const availableChannels = await getAvailableReviewChannelsForUser(user_id, {
+            includeExcluded: false,
+            includeNames: true
+        });
 
         res.render('review', {
             error: null,
@@ -437,18 +469,18 @@ router.get('/api/task-details', async (req, res) => {
 
         // Извлекаем Merge Request URL из pullRequests
         const pullRequests = task.pullRequests || [];
-        let mergeRequestUrl = null;
-
-        // Если есть ровно один открытый MR, используем его
-        if (pullRequests.length === 1) {
-            mergeRequestUrl = pullRequests[0].url;
-        }
+        const mergeRequestUrls = (pullRequests || []).map(pr => ({
+            url: pr.url,
+            title: pr.sourceBranch || pr.title || pr.url
+        }));
+        const mergeRequestUrl = mergeRequestUrls.length === 1 ? mergeRequestUrls[0].url : null;
 
         res.json({
             taskKey: task.key,
             summary: task.summary,
             status: task.status,
-            mergeRequestUrl: mergeRequestUrl
+            mergeRequestUrl: mergeRequestUrl,
+            mergeRequestUrls: mergeRequestUrls
         });
     } catch (error) {
         logger.error(`Error getting task details: ${error.message}\nStack trace:\n${error.stack}`);
@@ -512,7 +544,8 @@ router.get('/api/channel-users', async (req, res) => {
 // API: Отправка сообщения в канал для ревью
 router.post('/api/send', async (req, res) => {
     try {
-        const { taskKey, mergeRequest, messageText, contentType, reviewer, channelId } = req.body;
+        const { taskKey, mergeRequest, messageText, contentType, reviewer, channelId, reviewType, archReviewTag } = req.body;
+        const isArchReview = reviewType === 'arch';
         const user_id = req.user?.mattermostUserId;
 
         // Получаем пользователя из Mattermost по ID из сессии
@@ -536,12 +569,11 @@ router.post('/api/send', async (req, res) => {
             return res.status(400).json({ error: 'Не указан канал (channelId)' });
         }
 
-        // Проверяем, состоит ли пользователь в канале
-        const members = await getChannelMembers(channelId);
-        const userInChannel = members.some(m => m.user_id === user_id);
+        const availableChannelIds = await getEnabledReviewChannelIdsForUser(user_id);
+        const userInChannel = availableChannelIds.includes(channelId);
 
         if (!userInChannel) {
-            return res.status(403).json({ error: 'Вы не состоите в указанном канале' });
+            return res.status(403).json({ error: 'Канал недоступен для отправки ревью' });
         }
 
         // Используем сервис для обработки ревью
@@ -556,14 +588,16 @@ router.post('/api/send', async (req, res) => {
             ? (mergeRequest || reviewTaskService.getMergeRequestUrl(task, null))
             : null;
 
-        // Формируем сообщение
+        // Формируем сообщение (для архитектурного ревью — IN ARCH-REVIEW и тег вместо ревьюверов)
         const message = await reviewTaskService.prepareReviewMessage(
             task,
             mergeRequestLink,
             user_name,
-            reviewer,
+            isArchReview ? null : reviewer,
             messageText,
-            contentType
+            contentType,
+            isArchReview,
+            isArchReview ? (archReviewTag || '').trim() : null
         );
 
         // Переводим задачу в статус INREVIEW
@@ -572,21 +606,19 @@ router.post('/api/send', async (req, res) => {
             return res.status(500).json({ error: `Не удалось перевести задачу в статус ${JiraStatusType.INREVIEW}` });
         }
 
-        // Получаем ревьювера
-        let reviewerResolved = await reviewTaskService.getReviewer(reviewer, task);
-
-        // Если ревьюер не указан, пробуем автоматически назначить
+        // Для архитектурного ревью тег уже в сообщении; для обычного — резолвим ревьювера
         let messageToPost = message;
-        if (!reviewerResolved) {
-            reviewerResolved = await reviewTaskService.assignReviewerAutomatically(channelId, taskKey);
-            if (reviewerResolved) {
+        let reviewerResolved = null;
+        if (!isArchReview) {
+            reviewerResolved = await reviewTaskService.getReviewer(reviewer, task);
+            if (!reviewerResolved) {
+                reviewerResolved = await reviewTaskService.assignReviewerAutomatically(channelId, taskKey);
+                if (reviewerResolved) {
+                    messageToPost = message + `\nРевьювер: ${reviewerResolved}`;
+                }
+            } else if (!message.includes('Ревьювер')) {
                 messageToPost = message + `\nРевьювер: ${reviewerResolved}`;
             }
-        } else if (!message.includes('Ревьювер')) {
-            // Если ревьювер есть, но его нет в сообщении (может быть из-за логики prepareReviewMessage)
-            messageToPost = message + `\nРевьювер: ${reviewerResolved}`;
-        } else {
-            messageToPost = message;
         }
 
         // Отправляем сообщение в канал
@@ -621,7 +653,8 @@ router.post('/api/send', async (req, res) => {
 // API: Предпросмотр сообщения
 router.get('/api/preview', async (req, res) => {
     try {
-        const { taskKey, mergeRequest, messageText, contentType, reviewer } = req.query;
+        const { taskKey, mergeRequest, messageText, contentType, reviewer, reviewType, archReviewTag } = req.query;
+        const isArchReview = reviewType === 'arch';
         const user_id = req.user?.mattermostUserId;
 
         // Получаем пользователя из Mattermost по ID из сессии
@@ -657,19 +690,22 @@ router.get('/api/preview', async (req, res) => {
             task,
             mergeRequestLink,
             user_name,
-            reviewer,
+            isArchReview ? null : reviewer,
             messageText,
-            contentType
+            contentType,
+            isArchReview,
+            isArchReview ? (archReviewTag || '').trim() : null
         );
 
-        // Получаем ревьювера для предпросмотра
-        const reviewerResolved = await reviewTaskService.getReviewer(reviewer, task);
-        if (reviewerResolved) {
-            if (!message.includes('Ревьювер')) {
-                message += `\nРевьювер: ${reviewerResolved}`;
+        if (!isArchReview) {
+            const reviewerResolved = await reviewTaskService.getReviewer(reviewer, task);
+            if (reviewerResolved) {
+                if (!message.includes('Ревьювер')) {
+                    message += `\nРевьювер: ${reviewerResolved}`;
+                }
+            } else {
+                message += `\nРевьювер: (будет назначен автоматически)`;
             }
-        } else {
-            message += `\nРевьювер: (будет назначен автоматически)`;
         }
 
         res.json({ message });
@@ -680,4 +716,3 @@ router.get('/api/preview', async (req, res) => {
 });
 
 module.exports = router;
-

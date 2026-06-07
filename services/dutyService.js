@@ -23,34 +23,34 @@ async function getCurrentDuty(channel_id) {
     }
 }
 
+const toBool = (value) => value === true || value === 1 || value === '1';
+
 // Смена дежурного
 async function changeNextDuty(channel_id) {
     try {
-        let users = await getActualDutyList(channel_id);
-        if (users.length === 0) {
-            return resources.duty.noUsersError;
+        const proposal = await computeNextDutyChange(channel_id);
+        if (!proposal.canChange) {
+            return proposal.reason;
         }
 
-        const unscheduledDuty = await changeUnscheduledDutyIfNeed(channel_id, users);
-        if (unscheduledDuty) {
-            return unscheduledDuty;
+        await proposal.apply();
+        return proposal.message;
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+    }
+}
+
+// Принудительная смена дежурного без проверок доступности.
+// Используется только веб-интерфейсом после серверной проверки прав администратора.
+async function forceChangeNextDuty(channel_id) {
+    try {
+        const proposal = await computeNextDutyChange(channel_id, { force: true });
+        if (!proposal.canChange) {
+            return proposal.reason;
         }
 
-        const currentDuty = await getDutyFromDB(channel_id);
-        if (!currentDuty) {
-            return resources.duty.noExistingError;
-        }
-
-        const increment = currentDuty.duty_type === DutyType.UNSCHEDULED ? 2 : 1;
-        const currentIndex = users.findIndex(u => u.user_id === currentDuty.user_id);
-        if (currentIndex === -1) {
-            return resources.duty.noExistingError;
-        }
-        const nextIndex = (currentIndex + increment) % users.length;
-        const nextDuty = users[nextIndex].user_id;
-        await setCurrentDuty(channel_id, nextDuty, DutyType.REGULAR);
-        const message = await nextDutyMessage(channel_id, nextDuty);
-        return message;
+        await proposal.apply();
+        return proposal.message;
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
@@ -83,11 +83,11 @@ async function rotateDuty(channel_id) {
 }
 
 // Получение актуального списка дежурных
-const getActualDutyList = async (channel_id) => {
+const getActualDutyList = async (channel_id, dutyUsers = null) => {
     try {
         const currentDate = moment().format('YYYY-MM-DD');
         const currentDateISO = moment(currentDate).toISOString();
-        let users = await getDutyUsers(channel_id);
+        let users = dutyUsers || await getDutyUsers(channel_id) || [];
 
         // Обновляем статусы пользователей, которые уже должны вернуться
         const currentDateMoment = moment(currentDate);
@@ -95,28 +95,47 @@ const getActualDutyList = async (channel_id) => {
             user.return_date && moment(user.return_date).isSameOrBefore(currentDateMoment, 'day')
         );
         if (usersToReactivate.length > 0) {
-            await Promise.all(usersToReactivate.map(user =>
-                updateUserActivityStatus(user.id, false, null)
-            ));
+            await Promise.all(usersToReactivate.map(async (user) => {
+                await updateUserActivityStatus(user.id, false, null);
+                user.is_disabled = false;
+                user.return_date = null;
+            }));
         }
 
         // Получаем email'ы пользователей из Mattermost
         const mattermostUsers = await Promise.all(
-            users.map(user => getUserByUsernameOrEmail(user.user_name))
+            users.map(async (user) => {
+                try {
+                    return await getUserByUsernameOrEmail(user.user_name);
+                } catch (error) {
+                    logger.warn(`Could not get Mattermost user for duty ${user.user_name}: ${error.message}`);
+                    return null;
+                }
+            })
         );
+        const employeeEmails = mattermostUsers
+            .map(user => user?.email)
+            .filter(Boolean);
+
         // Проверяем доступность
-        const availability = await absenceService.checkEmployeeAvailabilityByDate({
-            employeeEmails: mattermostUsers.map(user => user.email),
-            dates: [currentDate]
-        });
+        const availability = employeeEmails.length > 0
+            ? await absenceService.checkEmployeeAvailabilityByDate({
+                employeeEmails,
+                dates: [currentDate]
+            })
+            : {};
 
         // Обновляем статусы пользователей
         if (availability && Object.keys(availability).length > 0) {
             const updatePromises = users.map(async (user, index) => {
                 const mattermostUser = mattermostUsers[index];
+                if (!mattermostUser?.email) {
+                    return;
+                }
+
                 const isAvailable = availability[mattermostUser.email]?.[currentDateISO];
 
-                if (!isAvailable) {
+                if (isAvailable === false) {
                     user.is_disabled = true;
                     await updateUserActivityStatus(user.id, user.is_disabled, currentDate);
                 }
@@ -124,42 +143,21 @@ const getActualDutyList = async (channel_id) => {
             await Promise.all(updatePromises);
         }
 
-        return users.filter(user => !user.is_disabled);
+        return users.filter(user => !toBool(user.is_disabled));
 
     } catch (error) {
         logger.error(`Error in getActualDutyList: ${error.message}\nStack trace:\n${error.stack}`);
+        return [];
     }
 };
 
-// Проверка наличия внеочередных дежурных и установка первого из них в качестве текущего дежурного
-async function changeUnscheduledDutyIfNeed(channel_id, actualUsers) {
-    const unscheduledUsers = await getAllUnscheduledUsers(channel_id);
-    if (!unscheduledUsers || unscheduledUsers.length === 0) {
-        return null;
-    }
-
-    for (const unscheduledUser of unscheduledUsers) {
-        // Проверяем, есть ли пользователь в актуальном списке (активен)
-        const isAvailable = actualUsers.some(user => user.user_id === unscheduledUser.user_id);
-
-        if (isAvailable) {
-            // Если пользователь доступен, назначаем его дежурным
-            await deleteUnscheduledUser(unscheduledUser.id);
-            await setCurrentDuty(channel_id, unscheduledUser.user_id, DutyType.UNSCHEDULED);
-            return await nextDutyMessage(channel_id, unscheduledUser.user_id);
-        } else {
-            // Если пользователь недоступен, просто удаляем его из списка внеочередных
-            await deleteUnscheduledUser(unscheduledUser.id);
-        }
-    }
-
-    return null;
-}
-
 // Вспомогательная функция: вычисляет следующего дежурного и сообщение БЕЗ изменений в БД
-async function computeNextDutyChange(channel_id) {
-    const actualUsers = await getActualDutyList(channel_id);
-    if (!actualUsers || actualUsers.length === 0) {
+async function computeNextDutyChange(channel_id, options = {}) {
+    const { force = false } = options;
+    const allUsers = await getDutyUsers(channel_id) || [];
+    const candidateUsers = force ? allUsers : await getActualDutyList(channel_id, allUsers);
+
+    if (!candidateUsers || candidateUsers.length === 0) {
         return { canChange: false, reason: resources.duty.noUsersError };
     }
 
@@ -167,7 +165,7 @@ async function computeNextDutyChange(channel_id) {
     const unscheduledUsers = await getAllUnscheduledUsers(channel_id);
     if (unscheduledUsers && unscheduledUsers.length > 0) {
         for (const unscheduledUser of unscheduledUsers) {
-            const isAvailable = actualUsers.some(u => u.user_id === unscheduledUser.user_id);
+            const isAvailable = candidateUsers.some(u => u.user_id === unscheduledUser.user_id);
             if (isAvailable) {
                 const message = await nextDutyMessage(channel_id, unscheduledUser.user_id);
                 // Отложенное применение
@@ -186,58 +184,39 @@ async function computeNextDutyChange(channel_id) {
     }
 
     const increment = currentDuty.duty_type === DutyType.UNSCHEDULED ? 2 : 1;
-
-    // Получаем полный список пользователей из БД для определения позиции
-    const allUsers = await getDutyUsers(channel_id);
     const currentIndexInAll = allUsers.findIndex(u => u.user_id === currentDuty.user_id);
 
     if (currentIndexInAll === -1) {
         return { canChange: false, reason: resources.duty.noExistingError };
     }
 
-    // Находим следующего пользователя в полном списке
-    const nextIndexInAll = (currentIndexInAll + increment) % allUsers.length;
-    const nextUserIdInAll = allUsers[nextIndexInAll].user_id;
+    const candidateUserIds = new Set(candidateUsers.map(user => user.user_id));
+    let searchIndex = (currentIndexInAll + increment) % allUsers.length;
 
-    // Проверяем, доступен ли следующий пользователь
-    const isNextUserAvailable = actualUsers.some(u => u.user_id === nextUserIdInAll);
-
-    if (!isNextUserAvailable) {
-        // Если следующий пользователь недоступен, ищем следующего доступного
-        let searchIndex = nextIndexInAll;
-        let foundAvailable = false;
-
-        for (let i = 0; i < allUsers.length; i++) {
-            const userId = allUsers[searchIndex].user_id;
-            if (actualUsers.some(u => u.user_id === userId)) {
-                const nextIndex = actualUsers.findIndex(u => u.user_id === userId);
-                const nextUserId = actualUsers[nextIndex].user_id;
-                const message = await nextDutyMessage(channel_id, nextUserId);
-                const apply = async () => {
-                    await setCurrentDuty(channel_id, nextUserId, DutyType.REGULAR);
-                };
-                return { canChange: true, userId: nextUserId, dutyType: DutyType.REGULAR, message, apply };
-            }
-            searchIndex = (searchIndex + 1) % allUsers.length;
+    for (let i = 0; i < allUsers.length; i++) {
+        const nextUserId = allUsers[searchIndex].user_id;
+        if (candidateUserIds.has(nextUserId)) {
+            const message = await nextDutyMessage(channel_id, nextUserId);
+            const apply = async () => {
+                await setCurrentDuty(channel_id, nextUserId, DutyType.REGULAR);
+            };
+            return { canChange: true, userId: nextUserId, dutyType: DutyType.REGULAR, message, apply };
         }
-
-        return { canChange: false, reason: resources.duty.noUsersError };
+        searchIndex = (searchIndex + 1) % allUsers.length;
     }
 
-    const nextIndex = actualUsers.findIndex(u => u.user_id === nextUserIdInAll);
-    const nextUserId = actualUsers[nextIndex].user_id;
-    const message = await nextDutyMessage(channel_id, nextUserId);
-    const apply = async () => {
-        await setCurrentDuty(channel_id, nextUserId, DutyType.REGULAR);
-    };
-    return { canChange: true, userId: nextUserId, dutyType: DutyType.REGULAR, message, apply };
+    return { canChange: false, reason: resources.duty.noUsersError };
 }
 
 // Создание callback для cron-задачи с подтверждением post.id и бесконечными ретраями раз в минуту
 const createDutyCallback = (channel_id, considerWorkingDays = false) => {
     const RETRY_DELAY_MS = 60000; // 60 секунд между попытками
 
-    const scheduleRetry = () => setTimeout(() => attemptChange(), RETRY_DELAY_MS);
+    const scheduleRetry = () => setTimeout(() => {
+        attemptChange().catch((error) => {
+            logger.error(`Duty retry failed: ${error.message}\nStack trace:\n${error.stack}`);
+        });
+    }, RETRY_DELAY_MS);
 
     const attemptChange = async () => {
         try {
@@ -261,11 +240,14 @@ const createDutyCallback = (channel_id, considerWorkingDays = false) => {
                 return; // успех
             }
 
-            // Если не получили post.id — планируем повтор через минуту
+            // Если не получили post.id — планируем повтор через минуту, но не валим процесс.
             scheduleRetry();
+            logger.error('Duty change not applied: Mattermost post not confirmed');
+            return;
         } catch (error) {
-            // Любая ошибка при публикации — пробуем снова через минуту
+            // Любая ошибка при публикации — пробуем снова через минуту, но не пробрасываем ошибку наружу cron.
             scheduleRetry();
+            logger.error(`${error.message}\nStack trace:\n${error.stack}`);
         }
     };
 
@@ -312,6 +294,7 @@ async function getNextDuty(channel_id) {
 module.exports = {
     getCurrentDuty,
     changeNextDuty,
+    forceChangeNextDuty,
     rotateDuty,
     createDutyCallback,
     updateDutyActivityStatus,
