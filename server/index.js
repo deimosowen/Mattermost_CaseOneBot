@@ -12,12 +12,19 @@ const dutyController = require('./controllers/dutyController');
 const inviteController = require('./controllers/inviteController');
 const jiraController = require('./controllers/jiraController');
 const featureController = require('./controllers/featureController');
+const patchController = require('./controllers/patchController');
 const gitlabController = require('./controllers/gitlabController');
 const teamcityController = require('./controllers/teamcityController');
+const reviewController = require('./controllers/reviewController');
+const adminController = require('./controllers/adminController');
+const reminderController = require('./controllers/reminderController');
+const commandsController = require('./controllers/commandsController');
+const profileController = require('./controllers/profileController');
 
 const passport = require('./middleware/passport');
 const requireAuth = require('./middleware/auth');
 const userDataMiddleware = require('./middleware/userData');
+const menuAccessMiddleware = require('./middleware/menuAccess');
 
 const logger = require('../logger');
 
@@ -41,9 +48,9 @@ function buildApp() {
         resave: false,
         saveUninitialized: false,
         cookie: {
-            secure: process.env.NODE_ENV === 'production', // HTTPS в production
+            secure: false,
             httpOnly: true,
-            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 дней
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
         }
     }));
 
@@ -55,9 +62,27 @@ function buildApp() {
     app.use(userDataMiddleware);
 
     // Шаблоны и статика
-    app.engine('ejs', require('ejs-locals'));
-    app.set('view engine', 'ejs');
     app.set('views', path.join(__dirname, 'views'));
+    app.set('view engine', 'ejs');
+
+    // Настройка ejs-locals с явной передачей настроек
+    const ejsLocals = require('ejs-locals');
+    app.engine('ejs', function (file, options, callback) {
+        // Убеждаемся, что options.settings существует
+        if (!options.settings) {
+            options.settings = {};
+        }
+        // Копируем настройки из app.settings, если они доступны
+        if (options.settings && app.settings) {
+            Object.keys(app.settings).forEach(key => {
+                if (!options.settings[key]) {
+                    options.settings[key] = app.settings[key];
+                }
+            });
+        }
+        // Вызываем оригинальный ejs-locals
+        return ejsLocals(file, options, callback);
+    });
     app.use(express.static('public'));
 
     // Публичные маршруты (до авторизации)
@@ -84,6 +109,7 @@ function buildApp() {
     ];
 
     app.use(requireAuth(publicPaths, publicPatterns));
+    app.use(menuAccessMiddleware);
 
     // Защищенные маршруты
     app.use('/', homeController);
@@ -92,8 +118,14 @@ function buildApp() {
     app.use('/invite', inviteController);
     app.use('/jira', jiraController);
     app.use('/feature', featureController);
+    app.use('/patch', patchController);
     app.use('/gitlab', gitlabController);
     app.use('/teamcity', teamcityController);
+    app.use('/review', reviewController);
+    app.use('/admin', adminController);
+    app.use('/reminders', reminderController);
+    app.use('/commands', commandsController);
+    app.use('/profile', profileController);
 
     return app;
 }

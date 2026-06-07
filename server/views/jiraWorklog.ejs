@@ -2,120 +2,162 @@
     <% block('title', 'Jira Worklog' ); -%>
 
         <div class="container my-5">
-            <div id="loginForm">
-                <div class="row">
-                    <div class="col-12 col-md-8 mx-auto">
-                        <div class="card shadow">
+            <div class="row">
+                <div class="col-12 col-lg-10 mx-auto">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="mb-0">
+                            <i class="bi bi-clock-history me-2"></i>Jira Worklog
+                        </h2>
+                        <a href="/" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-left me-1"></i>Назад
+                        </a>
+                    </div>
+
+                    <div id="loginForm">
+                        <div class="card shadow-sm">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-key me-2"></i>Авторизация
+                                </h5>
+                            </div>
                             <div class="card-body">
-                                <h1 class="card-title text-center">Авторизация</h1>
                                 <form id="authForm">
                                     <div class="mb-3">
-                                        <label for="username" class="form-label">Логин</label>
+                                        <label for="username" class="form-label">
+                                            <i class="bi bi-person me-1"></i>Логин
+                                        </label>
                                         <input type="text" class="form-control" id="username" required>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="password" class="form-label">Пароль</label>
+                                        <label for="password" class="form-label">
+                                            <i class="bi bi-lock me-1"></i>Пароль
+                                        </label>
                                         <input type="password" class="form-control" id="password" required>
                                     </div>
-                                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-check-circle me-1"></i>Сохранить
+                                        </button>
+                                    </div>
                                 </form>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <div id="timeLoggingForm" style="display: none;">
-                <div class="row">
-                    <div class="col-12">
-                        <p class="text-end m-0">
-                            <button type="button" id="logout" class="btn btn-sm btn-link">Выйти</button>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-12 mx-auto">
-                        <div class="card shadow">
-                            <div class="card-body">
-                                <h1 class="card-title text-center">Логирование времени</h1>
-                                <% if (events.length> 0) { %>
-                                    <table class="table table-sm small">
-                                        <thead>
-                                            <tr>
-                                                <th scope="col">Событие</th>
-                                                <th scope="col" style="width: 15%;">Дата</th>
-                                                <th scope="col" style="width: 7%;">Прод-сть</th>
-                                                <th scope="col" style="width: 43%;">Задача</th>
-                                                <th scope="col" style="width: 9%;" class="text-end">Действия</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="align-middle">
-                                            <% events.forEach((event, index)=> { %>
-                                                <tr>
-                                                    <td>
-                                                        <div class="d-flex">
-                                                            <i class="bi bi-pencil-square pe-1"></i>
-                                                            <div class="w-100" contentEditable="true" data-type="text"
-                                                                data-input-name="comment"
-                                                                data-event-id="<%= event.id %>">
-                                                                <%= event.summary %>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <%= event.start %>
-                                                    </td>
-                                                    <td>
-                                                        <div class="d-flex">
-                                                            <i class="bi bi-pencil-square pe-1"></i>
-                                                            <div class="w-100" contentEditable="true" data-type="number"
-                                                                data-input-name="duration"
-                                                                data-event-id="<%= event.id %>">
-                                                                <%= event.duration %>
-                                                            </div>мин.
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <select name="taskId"
-                                                            class="form-select form-select-sm tasksSelect">
-                                                            <option>...</option>
-                                                        </select>
-                                                    </td>
-                                                    <td class="text-end">
-                                                        <form id="form<%= index %>" class="event-form" action=""
-                                                            method="post">
-                                                            <input type="hidden" name="id" value="<%= event.id %>">
-                                                            <input type="hidden" name="started"
-                                                                value="<%= event.start_date %>">
-                                                            <input type="hidden" name="userId" value="<%= user_id %>">
-                                                            <input type="hidden" name="comment"
-                                                                value="<%= event.summary %>">
-                                                            <input type="hidden" name="duration"
-                                                                value="<%= event.duration %>">
-                                                            <button type="submit" class="btn btn-sm btn-primary"
-                                                                formaction="jira/log" title="Залогировать">
-                                                                <i class="bi bi-check-lg"></i>
-                                                            </button>
-                                                            <button type="submit" class="btn btn-sm btn-danger"
-                                                                formaction="jira/remove" title="Удалить">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        </form>
-                                                    </td>
-                                                </tr>
-                                                <% }) %>
-                                        </tbody>
-                                    </table>
-                                    <% } else { %>
-                                        <div class="alert alert-info text-center" role="alert">
-                                            Вы залогировали все события из календаря 😊
-                                        </div>
-                                        <% } %>
+                    <div id="timeLoggingForm" style="display: none;">
+                        <div class="card shadow-sm">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-clock me-2"></i>Логирование времени
+                                </h5>
+                                <button type="button" id="logout" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-box-arrow-right me-1"></i>Выйти
+                                </button>
                             </div>
-                        </div>
+                            <div class="card-body p-0">
+                                <% if (events.length> 0) { %>
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle mb-0 jira-worklog-table">
+                                            <thead>
+                                                <tr>
+                                                    <th scope="col" style="width: 36%;" class="align-middle">
+                                                        <i class="bi bi-calendar-event me-1 text-muted"></i>Событие
+                                                    </th>
+                                                    <th scope="col" style="width: 11%;" class="align-middle">
+                                                        <i class="bi bi-calendar3 me-1 text-muted"></i>Дата
+                                                    </th>
+                                                    <th scope="col" style="width: 10%;" class="align-middle">
+                                                        <i class="bi bi-clock me-1 text-muted"></i>Время
+                                                    </th>
+                                                    <th scope="col" style="width: 32%;" class="align-middle">
+                                                        <i class="bi bi-ticket-perforated me-1 text-muted"></i>Задача
+                                                    </th>
+                                                    <th scope="col" style="width: 11%;" class="text-end align-middle">
+                                                        <i class="bi bi-gear me-1 text-muted"></i>Действия
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% events.forEach((event, index)=> { %>
+                                                    <tr class="worklog-row" data-event-id="<%= event.id %>">
+                                                        <td>
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bi bi-pencil-square me-2 text-primary"></i>
+                                                                <div class="worklog-event-text flex-grow-1"
+                                                                    contentEditable="true" data-type="text"
+                                                                    data-input-name="comment"
+                                                                    data-event-id="<%= event.id %>"
+                                                                    title="Нажмите для редактирования">
+                                                                    <%= event.summary %>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <% const dateParts=event.start.split(' ');
+                                                                const datePart = dateParts[0] || event.start;
+                                                                const timePart = dateParts[1] || '';
+                                                            %>
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="bi bi-calendar3 me-1 text-primary"></i>
+                                                        <span class="worklog-date"><%= datePart %></span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="bi bi-clock me-1 text-primary"></i>
+                                                        <div class="worklog-duration-input" contentEditable="true" 
+                                                            data-type="number"
+                                                            data-input-name="duration"
+                                                            data-event-id="<%= event.id %>"
+                                                            title="Нажмите для редактирования">
+                                                            <%= event.duration %>
+                                                        </div>
+                                                        <span class="ms-1 text-muted small">мин.</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <select name="taskId"
+                                                        class="form-select form-select-sm tasksSelect">
+                                                        <option value="">Выберите задачу...</option>
+                                                    </select>
+                                                </td>
+                                                <td class="text-end align-middle">
+                                                    <form id="form<%= index %>" class="event-form d-inline-flex align-items-center gap-1" action=""
+                                                        method="post">
+                                                        <input type="hidden" name="id" value="<%= event.id %>">
+                                                        <input type="hidden" name="started"
+                                                            value="<%= event.start_date %>">
+                                                        <input type="hidden" name="userId" value="<%= user_id %>">
+                                                        <input type="hidden" name="comment"
+                                                            value="<%= event.summary %>">
+                                                        <input type="hidden" name="duration"
+                                                            value="<%= event.duration %>">
+                                                        <button type="submit" class="btn btn-sm btn-primary"
+                                                            formaction="jira/log" title="Залогировать время">
+                                                            <i class="bi bi-check-lg"></i>
+                                                        </button>
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                            formaction="jira/remove" title="Удалить событие">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } else { %>
+                            <div class="alert alert-info text-center m-4" role="alert">
+                                <i class="bi bi-check-circle me-2"></i>Вы залогировали все события из календаря 😊
+                            </div>
+                        <% } %>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+</div>
 
         <script>
             document.addEventListener('DOMContentLoaded', function () {
@@ -277,7 +319,7 @@
                     const alertDiv = document.createElement('div');
                     alertDiv.className = 'alert alert-info text-center';
                     alertDiv.setAttribute('role', 'alert');
-                    alertDiv.textContent = 'Вы залогировали все события из календаря 😊';
+                    alertDiv.innerHTML = '<i class="bi bi-check-circle me-2"></i>Вы залогировали все события из календаря 😊';
                     container.appendChild(alertDiv);
                 }
 
@@ -316,3 +358,92 @@
             }
 
         </script>
+
+                                                                <style>
+                                                                    .jira-worklog-table {
+                                                                        font-size: 0.95rem;
+                                                                    }
+
+                                                                    .jira-worklog-table thead {
+                                                                        border-bottom: 2px solid var(--bs-border-color, #dee2e6);
+                                                                    }
+
+                                                                    .jira-worklog-table thead th {
+                                                                        border-bottom: 2px solid var(--bs-border-color, #dee2e6);
+                                                                        font-weight: 600;
+                                                                        text-transform: uppercase;
+                                                                        font-size: 0.85rem;
+                                                                        letter-spacing: 0.5px;
+                                                                        color: #6c757d;
+                                                                        padding: 1rem 0.75rem;
+                                                                        background-color: transparent !important;
+                                                                        vertical-align: middle;
+                                                                    }
+
+                                                                    .jira-worklog-table thead th i {
+                                                                        vertical-align: middle;
+                                                                    }
+
+                                                                    .jira-worklog-table tbody td {
+                                                                        vertical-align: middle;
+                                                                        padding: 1rem 0.75rem;
+                                                                    }
+
+                                                                    .worklog-row {
+                                                                        transition: background-color 0.2s ease-in-out;
+                                                                    }
+
+                                                                    .worklog-row:hover {
+                                                                        background-color: rgba(13, 110, 253, 0.05) !important;
+                                                                    }
+
+                                                                    .worklog-event-text {
+                                                                        min-height: 1.5rem;
+                                                                        padding: 0.25rem 0.5rem;
+                                                                        border-radius: 0.25rem;
+                                                                        transition: background-color 0.2s ease-in-out;
+                                                                        word-break: break-word;
+                                                                        overflow-wrap: break-word;
+                                                                    }
+
+                                                                    .worklog-event-text:focus,
+                                                                    .worklog-event-text:hover {
+                                                                        background-color: rgba(13, 110, 253, 0.1);
+                                                                        outline: 1px solid rgba(13, 110, 253, 0.3);
+                                                                    }
+
+                                                                    .worklog-duration-input {
+                                                                        min-width: 40px;
+                                                                        text-align: center;
+                                                                        padding: 0.25rem 0.5rem;
+                                                                        border-radius: 0.25rem;
+                                                                        font-weight: 500;
+                                                                        transition: background-color 0.2s ease-in-out;
+                                                                    }
+
+                                                                    .worklog-duration-input:focus,
+                                                                    .worklog-duration-input:hover {
+                                                                        background-color: rgba(13, 110, 253, 0.1);
+                                                                        outline: 1px solid rgba(13, 110, 253, 0.3);
+                                                                    }
+
+                                                                    .worklog-date {
+                                                                        font-weight: 500;
+                                                                    }
+
+                                                                    .jira-worklog-table .btn-sm {
+                                                                        padding: 0.25rem 0.5rem;
+                                                                        font-size: 0.8rem;
+                                                                        border-radius: 0.375rem;
+                                                                        line-height: 1.2;
+                                                                    }
+
+                                                                    .jira-worklog-table .event-form {
+                                                                        justify-content: flex-end;
+                                                                    }
+
+                                                                    .form-select-sm {
+                                                                        font-size: 0.875rem;
+                                                                        padding: 0.375rem 2.25rem 0.375rem 0.75rem;
+                                                                    }
+                                                                </style>

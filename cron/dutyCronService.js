@@ -13,7 +13,7 @@ class DutyCronService extends BaseCronService {
         const dutySchedules = await getDutySchedules();
         for (const duty of dutySchedules) {
             const callback = createDutyCallback(duty.channel_id, duty.use_working_days || false);
-            this.createJob(`${this.prefix}${duty.id}`, duty.cron_schedule, callback);
+            this.createCriticalJob(`${this.prefix}${duty.id}`, duty.cron_schedule, callback);
         }
     }
 
@@ -23,7 +23,7 @@ class DutyCronService extends BaseCronService {
             return null;
         }
         const callback = createDutyCallback(duty.channel_id, duty.use_working_days || false);
-        return this.createJob(`${this.prefix}${duty.id}`, duty.cron_schedule, callback);
+        return this.createCriticalJob(`${this.prefix}${duty.id}`, duty.cron_schedule, callback);
     }
 
     removeJob(id) {

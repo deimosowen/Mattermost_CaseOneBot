@@ -4,6 +4,7 @@ const ReminderCronService = require('./reminderCronService');
 const PingCronService = require('./pingCronService');
 const FeatureReadyCronService = require('./featureReadyCronService');
 const TeamCityBuildCronService = require('./teamcityBuildCronService');
+const cronWatchdogService = require('./cronWatchdogService');
 const logger = require('../logger');
 
 class CronManager {
@@ -21,6 +22,20 @@ class CronManager {
         return this.services[name];
     }
 
+    /**
+     * Возвращает runner (callback) для критичной задачи по ключу.
+     * Единственное место запуска по ключу — сервисы хранят runner.
+     */
+    getRunnerForKey(key) {
+        for (const service of Object.values(this.services)) {
+            if (service.getCriticalRunner) {
+                const runner = service.getCriticalRunner(key);
+                if (runner) return runner;
+            }
+        }
+        return null;
+    }
+
     async startAll() {
         for (const service of Object.values(this.services)) {
             try {
@@ -29,9 +44,11 @@ class CronManager {
                 logger.error(`[CronManager] Ошибка запуска ${service.name}: ${error.message}`);
             }
         }
+        cronWatchdogService.start();
     }
 
     stopAll() {
+        cronWatchdogService.stop();
         Object.values(this.services).forEach((s) => s.stopAll());
     }
 

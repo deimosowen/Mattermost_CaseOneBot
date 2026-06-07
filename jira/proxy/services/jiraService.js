@@ -18,6 +18,7 @@ const getTask = async (jiraClient, taskId) => {
     try {
         let task = await jiraClient.findIssue(taskId);
         const customField = "customfield_18160";
+        const confluenceURL = "customfield_12061";
 
         const devDetails = await jiraClient.getDevStatusDetail(task.id, 'gitlabselfmanaged', 'pullrequest');
 
@@ -27,6 +28,27 @@ const getTask = async (jiraClient, taskId) => {
             name: reviewer.displayName,
             email: reviewer.emailAddress,
         }));
+
+        // Извлекаем зависимости из issuelinks
+        const issueLinks = task.fields.issuelinks || [];
+        const dependencies = [];
+
+        for (const link of issueLinks) {
+            // Outward link: текущая задача зависит от другой (Зависит от)
+            if (link.outwardIssue) {
+                const linkTypeOutward = link.type?.outward || '';
+                // Проверяем, что это связь "Зависит от" (на русском или английском)
+                if (linkTypeOutward === 'Зависит от' ||
+                    linkTypeOutward.toLowerCase().includes('depends') ||
+                    linkTypeOutward.toLowerCase().includes('зависит')) {
+                    dependencies.push({
+                        key: link.outwardIssue.key,
+                        summary: link.outwardIssue.fields?.summary || ''
+                    });
+                }
+            }
+        }
+
         const taskData = {
             key: task.key,
             summary: task.fields.summary,
@@ -35,19 +57,29 @@ const getTask = async (jiraClient, taskId) => {
             created: task.fields.created,
             updated: task.fields.updated,
             comments: task.fields.comment.comments,
+            confluenceURL: task.fields[confluenceURL],
             labels: task.fields.labels,
             pullRequests: openPullRequests,
             reviewers: reviewers || [],
+            fixVersions: task.fields.fixVersions || [],
+            dependencies: dependencies,
         };
 
         return taskData;
     } catch (error) {
-        console.log(error);
+        // Если задача не найдена, возвращаем null вместо undefined
+        if (error.message && error.message.includes('Issue Does Not Exist')) {
+            return null;
+        }
+        // Для других ошибок пробрасываем дальше
+        throw error;
     }
 };
 
 const getTaskParent = async (jiraClient, taskId) => {
     const customField = "customfield_11161";
+    const confluenceURL = "customfield_12061";
+
     let task = await jiraClient.findIssue(taskId);
     if (task.fields[customField] !== null) {
         task = await jiraClient.findIssue(task.fields[customField]);
@@ -62,7 +94,8 @@ const getTaskParent = async (jiraClient, taskId) => {
         status: task.fields.status.name,
         created: task.fields.created,
         updated: task.fields.updated,
-        comments: task.fields.comment.comments
+        comments: task.fields.comment.comments,
+        confluenceURL: task.fields[confluenceURL]
     };
     return taskData;
 };
@@ -166,6 +199,66 @@ const addComment = async (jiraClient, taskId, comment) => {
     }
 };
 
+const searchTasks = async (jiraClient, jql, maxResults = 50) => {
+    try {
+        const result = await jiraClient.searchJira(jql, {
+            maxResults,
+            fields: ['key', 'summary', 'status', 'assignee']
+        });
+
+        if (!result || !result.issues) {
+            console.log('No issues found in search result');
+            return [];
+        }
+
+        const mappedTasks = result.issues.map(issue => {
+            const assignee = issue.fields.assignee;
+            return {
+                key: issue.key,
+                summary: issue.fields.summary,
+                status: issue.fields.status.name,
+                assignee: assignee ? {
+                    name: assignee.displayName,
+                    email: assignee.emailAddress,
+                    username: assignee.name,
+                    accountId: assignee.accountId
+                } : null
+            };
+        });
+
+        return mappedTasks;
+    } catch (error) {
+        // Логируем полную ошибку для отладки
+        const errorInfo = {
+            message: error.message,
+            errorMessages: error.errorMessages,
+            errors: error.errors,
+            statusCode: error.statusCode,
+            jql: jql
+        };
+
+        // Если есть response с деталями ошибки
+        if (error.response) {
+            errorInfo.responseStatus = error.response.status;
+            errorInfo.responseData = error.response.data;
+        }
+
+        console.error('Error searching tasks:', JSON.stringify(errorInfo, null, 2));
+
+        // Если есть errorMessages от Jira, логируем их отдельно
+        if (error.errorMessages && Array.isArray(error.errorMessages)) {
+            console.error('Jira error messages:', error.errorMessages.join(', '));
+        }
+
+        // Если есть responseData с errorMessages, логируем их
+        if (error.response?.data?.errorMessages) {
+            console.error('Jira API error messages:', error.response.data.errorMessages.join(', '));
+        }
+
+        return [];
+    }
+};
+
 module.exports = {
     createJiraClient,
     getTask,
@@ -175,4 +268,5 @@ module.exports = {
     changeStatus,
     addComment,
     setReviewers,
+    searchTasks,
 };

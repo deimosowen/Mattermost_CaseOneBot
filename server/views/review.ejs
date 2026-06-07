@@ -1,0 +1,1076 @@
+<% layout('layout') -%>
+    <% block('title', 'Перевод задачи в ревью' ); -%>
+
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-12 col-lg-10 mx-auto">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="mb-0">
+                            <i class="bi bi-check2-square me-2"></i>Перевод задачи в ревью
+                        </h2>
+                        <a href="/" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-left me-1"></i>На главную
+                        </a>
+                    </div>
+
+                    <% if (error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <%= error %>
+                        </div>
+                        <% } %>
+
+                            <div class="card shadow-sm">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-send me-2"></i>Создать ревью
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="reviewForm">
+                                        <div class="mb-3">
+                                            <label for="taskKey" class="form-label">
+                                                <strong>Задача (Jira)</strong> <span class="text-danger">*</span>
+                                            </label>
+                                            <select class="form-select" id="taskKey" name="taskKey" required>
+                                                <option value="">Загрузка задач...</option>
+                                            </select>
+                                            <div class="form-text">Выберите задачу из списка или начните вводить для
+                                                поиска. Показываются ваши задачи в статусе "In Progress"</div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="channelId" class="form-label">
+                                                <strong>Канал</strong> <span class="text-danger">*</span>
+                                            </label>
+                                            <select class="form-select" id="channelId" name="channelId" required>
+                                                <option value="">Выберите канал...</option>
+                                                <% if (availableChannels && availableChannels.length> 0) { %>
+                                                    <% availableChannels.forEach((channel, index)=> { %>
+                                                        <option value="<%= channel.id %>"
+                                                            <%=(availableChannels.length===1) ? 'selected' : '' %>><%=
+                                                                channel.name %>
+                                                        </option>
+                                                        <% }); %>
+                                                            <% } else { %>
+                                                                <option value="" disabled>Нет доступных каналов</option>
+                                                                <% } %>
+                                            </select>
+                                            <div class="form-text">Выберите канал, в который будет отправлено сообщение
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3" id="reviewTypeBlock" style="display: none;">
+                                            <label class="form-label">
+                                                <strong>Тип ревью</strong>
+                                            </label>
+                                            <div class="btn-group w-100" role="group" id="reviewTypeGroup">
+                                                <input type="radio" class="btn-check" name="reviewType"
+                                                    id="reviewTypeNormal" value="normal" checked>
+                                                <label class="btn btn-outline-primary" for="reviewTypeNormal">
+                                                    <i class="bi bi-person-check me-1"></i>Обычное ревью
+                                                </label>
+                                                <input type="radio" class="btn-check" name="reviewType"
+                                                    id="reviewTypeArch" value="arch">
+                                                <label class="btn btn-outline-primary" for="reviewTypeArch">
+                                                    <i class="bi bi-diagram-3 me-1"></i>Архитектурное ревью
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3" id="contentTypeBlock">
+                                            <label class="form-label">
+                                                <strong>Тип контента</strong>
+                                            </label>
+                                            <div class="btn-group w-100" role="group" id="contentTypeGroup">
+                                                <input type="radio" class="btn-check" name="contentType"
+                                                    id="contentTypePR" value="pr" checked>
+                                                <label class="btn btn-outline-primary" for="contentTypePR">
+                                                    <i class="bi bi-git me-1"></i>Pull Request
+                                                </label>
+
+                                                <input type="radio" class="btn-check" name="contentType"
+                                                    id="contentTypeMessage" value="message">
+                                                <label class="btn btn-outline-primary" for="contentTypeMessage">
+                                                    <i class="bi bi-chat-text me-1"></i>Сообщение
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3" id="mergeRequestContainer">
+                                            <label for="mergeRequest" class="form-label">
+                                                <strong>Merge Request URL</strong>
+                                            </label>
+                                            <select class="form-select" id="mergeRequest" name="mergeRequest">
+                                                <option value="">Выберите MR из списка или введите ссылку...</option>
+                                            </select>
+                                            <div class="form-text">Выберите из списка по задаче или введите ссылку на
+                                                Merge Request вручную</div>
+                                        </div>
+
+                                        <div class="mb-3" id="messageContainer" style="display: none;">
+                                            <label for="messageText" class="form-label">
+                                                <strong>Текст сообщения</strong>
+                                            </label>
+                                            <div class="message-input-wrapper">
+                                                <textarea class="form-control" id="messageText" name="messageText"
+                                                    rows="4"
+                                                    placeholder="Введите текст сообщения, которое будет отправлено в канал"></textarea>
+
+                                                <!-- Панель форматирования Markdown -->
+                                                <div class="markdown-toolbar">
+                                                    <div class="toolbar-group">
+                                                        <button type="button" class="toolbar-btn" title="Жирный текст"
+                                                            onclick="insertMarkdown('**', '**')">
+                                                            <i class="bi bi-type-bold"></i>
+                                                        </button>
+                                                        <button type="button" class="toolbar-btn" title="Курсив"
+                                                            onclick="insertMarkdown('*', '*')">
+                                                            <i class="bi bi-type-italic"></i>
+                                                        </button>
+                                                        <button type="button" class="toolbar-btn" title="Зачеркнутый"
+                                                            onclick="insertMarkdown('~~', '~~')">
+                                                            <i class="bi bi-type-strikethrough"></i>
+                                                        </button>
+                                                        <button type="button" class="toolbar-btn" title="Заголовок"
+                                                            onclick="insertMarkdown('# ', '')">
+                                                            <i class="bi bi-type-h1"></i>
+                                                        </button>
+                                                        <button type="button" class="toolbar-btn" title="Ссылка"
+                                                            onclick="insertLink()">
+                                                            <i class="bi bi-link-45deg"></i>
+                                                        </button>
+                                                        <button type="button" class="toolbar-btn" title="Код"
+                                                            onclick="insertMarkdown('`', '`')">
+                                                            <i class="bi bi-code"></i>
+                                                        </button>
+                                                    </div>
+                                                    <div class="toolbar-divider"></div>
+                                                    <div class="toolbar-group">
+                                                        <button type="button" class="toolbar-btn" title="Список"
+                                                            onclick="insertMarkdown('- ', '')">
+                                                            <i class="bi bi-list-ul"></i>
+                                                        </button>
+                                                        <button type="button" class="toolbar-btn" title="Цитата"
+                                                            onclick="insertMarkdown('> ', '')">
+                                                            <i class="bi bi-quote"></i>
+                                                        </button>
+                                                        <button type="button" class="toolbar-btn" title="Блок кода"
+                                                            onclick="insertCodeBlock()">
+                                                            <i class="bi bi-code-square"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="form-text">Текст сообщения, которое будет отправлено в канал.
+                                                Используйте панель форматирования для добавления Markdown разметки</div>
+                                        </div>
+
+                                        <div class="mb-3" id="reviewersBlock">
+                                            <label for="reviewers" class="form-label">
+                                                <strong>Ревьюверы (опционально)</strong>
+                                            </label>
+                                            <input type="text" class="form-control" id="reviewers" name="reviewers"
+                                                placeholder="Сначала выберите канал">
+                                            <div class="form-text">Выберите одного или нескольких ревьюверов. Если не
+                                                выбрано, будет назначен автоматически</div>
+                                        </div>
+
+                                        <div class="mb-3" id="archReviewTagBlock" style="display: none;">
+                                            <label for="archReviewTag" class="form-label">
+                                                <strong>Тег для архитектурного ревью</strong>
+                                            </label>
+                                            <input type="text" class="form-control" id="archReviewTag"
+                                                name="archReviewTag" placeholder="@c1-back-arch" readonly>
+                                            <div class="form-text">Указывается в сообщении (настраивается в настройках
+                                                канала)</div>
+                                        </div>
+
+                                        <div class="alert alert-info" role="alert" id="reviewInfoAlert">
+                                            <i class="bi bi-info-circle me-2"></i>
+                                            <strong>Как это работает:</strong><br>
+                                            <span id="reviewInfoText">
+                                                • Задача будет переведена в статус <strong>IN REVIEW</strong> в Jira<br>
+                                                • Сообщение будет отправлено в выбранный канал<br>
+                                                • Если ревьювер не указан, он будет назначен автоматически (если
+                                                настроено)<br>
+                                                • Если задача уже в статусе To Do, она сначала переведется в In Progress
+                                            </span>
+                                        </div>
+
+                                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                            <button type="button" class="btn btn-outline-secondary"
+                                                onclick="previewMessage()">
+                                                <i class="bi bi-eye me-1"></i>Предпросмотр
+                                            </button>
+                                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                                <i class="bi bi-send me-1"></i>Отправить в канал
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    <div id="previewContainer" class="mt-4" style="display: none;">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <strong>Предпросмотр сообщения:</strong>
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="previewContent"
+                                                    style="white-space: pre-wrap; font-family: monospace;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="resultContainer" class="mt-4" style="display: none;"></div>
+                                </div>
+                            </div>
+                </div>
+            </div>
+        </div>
+
+        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/css/tom-select.bootstrap5.min.css"
+            rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/js/tom-select.complete.min.js"></script>
+
+        <script>
+            let reviewersSelect = null;
+            let tasksSelect = null;
+            let mrSelect = null;
+
+            // Функция загрузки задач пользователя
+            async function loadUserTasks(searchTerm = '') {
+                const taskSelect = document.getElementById('taskKey');
+
+                // Уничтожаем предыдущий экземпляр Tom Select, если он существует
+                if (tasksSelect) {
+                    tasksSelect.destroy();
+                    tasksSelect = null;
+                }
+
+                try {
+                    const url = searchTerm
+                        ? `/review/api/user-tasks?search=${encodeURIComponent(searchTerm)}`
+                        : '/review/api/user-tasks';
+
+                    const response = await fetch(url);
+                    const data = await response.json();
+
+                    if (data.error) {
+                        taskSelect.innerHTML = `<option value="">Ошибка: ${data.error}</option>`;
+                        taskSelect.disabled = true;
+                        return;
+                    }
+
+                    if (data.tasks && data.tasks.length > 0) {
+                        // Инициализируем Tom Select
+                        tasksSelect = new TomSelect('#taskKey', {
+                            maxItems: 1,
+                            valueField: 'value',
+                            labelField: 'text',
+                            searchField: ['key', 'summary', 'text'],
+                            create: function (input) {
+                                // Позволяем создавать новую опцию, если пользователь ввел ключ задачи вручную
+                                const value = input.trim().toUpperCase();
+                                if (/^(CASEM|REN)-\d+$/.test(value)) {
+                                    return {
+                                        value: value,
+                                        text: value,
+                                        key: value,
+                                        summary: ''
+                                    };
+                                }
+                                return null;
+                            },
+                            createOnBlur: true,
+                            options: data.tasks,
+                            placeholder: 'Выберите задачу или начните вводить для поиска...',
+                            render: {
+                                option: (item, escape) => {
+                                    if (item.summary) {
+                                        return `
+                                            <div>
+                                                <strong>${escape(item.key)}</strong>
+                                                <div class="text-muted small">${escape(item.summary)}</div>
+                                            </div>
+                                        `;
+                                    }
+                                    return `<div>${escape(item.text)}</div>`;
+                                },
+                                item: (item, escape) => {
+                                    return `<div>${escape(item.key || item.value)}</div>`;
+                                },
+                                no_results: () => {
+                                    return '<div class="no-results">Задачи не найдены. Попробуйте ввести ключ задачи вручную (например: CASEM-123)</div>';
+                                }
+                            },
+                            load: function (query, callback) {
+                                // Загружаем задачи при поиске
+                                if (!query.length) {
+                                    callback();
+                                    return;
+                                }
+
+                                fetch(`/review/api/user-tasks?search=${encodeURIComponent(query)}`)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.error) {
+                                            callback();
+                                            return;
+                                        }
+                                        callback(data.tasks || []);
+                                    })
+                                    .catch(() => {
+                                        callback();
+                                    });
+                            },
+                            onChange: function (value) {
+                                // При выборе задачи загружаем её детали и заполняем Merge Request
+                                if (!value) return;
+
+                                const taskKey = value;
+                                loadTaskDetails(taskKey);
+                            }
+                        });
+                    } else {
+                        // Если нет задач, все равно инициализируем Tom Select с возможностью ввода вручную
+                        tasksSelect = new TomSelect('#taskKey', {
+                            maxItems: 1,
+                            valueField: 'value',
+                            labelField: 'text',
+                            create: function (input) {
+                                const value = input.trim().toUpperCase();
+                                if (/^(CASEM|REN)-\d+$/.test(value)) {
+                                    return {
+                                        value: value,
+                                        text: value,
+                                        key: value,
+                                        summary: ''
+                                    };
+                                }
+                                return null;
+                            },
+                            createOnBlur: true,
+                            placeholder: 'Введите ключ задачи (например: CASEM-123)',
+                            options: [],
+                            onChange: function (value) {
+                                // При выборе задачи загружаем её детали и заполняем Merge Request
+                                if (!value) return;
+
+                                const taskKey = value;
+                                loadTaskDetails(taskKey);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    taskSelect.innerHTML = `<option value="">Ошибка загрузки: ${error.message}</option>`;
+                    taskSelect.disabled = true;
+                }
+            }
+
+            // Функция загрузки деталей задачи и заполнения выпадающего списка Merge Request
+            async function loadTaskDetails(taskKey) {
+                if (!taskKey) return;
+
+                try {
+                    const response = await fetch(`/review/api/task-details?taskKey=${encodeURIComponent(taskKey)}`);
+                    const data = await response.json();
+
+                    if (data.error) {
+                        console.warn('Could not load task details:', data.error);
+                        return;
+                    }
+
+                    var list = data.mergeRequestUrls || [];
+                    var selectEl = document.getElementById('mergeRequest');
+                    if (mrSelect) {
+                        mrSelect.destroy();
+                        mrSelect = null;
+                    }
+                    if (selectEl) {
+                        selectEl.innerHTML = '<option value="">Выберите MR из списка или введите ссылку...</option>';
+                        initMergeRequestSelect();
+                        if (mrSelect) {
+                            list.forEach(function (mr) {
+                                mrSelect.addOption({ value: mr.url, text: mr.title || mr.url });
+                            });
+                            if (list.length === 1) {
+                                mrSelect.setValue(list[0].url);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Error loading task details:', error);
+                }
+            }
+
+            function initMergeRequestSelect() {
+                var el = document.getElementById('mergeRequest');
+                if (!el || mrSelect) return;
+                mrSelect = new TomSelect('#mergeRequest', {
+                    maxItems: 1,
+                    valueField: 'value',
+                    labelField: 'text',
+                    searchField: ['text', 'value'],
+                    create: function (input) {
+                        var v = (input || '').trim();
+                        if (/^https?:\/\/.+\/merge_requests\/\d+/i.test(v) || v.indexOf('merge_requests') !== -1) {
+                            return { value: v, text: v };
+                        }
+                        return null;
+                    },
+                    createOnBlur: true,
+                    placeholder: 'Выберите MR из списка или введите ссылку...',
+                    options: []
+                });
+            }
+
+            // Функция загрузки пользователей канала
+            async function loadChannelUsers(channelId) {
+                const reviewersInput = document.getElementById('reviewers');
+
+                // Уничтожаем предыдущий экземпляр Tom Select, если он существует
+                if (reviewersSelect) {
+                    reviewersSelect.destroy();
+                    reviewersSelect = null;
+                }
+
+                if (!channelId) {
+                    reviewersInput.placeholder = 'Сначала выберите канал';
+                    reviewersInput.disabled = true;
+                    return;
+                }
+
+                reviewersInput.placeholder = 'Загрузка пользователей...';
+                reviewersInput.disabled = true;
+
+                try {
+                    const response = await fetch(`/review/api/channel-users?channelId=${encodeURIComponent(channelId)}`);
+                    const data = await response.json();
+
+                    if (data.error) {
+                        reviewersInput.placeholder = `Ошибка: ${data.error}`;
+                        reviewersInput.disabled = true;
+                        return;
+                    }
+
+                    if (data.users && data.users.length > 0) {
+                        // Создаем опции для Tom Select
+                        const options = data.users.map(user => ({
+                            value: `@${user.username}`,
+                            text: `${user.displayName} (@${user.username})`,
+                            username: user.username,
+                            displayName: user.displayName
+                        }));
+
+                        // Включаем поле ПЕРЕД инициализацией Tom Select
+                        reviewersInput.disabled = false;
+
+                        // Инициализируем Tom Select
+                        reviewersSelect = new TomSelect('#reviewers', {
+                            maxItems: null, // Неограниченное количество выбора
+                            valueField: 'value',
+                            labelField: 'text',
+                            searchField: ['text', 'username', 'displayName'],
+                            create: false,
+                            preload: true,
+                            options: options,
+                            placeholder: 'Выберите ревьюверов...',
+                            disabled: false, // Явно указываем, что не disabled
+                            render: {
+                                option: (item, escape) => {
+                                    const displayName = item.displayName || item.username;
+                                    return `
+                                <div>
+                                    <strong>${escape(displayName)}</strong>
+                                    <span class="text-muted"> — ${escape(item.username)}</span>
+                                </div>
+                            `;
+                                },
+                                item: (item, escape) => `<div>${escape(item.value)}</div>`
+                            }
+                        });
+
+                        // Убеждаемся, что Tom Select активирован
+                        if (reviewersSelect) {
+                            reviewersSelect.enable();
+                        }
+                    } else {
+                        reviewersInput.placeholder = 'В канале нет пользователей';
+                        reviewersInput.disabled = true;
+                    }
+                } catch (error) {
+                    reviewersInput.placeholder = `Ошибка загрузки: ${error.message}`;
+                    reviewersInput.disabled = true;
+                }
+            }
+
+            // Загрузка настроек канала (архитектурное ревью)
+            let channelArchSettings = { allow_arch_review: false, arch_review_tag: '' };
+            async function loadChannelSettings(channelId) {
+                if (!channelId) {
+                    document.getElementById('reviewTypeBlock').style.display = 'none';
+                    document.getElementById('reviewersBlock').style.display = 'block';
+                    document.getElementById('archReviewTagBlock').style.display = 'none';
+                    return;
+                }
+                try {
+                    const res = await fetch(`/review/api/channel-settings?channel_id=${encodeURIComponent(channelId)}`);
+                    const data = await res.json();
+                    channelArchSettings = { allow_arch_review: Boolean(data.allow_arch_review), arch_review_tag: data.arch_review_tag || '' };
+                    const typeBlock = document.getElementById('reviewTypeBlock');
+                    const tagInput = document.getElementById('archReviewTag');
+                    if (channelArchSettings.allow_arch_review) {
+                        typeBlock.style.display = 'block';
+                        if (channelArchSettings.arch_review_tag && tagInput) {
+                            tagInput.value = channelArchSettings.arch_review_tag;
+                            tagInput.placeholder = channelArchSettings.arch_review_tag;
+                        }
+                        var rt = document.querySelector('input[name="reviewType"]:checked');
+                        toggleReviewTypeBlocks(rt ? rt.value : 'normal');
+                    } else {
+                        typeBlock.style.display = 'none';
+                        document.getElementById('reviewTypeNormal').checked = true;
+                        toggleReviewTypeBlocks('normal');
+                    }
+                } catch (e) {
+                    channelArchSettings = { allow_arch_review: false, arch_review_tag: '' };
+                    document.getElementById('reviewTypeBlock').style.display = 'none';
+                    toggleReviewTypeBlocks('normal');
+                }
+            }
+
+            function toggleReviewTypeBlocks(reviewType) {
+                const isArch = reviewType === 'arch';
+                document.getElementById('reviewersBlock').style.display = isArch ? 'none' : 'block';
+                document.getElementById('archReviewTagBlock').style.display = isArch ? 'block' : 'none';
+                // Для архитектурного ревью — только MR, скрываем выбор типа контента
+                var contentTypeBlock = document.getElementById('contentTypeBlock');
+                if (!contentTypeBlock) contentTypeBlock = document.getElementById('reviewTypeBlock').nextElementSibling;
+                if (contentTypeBlock) {
+                    if (isArch) {
+                        contentTypeBlock.style.setProperty('display', 'none', 'important');
+                        contentTypeBlock.classList.add('d-none');
+                        contentTypeBlock.hidden = true;
+                    } else {
+                        contentTypeBlock.style.removeProperty('display');
+                        contentTypeBlock.classList.remove('d-none');
+                        contentTypeBlock.hidden = false;
+                    }
+                }
+                if (isArch) {
+                    var pr = document.getElementById('contentTypePR');
+                    if (pr) pr.checked = true;
+                    document.getElementById('mergeRequestContainer').style.display = 'block';
+                    document.getElementById('messageContainer').style.display = 'none';
+                }
+                const infoText = document.getElementById('reviewInfoText');
+                if (infoText) {
+                    if (isArch) {
+                        infoText.innerHTML = '• Задача будет переведена в статус <strong>IN REVIEW</strong> в Jira<br>• В сообщении будет указан статус <strong>IN ARCH-REVIEW</strong> и тег архитектурного ревью<br>• Сообщение будет отправлено в выбранный канал';
+                    } else {
+                        infoText.innerHTML = '• Задача будет переведена в статус <strong>IN REVIEW</strong> в Jira<br>• Сообщение будет отправлено в выбранный канал<br>• Если ревьювер не указан, он будет назначен автоматически (если настроено)<br>• Если задача уже в статусе To Do, она сначала переведется в In Progress';
+                    }
+                }
+            }
+
+            // Загрузка пользователей канала и настроек при выборе канала
+            document.getElementById('channelId').addEventListener('change', async function () {
+                const channelId = this.value;
+                await loadChannelUsers(channelId);
+                await loadChannelSettings(channelId);
+            });
+
+            // Автоматическая загрузка при загрузке страницы
+            document.addEventListener('DOMContentLoaded', () => {
+                loadUserTasks();
+                const channelSelect = document.getElementById('channelId');
+                const selectedChannelId = channelSelect.value;
+                if (selectedChannelId) {
+                    loadChannelUsers(selectedChannelId);
+                    loadChannelSettings(selectedChannelId);
+                }
+                // Переключение типа ревью: делегирование на форму, чтобы срабатывало при выборе arch
+                var reviewForm = document.getElementById('reviewForm');
+                if (reviewForm) {
+                    reviewForm.addEventListener('change', function (e) {
+                        if (e.target && e.target.name === 'reviewType') {
+                            toggleReviewTypeBlocks(e.target.value);
+                        }
+                    });
+                }
+                document.querySelectorAll('input[name="reviewType"]').forEach(radio => {
+                    radio.addEventListener('change', function () {
+                        toggleReviewTypeBlocks(this.value);
+                    });
+                });
+                // Текущее состояние типа ревью
+                var rt = document.querySelector('input[name="reviewType"]:checked');
+                if (rt) toggleReviewTypeBlocks(rt.value);
+                initMergeRequestSelect();
+            });
+
+            // Переключение между PR и Message
+            document.querySelectorAll('input[name="contentType"]').forEach(radio => {
+                radio.addEventListener('change', function () {
+                    const isPR = this.value === 'pr';
+                    document.getElementById('mergeRequestContainer').style.display = isPR ? 'block' : 'none';
+                    document.getElementById('messageContainer').style.display = isPR ? 'none' : 'block';
+
+                    // Обновляем обязательность полей
+                    document.getElementById('mergeRequest').required = isPR;
+                    document.getElementById('messageText').required = !isPR;
+                });
+            });
+
+            document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const submitBtn = document.getElementById('submitBtn');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
+
+                // Получаем выбранных ревьюверов
+                let reviewer = null;
+                if (reviewersSelect && reviewersSelect.items && reviewersSelect.items.length > 0) {
+                    reviewer = reviewersSelect.items.join(', ');
+                }
+
+                const reviewTypeEl = document.querySelector('input[name="reviewType"]:checked');
+                const reviewType = reviewTypeEl ? reviewTypeEl.value : 'normal';
+                // Для архитектурного ревью всегда только PR (MR)
+                const contentTypeFinal = reviewType === 'arch' ? 'pr' : document.querySelector('input[name="contentType"]:checked').value;
+                const mergeRequest = contentTypeFinal === 'pr' ? (mrSelect ? (mrSelect.getValue() || '').trim() : document.getElementById('mergeRequest').value.trim()) : null;
+                const messageText = contentTypeFinal === 'message' ? document.getElementById('messageText').value.trim() : null;
+
+                // Получаем выбранную задачу
+                let taskKey = null;
+                if (tasksSelect && tasksSelect.items && tasksSelect.items.length > 0) {
+                    taskKey = tasksSelect.items[0];
+                } else {
+                    const taskSelectElement = document.getElementById('taskKey');
+                    taskKey = taskSelectElement.value ? taskSelectElement.value.trim() : null;
+                }
+
+                if (!taskKey) {
+                    alert('Пожалуйста, выберите задачу');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    return;
+                }
+
+                const archReviewTagEl = document.getElementById('archReviewTag');
+                const archReviewTag = (reviewType === 'arch' && archReviewTagEl) ? archReviewTagEl.value.trim() : '';
+
+                const formData = {
+                    taskKey: taskKey,
+                    channelId: document.getElementById('channelId').value,
+                    contentType: contentTypeFinal,
+                    mergeRequest: mergeRequest,
+                    messageText: messageText,
+                    reviewer: reviewer,
+                    reviewType: reviewType,
+                    archReviewTag: archReviewTag
+                };
+
+                try {
+                    const response = await fetch('/review/api/send', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    });
+
+                    const result = await response.json();
+                    const resultContainer = document.getElementById('resultContainer');
+
+                    if (result.success) {
+                        resultContainer.innerHTML = `
+                    <div class="alert alert-success" role="alert">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <strong>Успешно!</strong> ${result.message}
+                    </div>
+                `;
+                        resultContainer.style.display = 'block';
+                        document.getElementById('reviewForm').reset();
+
+                        // Сбрасываем Tom Select для задач
+                        if (tasksSelect) {
+                            tasksSelect.clear();
+                            tasksSelect.destroy();
+                            tasksSelect = null;
+                        }
+                        // Перезагружаем задачи
+                        loadUserTasks();
+
+                        // Сбрасываем Tom Select для ревьюверов
+                        if (reviewersSelect) {
+                            reviewersSelect.clear();
+                            reviewersSelect.destroy();
+                            reviewersSelect = null;
+                        }
+                        document.getElementById('reviewers').placeholder = 'Сначала выберите канал';
+                        document.getElementById('reviewers').disabled = true;
+                        document.getElementById('mergeRequestContainer').style.display = 'block';
+                        document.getElementById('messageContainer').style.display = 'none';
+                        if (mrSelect) { mrSelect.clear(); mrSelect.clearOptions(); }
+                    } else {
+                        resultContainer.innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Ошибка:</strong> ${result.error || 'Неизвестная ошибка'}
+                    </div>
+                `;
+                        resultContainer.style.display = 'block';
+                    }
+                } catch (error) {
+                    document.getElementById('resultContainer').innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Ошибка:</strong> ${error.message}
+                </div>
+            `;
+                    document.getElementById('resultContainer').style.display = 'block';
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+
+            async function previewMessage() {
+                // Получаем выбранную задачу
+                let taskKey = null;
+                if (tasksSelect && tasksSelect.items && tasksSelect.items.length > 0) {
+                    taskKey = tasksSelect.items[0];
+                } else {
+                    const taskSelectElement = document.getElementById('taskKey');
+                    taskKey = taskSelectElement.value ? taskSelectElement.value.trim() : null;
+                }
+                const reviewTypeEl = document.querySelector('input[name="reviewType"]:checked');
+                const reviewType = reviewTypeEl ? reviewTypeEl.value : 'normal';
+                const contentType = reviewType === 'arch' ? 'pr' : document.querySelector('input[name="contentType"]:checked').value;
+                const mergeRequest = contentType === 'pr' ? (mrSelect ? (mrSelect.getValue() || '').trim() : document.getElementById('mergeRequest').value.trim()) : null;
+                const messageText = contentType === 'message' ? document.getElementById('messageText').value.trim() : null;
+                let reviewer = null;
+                if (reviewersSelect && reviewersSelect.items && reviewersSelect.items.length > 0) {
+                    reviewer = reviewersSelect.items.join(', ');
+                }
+                const archReviewTagEl = document.getElementById('archReviewTag');
+                const archReviewTag = (reviewType === 'arch' && archReviewTagEl) ? archReviewTagEl.value.trim() : '';
+
+                if (!taskKey) {
+                    alert('Укажите ключ задачи для предпросмотра');
+                    return;
+                }
+
+                try {
+                    const params = new URLSearchParams({
+                        taskKey: taskKey,
+                        contentType: contentType,
+                        mergeRequest: mergeRequest || '',
+                        messageText: messageText || '',
+                        reviewer: reviewer || '',
+                        reviewType: reviewType,
+                        archReviewTag: archReviewTag
+                    });
+
+                    const response = await fetch(`/review/api/preview?${params.toString()}`);
+                    const data = await response.json();
+
+                    if (data.error) {
+                        alert('Ошибка: ' + data.error);
+                        return;
+                    }
+
+                    const previewContainer = document.getElementById('previewContainer');
+                    const previewContent = document.getElementById('previewContent');
+                    previewContent.textContent = data.message;
+                    previewContainer.style.display = 'block';
+                } catch (error) {
+                    alert('Ошибка при получении предпросмотра: ' + error.message);
+                }
+            }
+
+            // Функции для панели форматирования Markdown
+            function insertMarkdown(before, after) {
+                const textarea = document.getElementById('messageText');
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const selectedText = textarea.value.substring(start, end);
+                const textBefore = textarea.value.substring(0, start);
+                const textAfter = textarea.value.substring(end);
+
+                let insertText;
+                if (selectedText) {
+                    // Если есть выделенный текст, оборачиваем его
+                    insertText = before + selectedText + after;
+                } else {
+                    // Если нет выделения, вставляем маркеры и помещаем курсор между ними
+                    insertText = before + after;
+                }
+
+                textarea.value = textBefore + insertText + textAfter;
+
+                // Устанавливаем позицию курсора
+                if (selectedText) {
+                    textarea.selectionStart = start + before.length + selectedText.length + after.length;
+                    textarea.selectionEnd = textarea.selectionStart;
+                } else {
+                    textarea.selectionStart = start + before.length;
+                    textarea.selectionEnd = textarea.selectionStart;
+                }
+
+                textarea.focus();
+            }
+
+            function insertLink() {
+                const textarea = document.getElementById('messageText');
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const selectedText = textarea.value.substring(start, end);
+                const textBefore = textarea.value.substring(0, start);
+                const textAfter = textarea.value.substring(end);
+
+                let linkText, linkUrl;
+                if (selectedText) {
+                    // Если есть выделенный текст, используем его как текст ссылки
+                    linkText = selectedText;
+                    linkUrl = 'https://';
+                } else {
+                    // Если нет выделения, используем стандартные значения
+                    linkText = 'текст ссылки';
+                    linkUrl = 'https://';
+                }
+
+                const insertText = `[${linkText}](${linkUrl})`;
+                textarea.value = textBefore + insertText + textAfter;
+
+                // Устанавливаем позицию курсора на URL
+                if (selectedText) {
+                    textarea.selectionStart = start + linkText.length + 3; // 3 = "[".length + "](".length
+                    textarea.selectionEnd = textarea.selectionStart + linkUrl.length;
+                } else {
+                    textarea.selectionStart = start + linkText.length + 3;
+                    textarea.selectionEnd = textarea.selectionStart + linkUrl.length;
+                }
+
+                textarea.focus();
+            }
+
+            function insertCodeBlock() {
+                const textarea = document.getElementById('messageText');
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const selectedText = textarea.value.substring(start, end);
+                const textBefore = textarea.value.substring(0, start);
+                const textAfter = textarea.value.substring(end);
+
+                let insertText;
+                if (selectedText) {
+                    // Если есть выделенный текст, оборачиваем его в блок кода
+                    insertText = '```\n' + selectedText + '\n```';
+                } else {
+                    // Если нет выделения, вставляем пустой блок кода
+                    insertText = '```\n\n```';
+                }
+
+                textarea.value = textBefore + insertText + textAfter;
+
+                // Устанавливаем позицию курсора
+                if (selectedText) {
+                    textarea.selectionStart = start + insertText.length;
+                    textarea.selectionEnd = textarea.selectionStart;
+                } else {
+                    textarea.selectionStart = start + 4; // Позиция после "```\n"
+                    textarea.selectionEnd = textarea.selectionStart;
+                }
+
+                textarea.focus();
+            }
+        </script>
+
+        <style>
+            /* === Message Input Wrapper === */
+            .message-input-wrapper {
+                position: relative;
+                border: 1px solid #dee2e6;
+                border-radius: 0.375rem;
+                background-color: #fff;
+                overflow: hidden;
+            }
+
+            .message-input-wrapper textarea {
+                border: none;
+                border-radius: 0;
+                padding: 0.75rem;
+                padding-bottom: 0.5rem;
+                resize: vertical;
+                box-shadow: none;
+            }
+
+            .message-input-wrapper textarea:focus {
+                border: none;
+                box-shadow: none;
+                outline: none;
+            }
+
+            .message-input-wrapper textarea::placeholder {
+                color: #6c757d;
+            }
+
+            /* === Markdown Toolbar === */
+            .markdown-toolbar {
+                display: flex;
+                align-items: center;
+                gap: 0.25rem;
+                padding: 0.5rem 0.75rem;
+                background-color: #f8f9fa;
+                border-top: 1px solid #e9ecef;
+                min-height: 42px;
+            }
+
+            .toolbar-group {
+                display: flex;
+                align-items: center;
+                gap: 0.125rem;
+            }
+
+            .toolbar-divider {
+                width: 1px;
+                height: 24px;
+                background-color: #dee2e6;
+                margin: 0 0.5rem;
+            }
+
+            .toolbar-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                padding: 0;
+                border: none;
+                background: transparent;
+                color: #6c757d;
+                border-radius: 0.25rem;
+                cursor: pointer;
+                transition: all 0.15s ease-in-out;
+                font-size: 1rem;
+            }
+
+            .toolbar-btn:hover {
+                background-color: #e9ecef;
+                color: #495057;
+            }
+
+            .toolbar-btn:active {
+                background-color: #dee2e6;
+                color: #212529;
+            }
+
+            .toolbar-btn i {
+                font-size: 1rem;
+            }
+
+            /* Dark mode styles */
+            [data-bs-theme="dark"] .message-input-wrapper,
+            body.dark .message-input-wrapper {
+                background-color: #212529;
+                border-color: #495057;
+            }
+
+            [data-bs-theme="dark"] .message-input-wrapper textarea,
+            body.dark .message-input-wrapper textarea {
+                background-color: #212529;
+                color: #f8f9fa;
+            }
+
+            [data-bs-theme="dark"] .markdown-toolbar,
+            body.dark .markdown-toolbar {
+                background-color: #2b2f33;
+                border-top-color: #495057;
+            }
+
+            [data-bs-theme="dark"] .toolbar-divider,
+            body.dark .toolbar-divider {
+                background-color: #495057;
+            }
+
+            [data-bs-theme="dark"] .toolbar-btn,
+            body.dark .toolbar-btn {
+                color: #adb5bd;
+            }
+
+            [data-bs-theme="dark"] .toolbar-btn:hover,
+            body.dark .toolbar-btn:hover {
+                background-color: #495057;
+                color: #f8f9fa;
+            }
+
+            [data-bs-theme="dark"] .toolbar-btn:active,
+            body.dark .toolbar-btn:active {
+                background-color: #5a6268;
+                color: #ffffff;
+            }
+
+            /* === Tom Select: Dark Mode Fixes === */
+            [data-bs-theme="dark"] .ts-control,
+            body.dark .ts-control {
+                background-color: #212529 !important;
+                color: #f8f9fa !important;
+                border-color: #495057 !important;
+            }
+
+            [data-bs-theme="dark"] .ts-control:focus,
+            body.dark .ts-control:focus {
+                border-color: #0d6efd !important;
+                box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+            }
+
+            [data-bs-theme="dark"] .ts-control input,
+            body.dark .ts-control input {
+                color: #f8f9fa !important;
+                caret-color: #0d6efd !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown,
+            body.dark .ts-dropdown {
+                background-color: #212529 !important;
+                border-color: #343a40 !important;
+                color: #f8f9fa !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option {
+                background-color: transparent !important;
+                color: #dee2e6 !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option:hover,
+            [data-bs-theme="dark"] .ts-dropdown .option.active,
+            body.dark .ts-dropdown .option.active {
+                background-color: #495057 !important;
+                color: #ffffff !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option span.text-muted {
+                color: #adb5bd !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown mark,
+            body.dark .ts-dropdown mark {
+                background-color: transparent !important;
+                color: #0d6efd !important;
+                font-weight: 600;
+            }
+
+            [data-bs-theme="dark"] .ts-wrapper.multi .ts-control>.item {
+                background-color: #495057 !important;
+                color: #f8f9fa !important;
+                border-color: #6c757d !important;
+            }
+
+            [data-bs-theme="dark"] .ts-wrapper.multi .ts-control>.item.active {
+                background-color: #0d6efd !important;
+                color: #ffffff !important;
+            }
+        </style>

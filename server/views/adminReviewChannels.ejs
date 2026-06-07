@@ -1,0 +1,194 @@
+<% layout('layout') -%>
+    <% block('title', 'Управление каналами ревью' ); -%>
+
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-12 col-lg-10 mx-auto">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="mb-0">
+                            <i class="bi bi-check2-square me-2"></i>Управление каналами ревью
+                        </h2>
+                        <a href="/admin" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-left me-1"></i>Назад к админ-панели
+                        </a>
+                    </div>
+
+                    <% if (error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <%= error %>
+                        </div>
+                        <% } %>
+
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-plus-circle me-2"></i>Добавить канал
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3" role="alert">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <strong>Что это?</strong><br>
+                                        Каналы ревью - это каналы, в которых пользователи могут создавать ревью задач
+                                        через форму "Перевод задачи в ревью".
+                                        Пользователи увидят только те каналы из этого списка, где они являются
+                                        участниками.
+                                    </div>
+                                    <form id="addChannelForm">
+                                        <div class="mb-3">
+                                            <label for="channelId" class="form-label">Channel ID</label>
+                                            <input type="text" class="form-control" id="channelId" name="channel_id"
+                                                placeholder="channel_id" required>
+                                            <div class="form-text">ID канала в Mattermost. Можно найти в URL канала или
+                                                через API.</div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bi bi-plus-circle me-1"></i>Добавить канал
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <div class="card shadow-sm">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-list-ul me-2"></i>Текущие каналы ревью
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <% if (channels && channels.length> 0) { %>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 10%;">ID</th>
+                                                        <th style="width: 50%;">Channel ID</th>
+                                                        <th style="width: 30%;">Название канала</th>
+                                                        <th style="width: 10%;" class="text-end">Действия</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <% channels.forEach(channel=> { %>
+                                                        <tr data-id="<%= channel.id %>">
+                                                            <td>
+                                                                <%= channel.id %>
+                                                            </td>
+                                                            <td><code><%= channel.channel_id %></code></td>
+                                                            <td>
+                                                                <% if (channel.name) { %>
+                                                                    <%= channel.name %>
+                                                                        <% } else { %>
+                                                                            <span class="text-muted">Не удалось
+                                                                                загрузить</span>
+                                                                            <% } %>
+                                                            </td>
+                                                            <td class="text-end">
+                                                                <button type="button"
+                                                                    class="btn btn-sm btn-outline-danger remove-channel-btn"
+                                                                    data-id="<%= channel.id %>"
+                                                                    data-channel-id="<%= channel.channel_id %>">
+                                                                    <i class="bi bi-trash"></i> Удалить
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                        <% }); %>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <% } else { %>
+                                            <div class="text-center py-4">
+                                                <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                                                <p class="text-muted mt-3">Каналы ревью не настроены</p>
+                                                <p class="text-muted small">Добавьте первый канал используя форму выше
+                                                </p>
+                                            </div>
+                                            <% } %>
+                                </div>
+                            </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const addForm = document.getElementById('addChannelForm');
+                const removeButtons = document.querySelectorAll('.remove-channel-btn');
+
+                // Добавление канала
+                addForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(addForm);
+                    const channelId = formData.get('channel_id').trim();
+
+                    if (!channelId) {
+                        alert('Укажите Channel ID');
+                        return;
+                    }
+
+                    const submitBtn = addForm.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Добавление...';
+
+                    try {
+                        const response = await fetch('/admin/api/review-channels', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ channel_id: channelId })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            location.reload();
+                        } else {
+                            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                        }
+                    } catch (error) {
+                        alert('Ошибка: ' + error.message);
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
+                });
+
+                // Удаление канала
+                removeButtons.forEach(btn => {
+                    btn.addEventListener('click', async function () {
+                        const id = this.dataset.id;
+                        const channelId = this.dataset.channelId;
+
+                        if (!confirm(`Вы уверены, что хотите удалить канал ${channelId} из списка каналов ревью?`)) {
+                            return;
+                        }
+
+                        const originalText = this.innerHTML;
+                        this.disabled = true;
+                        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+                        try {
+                            const response = await fetch(`/admin/api/review-channels/${id}`, {
+                                method: 'DELETE'
+                            });
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                                location.reload();
+                            } else {
+                                alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                                this.disabled = false;
+                                this.innerHTML = originalText;
+                            }
+                        } catch (error) {
+                            alert('Ошибка: ' + error.message);
+                            this.disabled = false;
+                            this.innerHTML = originalText;
+                        }
+                    });
+                });
+            });
+        </script>

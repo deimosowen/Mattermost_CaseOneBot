@@ -1,86 +1,114 @@
 <% layout('layout') -%>
-    <% block('title', 'Feature is ready' ); -%>
+<% block('title', 'Feature is ready' ); -%>
 
-        <div class="container my-5">
-            <div class="row">
-                <div class="col-12 col-md-8 mx-auto">
-                    <div class="card shadow">
-                        <div class="card-body">
-                            <% if (status==='success' ) { %>
-                                <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
-                                    <strong>✅ Данные успешно отправлены!</strong>
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"
-                                        aria-label="Close"></button>
-                                </div>
-                                <% } else if (status==='error' ) { %>
-                                    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-                                        <strong>❌ Произошла ошибка при отправке данных.</strong>
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert"
-                                            aria-label="Close"></button>
-                                    </div>
-                                    <% } %>
-                                        <div class="d-flex flex-column align-items-center">
-                                            <h1 class="card-title text-center">Feature is ready</h1>
-                                        </div>
-                                        <form action="/feature/ready" method="post">
-                                            <div class="mb-3">
-                                                <label for="taskId" class="form-label text-muted">Задача</label>
-                                                <input type="text" id="taskId" name="taskId" placeholder="CASEM-XXXXX"
-                                                    required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="taskName" class="form-label text-muted">Название
-                                                    задачи</label>
-                                                <input type="text" class="form-control" id="taskName" name="taskName"
-                                                    placeholder="Название задачи" required readonly>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="backPullRequestUrl" class="form-label text-muted">Ссылка на
-                                                    Back Merge
-                                                    Request
-                                                </label>
-                                                <input type="text" class="form-control" id="backPullRequestUrl"
-                                                    name="backPullRequestUrl"
-                                                    placeholder="https://gitlab.pravo.tech/caseone/CasePro/-/merge_requests/12345">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="frontPullRequestUrl" class="form-label text-muted">Ссылка на
-                                                    Front Merge
-                                                    Request</label>
-                                                <input type="text" class="form-control" id="frontPullRequestUrl"
-                                                    name="frontPullRequestUrl"
-                                                    placeholder="https://gitlab.pravo.tech/caseone/CasePro.Frontend/-/merge_requests/12345">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="aqaPullRequestUrl" class="form-label text-muted">Ссылка на
-                                                    AQA Merge
-                                                    Request</label>
-                                                <input type="text" class="form-control" id="aqaPullRequestUrl"
-                                                    name="aqaPullRequestUrl"
-                                                    placeholder="https://gitlab.pravo.tech/qa/CasePro.Autotest/-/merge_requests/12345">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="mergeTaskId" class="form-label text-muted">Задачи на
-                                                    влитие</label>
-                                                <input type="text" class="form-control" id="mergeTaskId"
-                                                    name="mergeTaskId" placeholder="CASEM-XXXXX">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="description"
-                                                    class="form-label text-muted">Комментарий</label>
-                                                <textarea class="form-control" id="description" name="description"
-                                                    placeholder="Комментарий" rows="3"></textarea>
-                                            </div>
-                                            <div class="mb-3">
-                                                <button type="submit" class="btn btn-success w-100"
-                                                    id="submitButton">Отправить</button>
-                                            </div>
-                                        </form>
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12 col-lg-10 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="bi bi-check-circle me-2"></i>Feature is ready
+                </h2>
+                <a href="/" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Назад
+                </a>
+            </div>
+
+            <% if (status === 'success') { %>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i><strong>Данные успешно отправлены!</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <% } else if (status === 'error') { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i><strong>Произошла ошибка при отправке данных.</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <% } %>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-text me-2"></i>Информация о задаче
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form action="/feature/ready" method="post" id="featureForm">
+                        <div class="mb-3">
+                            <label for="taskId" class="form-label">
+                                <i class="bi bi-ticket-perforated me-1"></i>Задача
+                            </label>
+                            <input type="text" class="form-control" id="taskId" name="taskId" 
+                                placeholder="CASEM-XXXXX" required>
                         </div>
-                    </div>
+
+                        <div class="mb-3">
+                            <label for="taskName" class="form-label">
+                                <i class="bi bi-card-heading me-1"></i>Название задачи
+                            </label>
+                            <input type="text" class="form-control" id="taskName" name="taskName"
+                                placeholder="Название задачи" required readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="backPullRequestUrl" class="form-label">
+                                <i class="bi bi-link-45deg me-1"></i>Ссылка на Back Merge Request
+                            </label>
+                            <input type="text" class="form-control" id="backPullRequestUrl"
+                                name="backPullRequestUrl"
+                                placeholder="https://gitlab.pravo.tech/caseone/CasePro/-/merge_requests/12345">
+                            <div id="backPullRequestUrl-labels" class="mt-2"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="frontPullRequestUrl" class="form-label">
+                                <i class="bi bi-link-45deg me-1"></i>Ссылка на Front Merge Request
+                            </label>
+                            <input type="text" class="form-control" id="frontPullRequestUrl"
+                                name="frontPullRequestUrl"
+                                placeholder="https://gitlab.pravo.tech/caseone/CasePro.Frontend/-/merge_requests/12345">
+                            <div id="frontPullRequestUrl-labels" class="mt-2"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="aqaPullRequestUrl" class="form-label">
+                                <i class="bi bi-link-45deg me-1"></i>Ссылка на AQA Merge Request
+                            </label>
+                            <input type="text" class="form-control" id="aqaPullRequestUrl"
+                                name="aqaPullRequestUrl"
+                                placeholder="https://gitlab.pravo.tech/qa/CasePro.Autotest/-/merge_requests/12345">
+                            <div id="aqaPullRequestUrl-labels" class="mt-2"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="mergeTaskId" class="form-label">
+                                <i class="bi bi-list-task me-1"></i>Задачи на влитие
+                            </label>
+                            <input type="text" class="form-control" id="mergeTaskId"
+                                name="mergeTaskId" placeholder="CASEM-XXXXX">
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>Можно указать до 3 задач
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">
+                                <i class="bi bi-chat-left-text me-1"></i>Комментарий
+                            </label>
+                            <textarea class="form-control" id="description" name="description"
+                                placeholder="Комментарий" rows="2"></textarea>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success" id="submitButton">
+                                <i class="bi bi-send me-1"></i>Отправить
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
+    </div>
+</div>
 
         <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/css/tom-select.bootstrap5.min.css"
             rel="stylesheet">
@@ -154,7 +182,7 @@
                         // Форма продолжит отправку автоматически
                         if (submitButton) {
                             submitButton.disabled = true;
-                            submitButton.textContent = 'Отправка...';
+                            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
                             submitButton.classList.add('disabled');
                         }
                         // НЕ вызываем preventDefault - позволяем форме отправиться
@@ -250,12 +278,105 @@
                     maxItems: 3,
                 });
 
-                attachUrlValidation('form[action="/feature/ready"]', [
+                attachUrlValidation('#featureForm', [
                     'backPullRequestUrl',
                     'frontPullRequestUrl',
                     'aqaPullRequestUrl'
                 ]);
+
+                // Загрузка лейблов при изменении URL
+                ['backPullRequestUrl', 'frontPullRequestUrl', 'aqaPullRequestUrl'].forEach(fieldId => {
+                    const input = document.getElementById(fieldId);
+                    const labelsContainer = document.getElementById(`${fieldId}-labels`);
+                    
+                    if (input && labelsContainer) {
+                        let debounceTimer;
+                        
+                        const loadLabels = async (url) => {
+                            if (!url || !isValidUrl(url) || !url.includes('/merge_requests/')) {
+                                labelsContainer.innerHTML = '';
+                                return;
+                            }
+
+                            labelsContainer.innerHTML = '<small class="text-muted"><i class="bi bi-hourglass-split me-1"></i>Загрузка лейблов...</small>';
+
+                            try {
+                                const response = await fetch(`/feature/api/mr-labels?url=${encodeURIComponent(url)}`);
+                                
+                                if (!response.ok) {
+                                    labelsContainer.innerHTML = '';
+                                    return;
+                                }
+
+                                const data = await response.json();
+                                
+                                if (!data.labels || data.labels.length === 0) {
+                                    labelsContainer.innerHTML = '';
+                                    return;
+                                }
+
+                                // Отображаем лейблы с цветами из GitLab
+                                const labelsHtml = data.labels.map(label => {
+                                    const labelName = typeof label === 'string' ? label : label.name;
+                                    const labelColor = typeof label === 'object' && label.color ? label.color : '#6c757d';
+                                    
+                                    // Вычисляем, нужен ли темный текст (для светлых цветов)
+                                    const rgb = hexToRgb(labelColor);
+                                    const brightness = rgb ? (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000 : 128;
+                                    const textColor = brightness > 128 ? '#000000' : '#ffffff';
+                                    
+                                    return `<span class="badge me-1 mb-1" style="background-color: ${labelColor}; color: ${textColor}; border: none;">${escapeHtml(labelName)}</span>`;
+                                }).join('');
+
+                                labelsContainer.innerHTML = `
+                                    <div class="d-flex flex-wrap align-items-center">
+                                        <small class="text-muted me-2">
+                                            <i class="bi bi-tags me-1"></i>Лейблы:
+                                        </small>
+                                        ${labelsHtml}
+                                    </div>
+                                `;
+                            } catch (error) {
+                                console.error('Ошибка загрузки лейблов:', error);
+                                labelsContainer.innerHTML = '';
+                            }
+                        };
+
+                        input.addEventListener('input', () => {
+                            clearTimeout(debounceTimer);
+                            debounceTimer = setTimeout(() => {
+                                loadLabels(input.value);
+                            }, 500);
+                        });
+
+                        // Загружаем лейблы при загрузке страницы, если URL уже заполнен
+                        if (input.value) {
+                            loadLabels(input.value);
+                        }
+                    }
+                });
             });
+
+            /**
+             * Экранирование HTML для безопасности
+             */
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            /**
+             * Конвертация HEX цвета в RGB
+             */
+            function hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            }
         </script>
 
         <style>

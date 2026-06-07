@@ -1,106 +1,531 @@
 <% layout('layout') -%>
-<% block('title', 'CaseOneBot - Главная' ); -%>
+    <% block('title', 'CaseOneBot - Главная' ); -%>
 
-<div class="row justify-content-center">
-    <div class="col-12 col-lg-10">
-        <div class="text-center mb-5">
-            <h1 class="display-4 mb-3">
-                <i class="bi bi-robot"></i> CaseOneBot
-            </h1>
-            <p class="lead text-muted">
-                Бот для автоматизации работы в Mattermost
-            </p>
-        </div>
+        <%
+            const mainPages = availablePages || [];
+            const adminItems = adminPages || [];
+            const priorityKeys = ['review', 'duty_list', 'jira_worklog', 'feature_ready'];
+            const priorityPages = priorityKeys
+                .map(key => mainPages.find(page => page.key === key))
+                .filter(Boolean);
+            const profilePage = mainPages.find(page => page.key === 'profile');
+        %>
 
-        <% if (isAuthenticated && user) { %>
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h3 class="card-title mb-4">
-                        <i class="bi bi-check-circle text-success me-2"></i>Добро пожаловать, <%= user.displayName %>!
-                    </h3>
-                    <p class="text-muted">Выберите раздел для работы:</p>
-                    
-                    <div class="row g-3 mt-2">
-                        <% availablePages.forEach(page => { %>
-                            <div class="col-12 col-md-6 col-lg-4">
-                                <a href="<%= page.url %>" class="text-decoration-none">
-                                    <div class="card h-100 border hover-shadow border-<%= page.color || 'primary' %> border-opacity-25">
-                                        <div class="card-body">
-                                            <div class="d-flex align-items-center mb-2">
-                                                <div class="bg-<%= page.color || 'primary' %> bg-opacity-10 rounded p-2 me-3">
-                                                    <i class="bi <%= page.icon %> text-<%= page.color || 'primary' %>" style="font-size: 1.5rem;"></i>
-                                                </div>
-                                                <h5 class="card-title mb-0">
-                                                    <%= page.title %>
-                                                </h5>
-                                            </div>
-                                            <p class="card-text text-muted small mb-0"><%= page.description %></p>
+        <div class="container-fluid my-4 home-page">
+            <div class="row">
+                <div class="col-12 col-xxl-11 mx-auto">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+                        <div>
+                            <h2 class="mb-1">
+                                <i class="bi bi-robot me-2"></i>CaseOneBot
+                            </h2>
+                            <div class="text-muted">Бот для автоматизации работы в Mattermost</div>
+                        </div>
+
+                        <% if (isAuthenticated && user) { %>
+                            <div class="view-switch" role="group" aria-label="Вид главной страницы">
+                                <button type="button" class="view-switch-button" data-home-mode-button="modern">
+                                    <i class="bi bi-grid-1x2"></i>
+                                    <span>Новый</span>
+                                </button>
+                                <button type="button" class="view-switch-button" data-home-mode-button="classic">
+                                    <i class="bi bi-layout-text-window"></i>
+                                    <span>Классика</span>
+                                </button>
+                            </div>
+                            <% } %>
+                    </div>
+
+                    <% if (isAuthenticated && user) { %>
+                        <div data-home-view="modern">
+                            <section class="home-hero mb-4">
+                                <div class="home-hero-main">
+                                    <div class="home-avatar">
+                                        <%= (user.displayName || user.username || '?').slice(0, 1).toUpperCase() %>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted small mb-1">Рабочий стол</div>
+                                        <h1 class="home-title mb-1">
+                                            <%= user.displayName %>
+                                        </h1>
+                                        <div class="text-muted">
+                                            <%= mainPages.length %> разделов доступно
+                                            <% if (adminItems.length > 0) { %>
+                                                · <%= adminItems.length %> админ-разделов
+                                                <% } %>
                                         </div>
                                     </div>
-                                </a>
+                                </div>
+                                <% if (profilePage) { %>
+                                    <a href="<%= profilePage.url %>" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-person-circle me-1"></i><%= profilePage.title %>
+                                    </a>
+                                <% } %>
+                            </section>
+
+                            <% if (mainPages.length > 0) { %>
+                                <% if (priorityPages.length > 0) { %>
+                                    <section class="mb-4">
+                                        <div class="section-heading">
+                                            <h3>Быстрый доступ</h3>
+                                            <span>Основные рабочие сценарии</span>
+                                        </div>
+                                        <div class="quick-grid">
+                                            <% priorityPages.forEach(page => { %>
+                                                <a href="<%= page.url %>" class="quick-action">
+                                                    <span class="quick-icon text-<%= page.color || 'primary' %> bg-<%= page.color || 'primary' %>-subtle">
+                                                        <i class="bi <%= page.icon %>"></i>
+                                                    </span>
+                                                    <span class="quick-body">
+                                                        <span class="quick-title"><%= page.title %></span>
+                                                        <span class="quick-description"><%= page.description %></span>
+                                                    </span>
+                                                    <i class="bi bi-arrow-right-short quick-arrow"></i>
+                                                </a>
+                                                <% }) %>
+                                        </div>
+                                    </section>
+                                    <% } %>
+
+                                <section class="mb-4">
+                                    <div class="section-heading">
+                                        <h3>Все разделы</h3>
+                                        <span>Навигация по доступным инструментам</span>
+                                    </div>
+                                    <div class="tool-grid">
+                                        <% mainPages.forEach(page => { %>
+                                            <a href="<%= page.url %>" class="tool-link">
+                                                <span class="tool-icon text-<%= page.color || 'primary' %>">
+                                                    <i class="bi <%= page.icon %>"></i>
+                                                </span>
+                                                <span class="tool-content">
+                                                    <span class="tool-title"><%= page.title %></span>
+                                                    <span class="tool-description"><%= page.description %></span>
+                                                </span>
+                                            </a>
+                                            <% }) %>
+                                    </div>
+                                </section>
+                                <% } else { %>
+                                    <div class="alert alert-info" role="alert">
+                                        <i class="bi bi-info-circle me-2"></i>Для вашей группы пока не открыты разделы.
+                                    </div>
+                                    <% } %>
+
+                            <% if (adminItems.length > 0) { %>
+                                <section class="admin-band mb-4">
+                                    <div class="section-heading">
+                                        <h3>Администрирование</h3>
+                                        <span>Настройки системы и доступов</span>
+                                    </div>
+                                    <div class="admin-grid">
+                                        <% adminItems.forEach(page => { %>
+                                            <a href="<%= page.url %>" class="admin-link">
+                                                <span class="admin-icon">
+                                                    <i class="bi <%= page.icon || 'bi-shield-check' %>"></i>
+                                                </span>
+                                                <span>
+                                                    <span class="admin-title"><%= page.title %></span>
+                                                    <span class="admin-description"><%= page.description %></span>
+                                                </span>
+                                            </a>
+                                            <% }) %>
+                                    </div>
+                                </section>
+                                <% } %>
+                        </div>
+
+                        <div data-home-view="classic" hidden>
+                            <div class="row justify-content-center">
+                                <div class="col-12 col-lg-10">
+                                    <div class="text-center mb-5">
+                                        <h1 class="display-4 mb-3">
+                                            <i class="bi bi-robot"></i> CaseOneBot
+                                        </h1>
+                                        <p class="lead text-muted">
+                                            Бот для автоматизации работы в Mattermost
+                                        </p>
+                                    </div>
+
+                                    <div class="card shadow-sm mb-4">
+                                        <div class="card-body">
+                                            <h3 class="card-title mb-4">
+                                                <i class="bi bi-check-circle text-success me-2"></i>Добро пожаловать,
+                                                <%= user.displayName %>!
+                                            </h3>
+                                            <p class="text-muted">Выберите раздел для работы:</p>
+
+                                            <% if (mainPages.length > 0) { %>
+                                                <div class="row g-3 mt-2">
+                                                    <% mainPages.forEach(page => { %>
+                                                        <div class="col-12 col-md-6 col-lg-4">
+                                                            <a href="<%= page.url %>" class="text-decoration-none">
+                                                                <div class="card h-100 border hover-shadow border-<%= page.color || 'primary' %> border-opacity-25">
+                                                                    <div class="card-body">
+                                                                        <div class="d-flex align-items-center mb-2">
+                                                                            <div class="bg-<%= page.color || 'primary' %> bg-opacity-10 rounded p-2 me-3">
+                                                                                <i class="bi <%= page.icon %> text-<%= page.color || 'primary' %>"
+                                                                                    style="font-size: 1.5rem;"></i>
+                                                                            </div>
+                                                                            <h5 class="card-title mb-0">
+                                                                                <%= page.title %>
+                                                                            </h5>
+                                                                        </div>
+                                                                        <p class="card-text text-muted small mb-0">
+                                                                            <%= page.description %>
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <% }) %>
+                                                </div>
+                                                <% } else { %>
+                                                    <div class="alert alert-info mb-0" role="alert">
+                                                        <i class="bi bi-info-circle me-2"></i>Для вашей группы пока не открыты разделы.
+                                                    </div>
+                                                    <% } %>
+                                        </div>
+                                    </div>
+
+                                    <% if (adminItems.length > 0) { %>
+                                        <div class="card shadow-sm mb-4 border-danger">
+                                            <div class="card-header bg-danger text-white">
+                                                <h4 class="mb-0">
+                                                    <i class="bi bi-shield-check me-2"></i>Админ-панель
+                                                </h4>
+                                            </div>
+                                            <div class="card-body">
+                                                <p class="text-muted mb-3">Административные функции и настройки системы</p>
+                                                <div class="row g-3">
+                                                    <% adminItems.forEach(page => { %>
+                                                        <div class="col-12 col-md-6 col-lg-4">
+                                                            <a href="<%= page.url %>" class="text-decoration-none">
+                                                                <div class="card h-100 border hover-shadow border-<%= page.color || 'danger' %> border-opacity-25">
+                                                                    <div class="card-body">
+                                                                        <div class="d-flex align-items-center mb-2">
+                                                                            <div class="bg-<%= page.color || 'danger' %> bg-opacity-10 rounded p-2 me-3">
+                                                                                <i class="bi <%= page.icon || 'bi-shield-check' %> text-<%= page.color || 'danger' %>"
+                                                                                    style="font-size: 1.5rem;"></i>
+                                                                            </div>
+                                                                            <h5 class="card-title mb-0">
+                                                                                <%= page.title %>
+                                                                            </h5>
+                                                                        </div>
+                                                                        <p class="card-text text-muted small mb-0">
+                                                                            <%= page.description %>
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <% }) %>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <% } %>
+                                </div>
                             </div>
-                        <% }); %>
-                    </div>
+                        </div>
+                        <% } else { %>
+                            <div class="row justify-content-center">
+                                <div class="col-12 col-lg-8">
+                                    <section class="login-panel">
+                                        <div class="login-icon">
+                                            <i class="bi bi-shield-lock"></i>
+                                        </div>
+                                        <h1 class="mb-2">CaseOneBot</h1>
+                                        <p class="text-muted mb-4">Для доступа к функциям бота необходимо авторизоваться через Яндекс</p>
+                                        <a href="/auth/yandex" class="btn btn-primary btn-lg">
+                                            <i class="bi bi-box-arrow-in-right me-2"></i>Войти через Яндекс
+                                        </a>
+                                    </section>
+                                </div>
+                            </div>
+                            <% } %>
                 </div>
             </div>
-        <% } else { %>
-            <div class="card shadow-sm">
-                <div class="card-body text-center py-5">
-                    <h3 class="card-title mb-4">
-                        <i class="bi bi-shield-lock me-2"></i>Требуется авторизация
-                    </h3>
-                    <p class="card-text text-muted mb-4">
-                        Для доступа к функциям бота необходимо авторизоваться через Яндекс
-                    </p>
-                    <a href="/auth/yandex" class="btn btn-primary btn-lg">
-                        <i class="bi bi-box-arrow-in-right me-2"></i>Войти через Яндекс
-                    </a>
-                </div>
-            </div>
+        </div>
 
-            <div class="card shadow-sm mt-4">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-info-circle me-2"></i>О боте
-                    </h5>
-                    <p class="card-text">
-                        CaseOneBot — это бот для автоматизации работы в Mattermost, который помогает:
-                    </p>
-                    <ul class="list-unstyled">
-                        <li class="mb-2">
-                            <i class="bi bi-check-circle text-success me-2"></i>
-                            Управлять календарем и получать уведомления о событиях
-                        </li>
-                        <li class="mb-2">
-                            <i class="bi bi-check-circle text-success me-2"></i>
-                            Организовывать дежурства и автоматически ротировать их
-                        </li>
-                        <li class="mb-2">
-                            <i class="bi bi-check-circle text-success me-2"></i>
-                            Приглашать пользователей в каналы
-                        </li>
-                        <li class="mb-2">
-                            <i class="bi bi-check-circle text-success me-2"></i>
-                            Учитывать время в Jira
-                        </li>
-                    </ul>
-                    <p class="text-muted small mt-3 mb-0">
-                        <a href="https://github.com/deimosowen/Mattermost_CaseOneBot" target="_blank" class="text-decoration-none">
-                            <i class="bi bi-github me-1"></i>Исходный код на GitHub
-                        </a>
-                    </p>
-                </div>
-            </div>
-        <% } %>
-    </div>
-</div>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const storageKey = 'caseone.homeViewMode';
+                const views = document.querySelectorAll('[data-home-view]');
+                const buttons = document.querySelectorAll('[data-home-mode-button]');
+                if (views.length === 0) return;
 
-<style>
-    .hover-shadow {
-        transition: box-shadow 0.2s ease-in-out;
-    }
-    .hover-shadow:hover {
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-    }
-</style>
+                function setMode(mode) {
+                    const normalizedMode = mode === 'classic' ? 'classic' : 'modern';
+                    views.forEach(view => {
+                        view.hidden = view.dataset.homeView !== normalizedMode;
+                    });
+                    buttons.forEach(button => {
+                        const isActive = button.dataset.homeModeButton === normalizedMode;
+                        button.classList.toggle('active', isActive);
+                        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                    });
+                    localStorage.setItem(storageKey, normalizedMode);
+                }
 
+                buttons.forEach(button => {
+                    button.addEventListener('click', () => setMode(button.dataset.homeModeButton));
+                });
+
+                setMode(localStorage.getItem(storageKey) || 'modern');
+            });
+        </script>
+
+        <style>
+            .home-page {
+                max-width: 1680px;
+            }
+
+            .view-switch {
+                background: var(--bs-secondary-bg);
+                border: 1px solid var(--bs-border-color);
+                border-radius: 8px;
+                display: inline-flex;
+                padding: 0.2rem;
+            }
+
+            .view-switch-button {
+                align-items: center;
+                background: transparent;
+                border: 0;
+                border-radius: 6px;
+                color: var(--bs-secondary-color);
+                display: inline-flex;
+                gap: 0.45rem;
+                min-height: 34px;
+                padding: 0.35rem 0.7rem;
+            }
+
+            .view-switch-button.active {
+                background: var(--bs-body-bg);
+                color: var(--bs-emphasis-color);
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            }
+
+            .home-hero {
+                align-items: center;
+                background: var(--bs-body-bg);
+                border: 1px solid var(--bs-border-color);
+                border-radius: 8px;
+                display: flex;
+                gap: 1rem;
+                justify-content: space-between;
+                padding: 1.25rem;
+            }
+
+            .home-hero-main {
+                align-items: center;
+                display: flex;
+                gap: 1rem;
+                min-width: 0;
+            }
+
+            .home-avatar {
+                align-items: center;
+                background: var(--bs-primary-bg-subtle);
+                border: 1px solid var(--bs-primary-border-subtle);
+                border-radius: 8px;
+                color: var(--bs-primary);
+                display: inline-flex;
+                flex: 0 0 56px;
+                font-size: 1.4rem;
+                font-weight: 700;
+                height: 56px;
+                justify-content: center;
+                width: 56px;
+            }
+
+            .home-title {
+                font-size: clamp(1.45rem, 2vw, 2rem);
+                font-weight: 700;
+                letter-spacing: 0;
+            }
+
+            .section-heading {
+                align-items: baseline;
+                display: flex;
+                gap: 0.75rem;
+                justify-content: space-between;
+                margin-bottom: 0.75rem;
+            }
+
+            .section-heading h3 {
+                font-size: 1rem;
+                font-weight: 700;
+                margin: 0;
+            }
+
+            .section-heading span {
+                color: var(--bs-secondary-color);
+                font-size: 0.875rem;
+            }
+
+            .quick-grid {
+                display: grid;
+                gap: 1rem;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            }
+
+            .quick-action,
+            .tool-link,
+            .admin-link {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            .quick-action {
+                align-items: center;
+                background: var(--bs-body-bg);
+                border: 1px solid var(--bs-border-color);
+                border-radius: 8px;
+                display: flex;
+                gap: 0.9rem;
+                min-height: 112px;
+                padding: 1rem;
+                transition: border-color 0.15s ease, transform 0.15s ease;
+            }
+
+            .quick-action:hover,
+            .tool-link:hover,
+            .admin-link:hover {
+                border-color: var(--bs-primary-border-subtle);
+                transform: translateY(-1px);
+            }
+
+            .quick-icon {
+                align-items: center;
+                border-radius: 8px;
+                display: inline-flex;
+                flex: 0 0 46px;
+                font-size: 1.35rem;
+                height: 46px;
+                justify-content: center;
+                width: 46px;
+            }
+
+            .quick-body,
+            .tool-content,
+            .admin-link span:last-child {
+                display: grid;
+                gap: 0.2rem;
+                min-width: 0;
+            }
+
+            .quick-title,
+            .tool-title,
+            .admin-title {
+                font-weight: 700;
+            }
+
+            .quick-description,
+            .tool-description,
+            .admin-description {
+                color: var(--bs-secondary-color);
+                font-size: 0.875rem;
+                line-height: 1.35;
+            }
+
+            .quick-arrow {
+                color: var(--bs-secondary-color);
+                font-size: 1.4rem;
+                margin-left: auto;
+            }
+
+            .tool-grid,
+            .admin-grid {
+                display: grid;
+                gap: 0.75rem;
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            }
+
+            .tool-link,
+            .admin-link {
+                align-items: flex-start;
+                background: var(--bs-body-bg);
+                border: 1px solid var(--bs-border-color);
+                border-radius: 8px;
+                display: flex;
+                gap: 0.75rem;
+                min-height: 82px;
+                padding: 0.85rem;
+                transition: border-color 0.15s ease, transform 0.15s ease;
+            }
+
+            .tool-icon,
+            .admin-icon {
+                align-items: center;
+                background: var(--bs-tertiary-bg);
+                border-radius: 8px;
+                display: inline-flex;
+                flex: 0 0 34px;
+                height: 34px;
+                justify-content: center;
+                width: 34px;
+            }
+
+            .admin-band {
+                background: var(--bs-secondary-bg);
+                border: 1px solid var(--bs-border-color);
+                border-radius: 8px;
+                padding: 1rem;
+            }
+
+            .admin-icon {
+                color: var(--bs-danger);
+            }
+
+            .login-panel {
+                background: var(--bs-body-bg);
+                border: 1px solid var(--bs-border-color);
+                border-radius: 8px;
+                padding: 3rem 1.5rem;
+                text-align: center;
+            }
+
+            .login-icon {
+                align-items: center;
+                background: var(--bs-primary-bg-subtle);
+                border-radius: 8px;
+                color: var(--bs-primary);
+                display: inline-flex;
+                font-size: 2rem;
+                height: 64px;
+                justify-content: center;
+                margin-bottom: 1rem;
+                width: 64px;
+            }
+
+            .hover-shadow {
+                transition: box-shadow 0.2s ease-in-out;
+            }
+
+            .hover-shadow:hover {
+                box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+            }
+
+            @media (max-width: 767.98px) {
+                .home-hero {
+                    align-items: flex-start;
+                    flex-direction: column;
+                }
+
+                .section-heading {
+                    align-items: flex-start;
+                    flex-direction: column;
+                    gap: 0.15rem;
+                }
+
+                .view-switch {
+                    width: 100%;
+                }
+
+                .view-switch-button {
+                    flex: 1;
+                    justify-content: center;
+                }
+            }
+        </style>

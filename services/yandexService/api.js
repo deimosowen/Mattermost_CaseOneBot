@@ -182,7 +182,7 @@ class YandexApi {
 
             return parsedEvents;
         } catch (error) {
-            logger.error(error);
+            //logger.error(error);
             throw new Error('Не удалось получить события.');
         }
     }

@@ -260,11 +260,15 @@ describe('TeamCityService', () => {
             // Очищаем моки перед тестом
             axios.get.mockReset();
 
-            // Первый вызов - получение общего количества тестов
-            // Второй - количество успешных (SUCCESS)
-            // Третий - количество упавших (FAILURE)
-            // Четвертый - количество замьюченных (muted:true)
+            // Первый вызов - попытка получить статистику из /statistics endpoint (должен вернуть null)
+            // Второй вызов - получение общего количества тестов из testOccurrences
+            // Третий - количество успешных (SUCCESS)
+            // Четвертый - количество упавших (FAILURE)
+            // Пятый - количество замьюченных (muted:true)
             axios.get
+                .mockResolvedValueOnce({
+                    data: {} // Пустой ответ без property, чтобы вернулся null
+                })
                 .mockResolvedValueOnce({
                     data: { count: 100 }
                 })
@@ -289,8 +293,8 @@ describe('TeamCityService', () => {
                 ignored: 0
             });
             
-            // Проверяем, что были вызваны правильные запросы
-            expect(axios.get).toHaveBeenCalledTimes(4);
+            // Проверяем, что были вызваны правильные запросы (1 для /statistics + 4 для testOccurrences)
+            expect(axios.get).toHaveBeenCalledTimes(5);
         });
 
         test('возвращает пустую статистику если ничего не найдено', async () => {

@@ -35,15 +35,28 @@ async function uploadFileBase64(base64, channel_id) {
     }
 }
 
-async function uploadFile(file_buffer, file_name, channel_id) {
+async function uploadFile(file_buffer, file_name, channel_id, contentType = null) {
     try {
         const token = await client.getToken();
         const filesRoute = await client.getFilesRoute();
         const formData = new FormData();
         formData.append('channel_id', channel_id);
+        
+        // Определяем content type по расширению файла, если не указан
+        if (!contentType) {
+            const ext = file_name.split('.').pop().toLowerCase();
+            if (ext === 'log' || ext === 'txt') {
+                contentType = 'text/plain';
+            } else if (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif') {
+                contentType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+            } else {
+                contentType = 'application/octet-stream';
+            }
+        }
+        
         formData.append('files', file_buffer, {
             filename: file_name,
-            contentType: 'image/png'
+            contentType: contentType
         });
 
         const headers = {

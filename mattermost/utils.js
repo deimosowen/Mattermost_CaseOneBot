@@ -207,6 +207,16 @@ class MattermostService {
         }
     }
 
+    async getChannelPosts(channelId, options = {}) {
+        try {
+            const { page = 0, per_page = 60 } = options;
+            return await this.client.getPostsForChannel(channelId, page, per_page);
+        } catch (error) {
+            this._handleError('getChannelPosts', error);
+            return null;
+        }
+    }
+
     // Private helper methods
     async _getDefaultTeam() {
         const [team] = await this.client.getMyTeams();
@@ -283,4 +293,5 @@ module.exports = {
     addReaction: (...args) => mattermostService.addReaction(...args),
     pinPost: (...args) => mattermostService.pinPost(...args),
     unpinPost: (...args) => mattermostService.unpinPost(...args),
+    getChannelPosts: (...args) => mattermostService.getChannelPosts(...args),
 };

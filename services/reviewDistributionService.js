@@ -3,7 +3,8 @@ const absenceService = require('./absenceService');
 const cacheService = require('./cacheService');
 const {
     getChannelReviewSettings,
-    setChannelReviewSettings
+    setChannelReviewSettings,
+    saveChannelReviewSettings
 } = require('../db/models/reviewSettings');
 const {
     getActiveReviewQueue,
@@ -357,6 +358,23 @@ class ReviewDistributionService {
         } catch (error) {
             logger.error(`[ReviewDistributionService] Ошибка получения настроек канала: ${error.message}`);
             return null;
+        }
+    }
+
+    /**
+     * Сохраняет все настройки ревью канала (включая архитектурное ревью)
+     * @param {string} channel_id - ID канала
+     * @param {Object} options - { is_enabled, review_type, allow_arch_review, arch_review_tag }
+     * @returns {Promise<boolean>}
+     */
+    async saveChannelSettings(channel_id, options) {
+        try {
+            await saveChannelReviewSettings(channel_id, options);
+            logger.info(`[ReviewDistributionService] Настройки канала ${channel_id} сохранены`);
+            return true;
+        } catch (error) {
+            logger.error(`[ReviewDistributionService] Ошибка сохранения настроек канала: ${error.message}`);
+            return false;
         }
     }
 }

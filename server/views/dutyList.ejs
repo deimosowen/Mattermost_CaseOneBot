@@ -37,10 +37,6 @@
                                                             </span>
                                                             <span class="text-muted small">
                                                                 <%= duty.currentDuty.name %>
-                                                                    <% if (duty.currentDuty.username) { %>
-                                                                        <span class="text-muted">(@<%=
-                                                                                duty.currentDuty.username %>)</span>
-                                                                        <% } %>
                                                             </span>
                                                         </div>
                                                         <% } else { %>
@@ -72,10 +68,21 @@
                                                 </div>
                                             </div>
                                             <div class="card-footer bg-transparent border-top-0">
-                                                <a href="/duty?channel_id=<%= duty.channelId %>"
-                                                    class="btn btn-sm btn-outline-primary w-100">
-                                                    <i class="bi bi-gear me-1"></i>Настроить
-                                                </a>
+                                                <div class="d-flex gap-2">
+                                                    <a href="/duty?channel_id=<%= duty.channelId %>"
+                                                        class="btn btn-sm btn-outline-primary flex-grow-1">
+                                                        <i class="bi bi-gear me-1"></i>Настроить
+                                                    </a>
+                                                    <form action="/duty/delete-duty" method="post"
+                                                        onsubmit="return confirm('Удалить это дежурство вместе с расписанием и очередью?');">
+                                                        <input type="hidden" name="channel_id"
+                                                            value="<%= duty.channelId %>">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                            title="Удалить дежурство">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

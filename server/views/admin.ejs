@@ -1,0 +1,280 @@
+<% layout('layout') -%>
+    <% block('title', 'Админ-панель' ); -%>
+
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-12 col-lg-10 mx-auto">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-danger text-white">
+                            <h4 class="mb-0">
+                                <i class="bi bi-shield-check me-2"></i>Админ-панель
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="mb-3">
+                                <i class="bi bi-person-badge me-2"></i>Информация о пользователе
+                            </h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <tbody>
+                                        <tr>
+                                            <th scope="row" style="width: 200px;">Имя</th>
+                                            <td>
+                                                <%= user?.displayName || 'N/A' %>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Email</th>
+                                            <td>
+                                                <%= adminInfo?.email || 'N/A' %>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Mattermost User ID</th>
+                                            <td><code><%= adminInfo?.mattermostUserId || 'N/A' %></code></td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Yandex ID</th>
+                                            <td><code><%= adminInfo?.yandexId || 'N/A' %></code></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <h5 class="mb-3 mt-4">
+                                <i class="bi bi-gear me-2"></i>Системная информация
+                            </h5>
+                            <div id="systemInfo" class="card">
+                                <div class="card-body">
+                                    <div class="text-center">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Загрузка...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <a href="/" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-left me-1"></i>Вернуться на главную
+                                </a>
+                                <button type="button" class="btn btn-primary" id="refreshSystemInfo">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Обновить информацию
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0">
+                                <i class="bi bi-file-text me-2"></i>Последний лог-файл
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <div id="latestLogContainer">
+                                <div class="text-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Загрузка...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-danger text-white">
+                            <h4 class="mb-0">
+                                <i class="bi bi-gear me-2"></i>Управление системой
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6 col-lg-4">
+                                    <a href="/admin/users" class="text-decoration-none">
+                                        <div class="card h-100 border hover-shadow border-danger border-opacity-25">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <div class="bg-danger bg-opacity-10 rounded p-2 me-3">
+                                                        <i class="bi bi-person-gear text-danger"
+                                                            style="font-size: 1.5rem;"></i>
+                                                    </div>
+                                                    <h5 class="card-title mb-0">Пользователи и группы</h5>
+                                                </div>
+                                                <p class="card-text text-muted small mb-0">Настройка групп и видимости
+                                                    пунктов меню</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="col-12 col-md-6 col-lg-4">
+                                    <a href="/admin/invite-channels" class="text-decoration-none">
+                                        <div class="card h-100 border hover-shadow border-danger border-opacity-25">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <div class="bg-danger bg-opacity-10 rounded p-2 me-3">
+                                                        <i class="bi bi-people text-danger"
+                                                            style="font-size: 1.5rem;"></i>
+                                                    </div>
+                                                    <h5 class="card-title mb-0">Каналы для приглашений</h5>
+                                                </div>
+                                                <p class="card-text text-muted small mb-0">Управление основными каналами
+                                                    и префиксами</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="col-12 col-md-6 col-lg-4">
+                                    <a href="/admin/review-channels" class="text-decoration-none">
+                                        <div class="card h-100 border hover-shadow border-primary border-opacity-25">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
+                                                        <i class="bi bi-check2-square text-primary"
+                                                            style="font-size: 1.5rem;"></i>
+                                                    </div>
+                                                    <h5 class="card-title mb-0">Каналы ревью</h5>
+                                                </div>
+                                                <p class="card-text text-muted small mb-0">Управление каналами для формы
+                                                    "Перевод задачи в ревью"</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            async function loadSystemInfo() {
+                try {
+                    const response = await fetch('/admin/api/system-info');
+                    const data = await response.json();
+
+                    const systemInfoDiv = document.getElementById('systemInfo');
+                    systemInfoDiv.innerHTML = `
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong>Node.js версия:</strong><br>
+                            <code class="user-select-all">${data.nodeVersion}</code>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Платформа:</strong><br>
+                            <code class="user-select-all">${data.platform}</code>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Время работы:</strong><br>
+                            <span class="text-muted">${Math.floor(data.uptime / 3600)}ч ${Math.floor((data.uptime % 3600) / 60)}м ${Math.floor(data.uptime % 60)}с</span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Память:</strong><br>
+                            <span class="text-muted">
+                                RSS: ${(data.memory.rss / 1024 / 1024).toFixed(2)} MB<br>
+                                Heap Used: ${(data.memory.heapUsed / 1024 / 1024).toFixed(2)} MB<br>
+                                Heap Total: ${(data.memory.heapTotal / 1024 / 1024).toFixed(2)} MB
+                            </span>
+                        </div>
+                        ${data.database && data.database.size !== null ? `
+                        <div class="col-md-6 mb-3">
+                            <strong><i class="bi bi-database me-1"></i>База данных:</strong><br>
+                            <span class="text-muted">${(data.database.size / 1024 / 1024).toFixed(2)} MB</span>
+                        </div>
+                        ` : ''}
+                        <div class="col-12">
+                            <strong>Время запроса:</strong><br>
+                            <code class="user-select-all">${new Date(data.timestamp).toLocaleString('ru-RU')}</code>
+                        </div>
+                    </div>
+                </div>
+            `;
+                } catch (error) {
+                    document.getElementById('systemInfo').innerHTML = `
+                <div class="card-body">
+                    <div class="alert alert-danger" role="alert">
+                        Ошибка при загрузке информации: ${error.message}
+                    </div>
+                </div>
+            `;
+                }
+            }
+
+            async function loadLatestLog() {
+                try {
+                    const response = await fetch('/admin/api/latest-log');
+                    const data = await response.json();
+
+                    const container = document.getElementById('latestLogContainer');
+
+                    if (data.error) {
+                        container.innerHTML = `
+                    <div class="alert alert-warning mb-0" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>${data.error}
+                    </div>
+                `;
+                        return;
+                    }
+
+                    if (data.logFile && data.logContent) {
+                        const fileSize = (data.logSize / 1024).toFixed(2);
+                        const modifiedDate = new Date(data.logModified).toLocaleString('ru-RU');
+
+                        container.innerHTML = `
+                    <div class="accordion" id="latestLogAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#latestLogContent">
+                                    <div class="d-flex align-items-center w-100">
+                                        <i class="bi bi-file-text me-2"></i>
+                                        <div class="flex-grow-1 text-start">
+                                            <strong>${data.logFile}</strong>
+                                            <small class="text-muted ms-2">${fileSize} KB</small>
+                                        </div>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="latestLogContent" class="accordion-collapse collapse" data-bs-parent="#latestLogAccordion">
+                                <div class="accordion-body">
+                                    <div class="text-muted small mb-2">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Размер: ${fileSize} KB • 
+                                        Изменен: ${modifiedDate}
+                                        ${data.showingLastLines < data.totalLines ? ` • Показано последних ${data.showingLastLines} из ${data.totalLines} строк` : ` • Всего строк: ${data.totalLines}`}
+                                    </div>
+                                    <div class="log-content" style="background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 0.25rem; max-height: 500px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word;">
+${data.logContent}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                    } else {
+                        container.innerHTML = `
+                    <div class="alert alert-info mb-0" role="alert">
+                        <i class="bi bi-info-circle me-2"></i>Лог-файл не найден
+                    </div>
+                `;
+                    }
+                } catch (error) {
+                    document.getElementById('latestLogContainer').innerHTML = `
+                <div class="alert alert-danger mb-0" role="alert">
+                    Ошибка при загрузке лог-файла: ${error.message}
+                </div>
+            `;
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                loadSystemInfo();
+                loadLatestLog();
+
+                document.getElementById('refreshSystemInfo')?.addEventListener('click', () => {
+                    loadSystemInfo();
+                    loadLatestLog();
+                });
+            });
+        </script>

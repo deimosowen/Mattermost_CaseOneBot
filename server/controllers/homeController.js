@@ -1,56 +1,18 @@
 const express = require('express');
+const { getVisibleMenuItems } = require('../menuRegistry');
 
 const router = express.Router();
 
 router.get('/', (req, res) => {
-    // Список доступных страниц для авторизованных пользователей
-    const availablePages = [
-        {
-            title: 'Список дежурств',
-            description: 'Просмотр всех текущих дежурств по каналам',
-            url: '/duty/list',
-            icon: 'bi-list-check',
-            color: 'primary'
-        },
-        {
-            title: 'Настройки календаря',
-            description: 'Настройка уведомлений и интеграции с Яндекс.Календарем',
-            url: '/calendar/settings',
-            icon: 'bi-calendar-event',
-            color: 'info'
-        },
-        {
-            title: 'Feature Ready',
-            description: 'Отметка фичи как готовой к релизу',
-            url: '/feature',
-            icon: 'bi-check-circle',
-            color: 'success'
-        },
-        {
-            title: 'TeamCity',
-            description: 'Настройка уведомлений о сборках TeamCity',
-            url: '/teamcity',
-            icon: 'bi-gear',
-            color: 'warning'
-        },
-        {
-            title: 'Приглашения в каналы',
-            description: 'Приглашение пользователей в каналы Mattermost',
-            url: '/invite',
-            icon: 'bi-people',
-            color: 'secondary'
-        },
-        {
-            title: 'Jira Worklog',
-            description: 'Учет времени в Jira',
-            url: '/jira',
-            icon: 'bi-clock',
-            color: 'secondary'
-        }
-    ];
+    const isAdmin = res.locals.user?.isAdmin || false;
+    const allowedMenuKeys = res.locals.user?.allowedMenuKeys || [];
+    const availablePages = getVisibleMenuItems('main', allowedMenuKeys, { isAdmin });
+    const adminPages = getVisibleMenuItems('admin', allowedMenuKeys, { isAdmin });
 
     res.render('home', {
-        availablePages: availablePages
+        availablePages: availablePages,
+        isAdmin: isAdmin || adminPages.length > 0,
+        adminPages: adminPages
     });
 });
 

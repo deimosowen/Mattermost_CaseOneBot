@@ -1,5 +1,5 @@
 const BaseCronService = require('./baseCronService');
-const { getFeaturesWithOpenMRs, getFeatureReadyById } = require('../db/models/featureReady');
+const { getFeaturesWithOpenMRs, getFeatureReadyById, updateMergeRequestConflicts } = require('../db/models/featureReady');
 const { postMessageInTreed, addReaction } = require('../mattermost/utils');
 const GitlabService = require('../services/gitlabService');
 const JiraService = require('../services/jiraService');
@@ -15,6 +15,38 @@ class FeatureReadyCronService extends BaseCronService {
         this.reaction = 'heavy_check_mark';
     }
 
+    // Маппинг ролей на читаемые названия
+    static ROLE_TO_NAME = {
+        '@c1-back': 'Back-End',
+        '@c1-front': 'Front-End',
+        '@c1-aqa': 'AQA',
+    };
+
+    // Маппинг ролей на теги в заголовках задач Jira
+    static ROLE_TO_TAG = {
+        '@c1-back': '[Back]',
+        '@c1-front': '[Front]',
+        '@c1-aqa': '[AQA]',
+    };
+
+    /**
+     * Получить читаемое название роли
+     * @param {string} role - Роль (например, '@c1-back')
+     * @returns {string} - Название роли или 'Неизвестная роль'
+     */
+    _getRoleName(role) {
+        return FeatureReadyCronService.ROLE_TO_NAME[role] || 'Неизвестная роль';
+    }
+
+    /**
+     * Получить тег для роли в заголовке задачи Jira
+     * @param {string} role - Роль (например, '@c1-back')
+     * @returns {string|null} - Тег или null, если роль не найдена
+     */
+    _getRoleTag(role) {
+        return FeatureReadyCronService.ROLE_TO_TAG[role] || null;
+    }
+
     async loadJobsFromDb() {
         this.createJob('featureReady_polling', this.shedule, async () => {
             const feature_merge_requests = await getFeaturesWithOpenMRs();
@@ -26,6 +58,26 @@ class FeatureReadyCronService extends BaseCronService {
                 try {
                     const mr = await this.gitlab.getMergeRequestStatus(merge_request.project_id, merge_request.mr_iid);
                     if (!mr) continue;
+
+                    // Проверяем, изменился ли статус конфликтов
+                    const currentHasConflicts = Boolean(mr.hasConflicts);
+                    const previousHasConflicts = Boolean(merge_request.has_conflicts);
+
+                    if (previousHasConflicts !== currentHasConflicts) {
+                        // Обновляем статус в базе данных
+                        await updateMergeRequestConflicts(merge_request.feature_merge_request_id, currentHasConflicts);
+
+                        if (previousHasConflicts && !currentHasConflicts) {
+                            // Конфликты были разрешены - отправляем сообщение в тред
+                            const roleName = this._getRoleName(merge_request.role);
+                            const message = `✅ Конфликты для ${roleName} Merge Request были *разрешены*!`;
+                            await postMessageInTreed(merge_request.mattermost_post_id, message);
+                            logger.debug(`[FeatureReadyCron] Конфликты разрешены для ${roleName} MR ${merge_request.mr_iid}`);
+                        } else if (!previousHasConflicts && currentHasConflicts) {
+                            // Появились новые конфликты
+                            logger.debug(`[FeatureReadyCron] Обнаружены конфликты для MR ${merge_request.mr_iid}`);
+                        }
+                    }
 
                     // Проверяем, изменился ли статус MR на финальный статус
                     if (this.gitlab.isFinalStatus(mr.status) && merge_request.mr_status !== mr.status) {
@@ -47,12 +99,7 @@ class FeatureReadyCronService extends BaseCronService {
     }
 
     _formatStatusMessage(role, mrStatus) {
-        const roleMapping = {
-            '@c1-back': 'Back-End',
-            '@c1-front': 'Front-End',
-            '@c1-aqa': 'AQA',
-        };
-        const roleName = roleMapping[role] || 'Неизвестная роль';
+        const roleName = this._getRoleName(role);
 
         switch (mrStatus) {
             case this.statuses.MERGED:
@@ -90,14 +137,8 @@ class FeatureReadyCronService extends BaseCronService {
                 return;
             }
 
-            // Маппинг роли на тег в заголовке задачи
-            const roleToTag = {
-                '@c1-back': '[Back]',
-                '@c1-front': '[Front]',
-                '@c1-aqa': '[AQA]',
-            };
-
-            const expectedTag = roleToTag[merge_request.role];
+            // Получаем тег для роли в заголовке задачи
+            const expectedTag = this._getRoleTag(merge_request.role);
             if (!expectedTag) {
                 return;
             }
@@ -131,12 +172,7 @@ class FeatureReadyCronService extends BaseCronService {
 
             // Отправляем сообщение о закрытых задачах
             if (closedTasks.length > 0) {
-                const roleMapping = {
-                    '@c1-back': 'Back-End',
-                    '@c1-front': 'Front-End',
-                    '@c1-aqa': 'AQA',
-                };
-                const roleName = roleMapping[merge_request.role] || merge_request.role;
+                const roleName = this._getRoleName(merge_request.role);
                 const tasksList = closedTasks.map(id => `- ${id}`).join('\n');
                 const message = `✅ Закрыты задачи на влитие для ${roleName}:\n${tasksList}`;
                 //await postMessageInTreed(merge_request.mattermost_post_id, message);

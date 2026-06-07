@@ -43,8 +43,10 @@ const getFeaturesWithOpenMRs = async () => {
     return db.all(`
         SELECT 
             fr.*,
+            fmr.id AS feature_merge_request_id,
             fmr.merge_request_id,
             fmr.role,
+            fmr.has_conflicts,
             gmr.mr_iid,
             gmr.project_id,
             gmr.status AS mr_status
@@ -53,6 +55,13 @@ const getFeaturesWithOpenMRs = async () => {
         JOIN gitlab_merge_requests gmr ON fmr.merge_request_id = gmr.id
         WHERE gmr.status NOT IN (${placeholders})
     `, FINAL_STATUSES);
+};
+
+const updateMergeRequestConflicts = async (featureMergeRequestId, hasConflicts) => {
+    return db.runAsync(
+        'UPDATE feature_merge_requests SET has_conflicts = ? WHERE id = ?',
+        [hasConflicts ? 1 : 0, featureMergeRequestId]
+    );
 };
 
 const addFeatureReady = async (data, mrs, mattermostPostId) => {
@@ -141,4 +150,5 @@ module.exports = {
     addFeatureReady,
     deleteFeatureReady,
     parseMergeTasks,
+    updateMergeRequestConflicts,
 }

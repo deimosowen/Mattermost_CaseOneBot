@@ -40,12 +40,17 @@ const getDutyUsers = async (channel_id) => {
     return db.all('SELECT * FROM duty_list WHERE channel_id = ? ORDER BY order_number ASC', channel_id);
 };
 
+// Получение пользователя из очереди дежурных
+const getDutyUserById = async (id, channel_id) => {
+    return db.get('SELECT * FROM duty_list WHERE id = ? AND channel_id = ?', [id, channel_id]);
+};
+
 // Установка текущего дежурного
 const setCurrentDuty = async (channel_id, user_id, duty_type = DutyType.REGULAR) => {
-    return db.run(`
+    return db.runAsync(`
         INSERT OR REPLACE INTO duty_current (channel_id, user_id, duty_type)
         VALUES (?, ?, ?)`,
-        channel_id, user_id, duty_type
+        [channel_id, user_id, duty_type]
     );
 };
 
@@ -78,22 +83,22 @@ const updateDutyUsersOrder = async (channel_id, order) => {
 
 // Удаление дежурного пользователя в канале
 const removeDutyUser = async (id, channel_id) => {
-    return db.run('DELETE FROM duty_list WHERE id = ? AND channel_id = ?', id, channel_id);
+    return db.runAsync('DELETE FROM duty_list WHERE id = ? AND channel_id = ?', [id, channel_id]);
 };
 
 // Удаление дежурного расписания
 const deleteDutySchedule = async (channel_id) => {
-    return db.run('DELETE FROM duty_schedule WHERE channel_id = ?', channel_id);
+    return db.runAsync('DELETE FROM duty_schedule WHERE channel_id = ?', [channel_id]);
 };
 
 // Удаление всех дежурных пользователей
 const deleteAllDutyUsers = async (channel_id) => {
-    return db.run('DELETE FROM duty_list WHERE channel_id = ?', channel_id);
+    return db.runAsync('DELETE FROM duty_list WHERE channel_id = ?', [channel_id]);
 };
 
 // Удаление текущего дежурного
 const deleteCurrentDuty = async (channel_id) => {
-    return db.run('DELETE FROM duty_current WHERE channel_id = ?', channel_id);
+    return db.runAsync('DELETE FROM duty_current WHERE channel_id = ?', [channel_id]);
 };
 
 // Получение списка внеочередных дежурных
@@ -120,6 +125,16 @@ const deleteUnscheduledUser = async (id) => {
     return db.run('DELETE FROM duty_unscheduled_list WHERE id = ?', id);
 };
 
+// Удаление внеочередных дежурств пользователя в канале
+const deleteUnscheduledUsersByUser = async (channel_id, user_id) => {
+    return db.runAsync('DELETE FROM duty_unscheduled_list WHERE channel_id = ? AND user_id = ?', [channel_id, user_id]);
+};
+
+// Удаление всех внеочередных дежурных канала
+const deleteAllUnscheduledUsers = async (channel_id) => {
+    return db.runAsync('DELETE FROM duty_unscheduled_list WHERE channel_id = ?', [channel_id]);
+};
+
 // Получение всех внеочередных пользователей
 const getAllUnscheduledUsers = async (channel_id) => {
     return db.all('SELECT * FROM duty_unscheduled_list WHERE channel_id = ? ORDER BY id ASC', channel_id);
@@ -130,12 +145,99 @@ const getAllChannelsWithCurrentDuty = async () => {
     return db.all('SELECT DISTINCT channel_id FROM duty_current');
 };
 
+// Получение настроек тэгания для канала
+const getDutyTagSettings = async (channel_id) => {
+    const settings = await db.all('SELECT * FROM duty_tag_settings WHERE channel_id = ?', channel_id);
+    // Парсим excluded_user_ids из JSON строки и устанавливаем значение по умолчанию для message_template
+    return settings.map(setting => {
+        if (setting.excluded_user_ids) {
+            try {
+                setting.excluded_user_ids = JSON.parse(setting.excluded_user_ids);
+            } catch (e) {
+                setting.excluded_user_ids = [];
+            }
+        } else {
+            setting.excluded_user_ids = [];
+        }
+        // Устанавливаем значение по умолчанию для message_template, если не задано
+        if (!setting.message_template) {
+            setting.message_template = '{duty_mention}';
+        }
+        // Преобразуем allow_bots в boolean
+        setting.allow_bots = Boolean(setting.allow_bots);
+        return setting;
+    });
+};
+
+// Получение всех активных настроек тэгания
+const getAllActiveDutyTagSettings = async () => {
+    const settings = await db.all('SELECT * FROM duty_tag_settings WHERE is_enabled = 1');
+    // Парсим excluded_user_ids из JSON строки и устанавливаем значение по умолчанию для message_template
+    return settings.map(setting => {
+        if (setting.excluded_user_ids) {
+            try {
+                setting.excluded_user_ids = JSON.parse(setting.excluded_user_ids);
+            } catch (e) {
+                setting.excluded_user_ids = [];
+            }
+        } else {
+            setting.excluded_user_ids = [];
+        }
+        // Устанавливаем значение по умолчанию для message_template, если не задано
+        if (!setting.message_template) {
+            setting.message_template = '{duty_mention}';
+        }
+        // Преобразуем allow_bots в boolean
+        setting.allow_bots = Boolean(setting.allow_bots);
+        return setting;
+    });
+};
+
+// Добавление новой настройки тэгания
+const addDutyTagSetting = async (channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots) => {
+    // Преобразуем массив excluded_user_ids в JSON строку
+    const excludedUserIdsJson = excluded_user_ids && Array.isArray(excluded_user_ids)
+        ? JSON.stringify(excluded_user_ids)
+        : '[]';
+
+    // Устанавливаем значение по умолчанию для message_template, если не указано
+    const messageTemplate = message_template || '{duty_mention}';
+
+    return db.run(`
+        INSERT INTO duty_tag_settings (channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `, channel_id, tag, is_enabled ? 1 : 0, channel_prefix || null, excludedUserIdsJson, messageTemplate, allow_bots ? 1 : 0);
+};
+
+// Обновление существующей настройки тэгания
+const updateDutyTagSetting = async (id, channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots) => {
+    // Преобразуем массив excluded_user_ids в JSON строку
+    const excludedUserIdsJson = excluded_user_ids && Array.isArray(excluded_user_ids)
+        ? JSON.stringify(excluded_user_ids)
+        : '[]';
+
+    // Устанавливаем значение по умолчанию для message_template, если не указано
+    const messageTemplate = message_template || '{duty_mention}';
+
+    return db.run(`
+        UPDATE duty_tag_settings 
+        SET channel_id = ?, tag = ?, is_enabled = ?, channel_prefix = ?, excluded_user_ids = ?, message_template = ?, allow_bots = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `, channel_id, tag, is_enabled ? 1 : 0, channel_prefix || null, excludedUserIdsJson, messageTemplate, allow_bots ? 1 : 0, id);
+};
+
+// Удаление настройки тэгания
+const deleteDutyTagSetting = async (id) => {
+    return db.run('DELETE FROM duty_tag_settings WHERE id = ?', id);
+};
+
 module.exports = {
     getDutySchedules,
     setDutySchedule,
     getDutySchedule,
     addDutyUser,
     getDutyUsers,
+    getDutyUserById,
     setCurrentDuty,
     getCurrentDuty,
     deleteDutySchedule,
@@ -146,8 +248,15 @@ module.exports = {
     getFirstUnscheduledUser,
     addUnscheduledUser,
     deleteUnscheduledUser,
+    deleteUnscheduledUsersByUser,
+    deleteAllUnscheduledUsers,
     removeDutyUser,
     updateDutyUsersOrder,
     getAllUnscheduledUsers,
     getAllChannelsWithCurrentDuty,
+    getDutyTagSettings,
+    getAllActiveDutyTagSettings,
+    addDutyTagSetting,
+    updateDutyTagSetting,
+    deleteDutyTagSetting,
 };

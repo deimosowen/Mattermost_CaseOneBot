@@ -1,171 +1,192 @@
 <% layout('layout') -%>
-    <% block('title', 'Настройки Календаря' ); -%>
+<% block('title', 'Настройки Календаря' ); -%>
 
-        <head>
-            <script
-                src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"></script>
-        </head>
+<head>
+    <script
+        src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"></script>
+</head>
 
-        <div class="container my-4">
-            <div class="row justify-content-center">
-                <div class="col-12 col-md-8 col-lg-6">
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12 col-lg-10 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="bi bi-calendar-check me-2"></i>Настройки календаря
+                </h2>
+                <a href="/" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Назад
+                </a>
+            </div>
+
+            <% if (success) { %>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i><strong>Настройки успешно сохранены!</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <% } %>
+
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gear me-2"></i>Параметры
+                    </h5>
                     <% if (yandexAuth) { %>
-                        <div class="row">
-                            <div class="col-12">
-                                <form action="/calendar/logout" method="post" class="text-end">
-                                    <input type="hidden" id="user_id" name="user_id" value="<%= user_id %>">
-                                    <button type="submit" class="btn btn-sm btn-link text-danger">Выйти</button>
-                                </form>
+                        <form action="/calendar/logout" method="post" style="display: inline;">
+                            <input type="hidden" id="user_id" name="user_id" value="<%= user_id %>">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-box-arrow-right me-1"></i>Выйти
+                            </button>
+                        </form>
+                    <% } %>
+                </div>
+                <div class="card-body">
+                    <% if (!yandexAuth) { %>
+                        <div id="buttonContainerId" class="text-center"></div>
+                    <% } %>
+
+                    <% if (yandexAuth) { %>
+                        <form action="/calendar/settings/" method="post" id="calendarSettingsForm">
+                            <input type="hidden" id="user_id" name="user_id" value="<%= user_id %>">
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox"
+                                    id="is_notification" name="is_notification"
+                                    value="1" <%= settings.is_notification ? 'checked' : '' %>>
+                                <label class="form-check-label" for="is_notification">
+                                    <i class="bi bi-bell me-1"></i>Включить уведомления
+                                </label>
                             </div>
-                        </div>
-                        <% } %>
-                            <div class="card shadow-lg mx-auto rounded">
-                                <div class="card-body">
-                                    <h2 class="card-title text-center mb-3">Настройки календаря</h2>
-                                    <% if (success) { %>
-                                        <div class="alert alert-success text-center" role="alert">
-                                            Настройки успешно сохранены!
+
+                            <div class="mb-3">
+                                <label for="notification_interval" class="form-label">
+                                    <i class="bi bi-clock me-1"></i>Уведомлять меня:
+                                </label>
+                                <select class="form-select" id="notification_interval" name="notification_interval">
+                                    <option value="10" <%= settings.notification_interval === 10 ? 'selected' : '' %>>
+                                        За 10 минут до начала события
+                                    </option>
+                                    <option value="5" <%= settings.notification_interval === 5 ? 'selected' : '' %>>
+                                        За 5 минут до начала события
+                                    </option>
+                                    <option value="1" <%= settings.notification_interval === 1 ? 'selected' : '' %>>
+                                        За 1 минуту до начала события
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#experimentalFeatures" aria-expanded="false"
+                                    aria-controls="experimentalFeatures">
+                                    <i class="bi bi-chevron-down me-1"></i>Экспериментальные функции
+                                </button>
+                                <div class="collapse" id="experimentalFeatures">
+                                    <div class="card card-body mt-3">
+                                        <h6 class="mb-3">
+                                            <i class="bi bi-slack me-2"></i>Смена статуса в Mattermost
+                                        </h6>
+                                        <div class="mb-3">
+                                            <label for="mattermost_token" class="form-label">
+                                                <i class="bi bi-key me-1"></i>Токен
+                                            </label>
+                                            <input type="text" class="form-control" id="mattermost_token"
+                                                name="mattermost_token" value="<%= settings.mattermost_token || '' %>">
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                <a href="#" data-bs-toggle="modal" data-bs-target="#tokenInfoModal">
+                                                    Как получить токен?
+                                                </a>
+                                            </div>
                                         </div>
-                                        <% } %>
-
-                                            <% if (!yandexAuth) { %>
-                                                <div id="buttonContainerId"></div>
-                                                <% } %>
-
-                                                    <% if (yandexAuth) { %>
-                                                        <form action="/calendar/settings/" method="post">
-                                                            <input type="hidden" id="user_id" name="user_id"
-                                                                value="<%= user_id %>">
-                                                            <div class="form-check mb-3">
-                                                                <input class="form-check-input" type="checkbox"
-                                                                    id="is_notification" name="is_notification"
-                                                                    value="1" <%=settings.is_notification ? 'checked'
-                                                                    : '' %>>
-                                                                <label class="form-check-label"
-                                                                    for="is_notification">Включить
-                                                                    уведомления</label>
-                                                            </div>
-                                                            <div class="mb-3">
-                                                                <label for="notification_interval"
-                                                                    class="form-label">Уведомлять
-                                                                    меня:</label>
-                                                                <select class="form-select" id="notification_interval"
-                                                                    name="notification_interval">
-                                                                    <option value="10"
-                                                                        <%=settings.notification_interval===10
-                                                                        ? 'selected' : '' %>
-                                                                        >За 10 минут до начала события</option>
-                                                                    <option value="5"
-                                                                        <%=settings.notification_interval===5
-                                                                        ? 'selected' : '' %>>За
-                                                                        5 минут до начала события</option>
-                                                                    <option value="1"
-                                                                        <%=settings.notification_interval===1
-                                                                        ? 'selected' : '' %>>За
-                                                                        1 минуту до начала события</option>
-                                                                </select>
-                                                            </div>
-
-                                                            <div class="mb-3">
-                                                                <button class="btn btn-link w-100 text-start"
-                                                                    type="button" data-bs-toggle="collapse"
-                                                                    data-bs-target="#experimentalFeatures"
-                                                                    aria-expanded="false"
-                                                                    aria-controls="experimentalFeatures">
-                                                                    Экспериментальные функции
-                                                                </button>
-                                                                <div class="collapse" id="experimentalFeatures">
-                                                                    <div class="card card-body">
-                                                                        <h6>Смена статуса в Mattermost</h6>
-                                                                        <div class="mb-3">
-                                                                            <label for="mattermost_token"
-                                                                                class="form-label">Токен</label>
-                                                                            <input type="text" class="form-control"
-                                                                                id="mattermost_token"
-                                                                                name="mattermost_token">
-                                                                            <div class="form-text">
-                                                                                <a href="#" data-bs-toggle="modal"
-                                                                                    data-bs-target="#tokenInfoModal">Как
-                                                                                    получить токен?</a>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div class="form-check mb-3">
-                                                                            <input class="form-check-input"
-                                                                                type="checkbox" id="dnd_mode"
-                                                                                name="dnd_mode" value="1"
-                                                                                <%=settings.dnd_mode ? 'checked' : ''
-                                                                                %>>
-                                                                            <label class="form-check-label"
-                                                                                for="dnd_mode">Режим
-                                                                                не
-                                                                                беспокоить</label>
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label for="event_summary"
-                                                                                class="form-label">Текст
-                                                                                статуса</label>
-                                                                            <input type="text" class="form-control"
-                                                                                id="event_summary"
-                                                                                value="<%= settings.event_summary || '' %>"
-                                                                                placeholder="По умолчанию: Название мероприятия"
-                                                                                name="event_summary">
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            <button type="submit"
-                                                                class="btn btn-primary w-100">Сохранить</button>
-                                                        </form>
-                                                        <% } %>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="dnd_mode"
+                                                name="dnd_mode" value="1" <%= settings.dnd_mode ? 'checked' : '' %>>
+                                            <label class="form-check-label" for="dnd_mode">
+                                                <i class="bi bi-moon me-1"></i>Режим не беспокоить
+                                            </label>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="event_summary" class="form-label">
+                                                <i class="bi bi-card-text me-1"></i>Текст статуса
+                                            </label>
+                                            <input type="text" class="form-control" id="event_summary"
+                                                value="<%= settings.event_summary || '' %>"
+                                                placeholder="По умолчанию: Название мероприятия"
+                                                name="event_summary">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary" id="submitButton">
+                                    <i class="bi bi-check-circle me-1"></i>Сохранить
+                                </button>
+                            </div>
+                        </form>
+                    <% } %>
                 </div>
             </div>
         </div>
+    </div>
+</div>
 
-        <div class="modal fade" id="tokenInfoModal" tabindex="-1" aria-labelledby="tokenInfoModalLabel"
-            aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="tokenInfoModalLabel">Информация о получении токена</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Чтобы получить токен для Mattermost, выполните следующие шаги:</p>
-                        <ol>
-                            <li>Откройте браузер и войдите на сервер Mattermost.</li>
-                            <li>Откройте инструменты разработчика, нажав F12.</li>
-                            <li>Перейдите во вкладку "Application" в верхней части панели инструментов разработчика.
-                            </li>
-                            <li>В левой панели выберите "Cookies" и найдите название вашего сервера в списке.</li>
-                            <li>В списке cookies найдите "MMAUTHTOKEN" и скопируйте его значение.</li>
-                        </ol>
-                        <div class="alert alert-warning" role="alert">
-                            Важно: Передача токена третьим лицам может привести к нежелательным последствиям для
-                            безопасности. Используйте эту функцию на свой страх и риск.
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                    </div>
+<!-- Modal для информации о токене -->
+<div class="modal fade" id="tokenInfoModal" tabindex="-1" aria-labelledby="tokenInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tokenInfoModalLabel">
+                    <i class="bi bi-info-circle me-2"></i>Информация о получении токена
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Чтобы получить токен для Mattermost, выполните следующие шаги:</p>
+                <ol>
+                    <li>Откройте браузер и войдите на сервер Mattermost.</li>
+                    <li>Откройте инструменты разработчика, нажав F12.</li>
+                    <li>Перейдите во вкладку "Application" в верхней части панели инструментов разработчика.</li>
+                    <li>В левой панели выберите "Cookies" и найдите название вашего сервера в списке.</li>
+                    <li>В списке cookies найдите "MMAUTHTOKEN" и скопируйте его значение.</li>
+                </ol>
+                <div class="alert alert-warning" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Важно:</strong> Передача токена третьим лицам может привести к нежелательным последствиям для
+                    безопасности. Используйте эту функцию на свой страх и риск.
                 </div>
             </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
         </div>
+    </div>
+</div>
 
-        <script>
-            const yandexAuth = '<%= yandexAuth %>' === 'true';
-            document.addEventListener('DOMContentLoaded', function () {
-                if (!yandexAuth) {
-                    yandexInit();
-                } else {
-                    var myCollapse = document.getElementById('experimentalFeatures');
-                    var bsCollapse = new bootstrap.Collapse(myCollapse, {
-                        toggle: false
-                    });
-                }
-            });
+<script>
+    const yandexAuth = '<%= yandexAuth %>' === 'true';
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!yandexAuth) {
+            yandexInit();
+        } else {
+            var myCollapse = document.getElementById('experimentalFeatures');
+            if (myCollapse) {
+                var bsCollapse = new bootstrap.Collapse(myCollapse, {
+                    toggle: false
+                });
+            }
+
+            // Обработка отправки формы
+            const form = document.getElementById('calendarSettingsForm');
+            const submitButton = document.getElementById('submitButton');
+            if (form && submitButton) {
+                form.addEventListener('submit', function(e) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Сохранение...';
+                });
+            }
+        }
+    });
 
             function yandexInit() {
                 YaAuthSuggest.init(

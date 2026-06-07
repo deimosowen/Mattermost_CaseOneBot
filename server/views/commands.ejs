@@ -1,0 +1,144 @@
+<% layout('layout') -%>
+<% block('title', 'Список команд - CaseOneBot' ); -%>
+
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12 col-lg-10 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="bi bi-terminal me-2"></i>Список команд CaseOneBot
+                </h2>
+                <a href="/" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Назад на главную
+                </a>
+            </div>
+
+            <div class="alert alert-info mb-4" role="alert">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Как использовать команды?</strong><br>
+                Все команды начинаются с символа <code>!</code> и выполняются в каналах Mattermost. 
+                Параметры разделяются символом <code>;</code> (точка с запятой). 
+                Для получения подробной справки по конкретной категории команд используйте команды <code>!*-help</code>.
+            </div>
+
+            <% commandCategories.forEach((category, catIndex) => { %>
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-<%= category.color %> text-white">
+                        <h5 class="mb-0">
+                            <i class="bi <%= category.icon %> me-2"></i><%= category.title %>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="accordion" id="category<%= catIndex %>Accordion">
+                            <% category.commands.forEach((cmd, cmdIndex) => { %>
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="heading<%= catIndex %>_<%= cmdIndex %>">
+                                        <button class="accordion-button <%= cmdIndex === 0 ? '' : 'collapsed' %>" 
+                                            type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#collapse<%= catIndex %>_<%= cmdIndex %>">
+                                            <div class="d-flex align-items-center w-100">
+                                                <code class="me-3 text-primary" style="font-size: 1rem;"><%= cmd.command %></code>
+                                                <span class="text-muted small flex-grow-1"><%= cmd.description %></span>
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse<%= catIndex %>_<%= cmdIndex %>" 
+                                        class="accordion-collapse collapse <%= cmdIndex === 0 ? 'show' : '' %>" 
+                                        data-bs-parent="#category<%= catIndex %>Accordion">
+                                        <div class="accordion-body">
+                                            <div class="row g-3">
+                                                <div class="col-12">
+                                                    <h6 class="text-muted mb-2">
+                                                        <i class="bi bi-code me-1"></i>Синтаксис:
+                                                    </h6>
+                                                    <div class="bg-light p-3 rounded mb-3">
+                                                        <code class="text-dark" style="font-size: 0.95rem;"><%= cmd.syntax %></code>
+                                                    </div>
+                                                </div>
+                                                <div class="col-12">
+                                                    <h6 class="text-muted mb-2">
+                                                        <i class="bi bi-lightbulb me-1"></i>Пример:
+                                                    </h6>
+                                                    <div class="bg-dark text-light p-3 rounded mb-3">
+                                                        <code style="font-size: 0.95rem;"><%= cmd.example %></code>
+                                                    </div>
+                                                </div>
+                                                <div class="col-12">
+                                                    <h6 class="text-muted mb-2">
+                                                        <i class="bi bi-question-circle me-1"></i>Описание:
+                                                    </h6>
+                                                    <p class="mb-0"><%= cmd.help %></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+                    </div>
+                </div>
+            <% }); %>
+
+            <div class="card shadow-sm border-info mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-book me-2"></i>Полезные подсказки
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <h6><i class="bi bi-clock me-2"></i>Cron-расписание</h6>
+                            <p class="small text-muted mb-2">
+                                Cron-расписание состоит из 5 полей, разделенных пробелами:
+                            </p>
+                            <ol class="small mb-0">
+                                <li><strong>Минуты</strong> (0 - 59)</li>
+                                <li><strong>Часы</strong> (0 - 23, UTC)</li>
+                                <li><strong>Дни месяца</strong> (1 - 31)</li>
+                                <li><strong>Месяцы</strong> (1 - 12)</li>
+                                <li><strong>Дни недели</strong> (0 - 7, где 0 и 7 - воскресенье)</li>
+                            </ol>
+                            <p class="small text-muted mt-2 mb-0">
+                                <code>*</code> означает "любое значение". 
+                                Например, <code>0 9 * * 1-5</code> означает "каждый рабочий день в 9:00 UTC".
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="bi bi-hash me-2"></i>Channel ID</h6>
+                            <p class="small text-muted mb-2">
+                                Для некоторых команд требуется указать Channel ID. Чтобы узнать ID канала:
+                            </p>
+                            <ul class="small mb-0">
+                                <li>Откройте канал в Mattermost</li>
+                                <li>Нажмите на название канала вверху</li>
+                                <li>ID канала будет указан в информации о канале</li>
+                                <li>Или используйте ссылку на канал - ID находится в URL</li>
+                            </ul>
+                        </div>
+                        <div class="col-12">
+                            <h6><i class="bi bi-exclamation-triangle me-2"></i>Важно</h6>
+                            <ul class="small mb-0">
+                                <li>Все команды выполняются в <strong>UTC-поясе</strong></li>
+                                <li>Параметры разделяются символом <code>;</code> (точка с запятой)</li>
+                                <li>Для получения справки используйте команды <code>!*-help</code></li>
+                                <li>Некоторые команды требуют прав администратора</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .accordion-button:not(.collapsed) {
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+    code {
+        word-break: break-word;
+    }
+</style>
+

@@ -1,6 +1,8 @@
 // Централизованные моки для команды review
 jest.mock('../../../mattermost/utils');
 jest.mock('../../../db/models/reviewTask');
+jest.mock('../../../db/models/reviewChannels');
+jest.mock('../../../services/reviewChannelAvailabilityService');
 jest.mock('../../../services/jiraService');
 jest.mock('../../../services/jiraService/jiraHelper', () => ({
     isToDoStatus: jest.fn(),
@@ -34,6 +36,8 @@ const {
     addTaskNotification,
 } = require('../../../db/models/reviewTask');
 
+const { getEnabledReviewChannelIdsForUser } = require('../../../services/reviewChannelAvailabilityService');
+
 const JiraService = require('../../../services/jiraService');
 const { isToDoStatus, isInProgressStatus } = require('../../../services/jiraService/jiraHelper');
 const logger = require('../../../logger');
@@ -47,6 +51,7 @@ beforeEach(() => {
     getChannelMembers.mockResolvedValue([{ user_id: 'user-1' }]);
     getReviewTaskByKey.mockResolvedValue(null);
     getReviewTaskByPostId.mockResolvedValue(null);
+    getEnabledReviewChannelIdsForUser.mockResolvedValue(['test-channel-1']);
 
     // Хелперы статусов: по умолчанию соответствуют строковым статусам
     isToDoStatus.mockImplementation(s => s === 'To Do');
@@ -79,6 +84,7 @@ module.exports = {
     updateReviewTaskStatus,
     updateReviewTaskReviewer,
     addTaskNotification,
+    getEnabledReviewChannelIdsForUser,
 
     // jira
     JiraService,

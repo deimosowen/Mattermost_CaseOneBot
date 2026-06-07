@@ -1,0 +1,419 @@
+<% layout('layout') -%>
+    <% block('title', 'Управление напоминаниями' ); -%>
+
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-12 col-lg-10 mx-auto">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="mb-0">
+                            <i class="bi bi-bell me-2"></i>Управление напоминаниями
+                        </h2>
+                        <a href="/" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-left me-1"></i>Назад на главную
+                        </a>
+                    </div>
+
+                    <% if (error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <%= error %>
+                        </div>
+                        <% } %>
+
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-plus-circle me-2"></i>Добавить напоминание
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-3" role="alert">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <strong>Как создать напоминание?</strong><br>
+                                        Напоминания работают по cron-расписанию в UTC-поясе. Укажите канал, расписание и
+                                        сообщение.
+                                        <div class="mt-2">
+                                            <strong>Примеры cron-расписаний:</strong>
+                                            <ul class="mb-0 mt-2 small">
+                                                <li><code>0 9 * * 1-5</code> - Каждый рабочий день в 9:00 UTC</li>
+                                                <li><code>0 */2 * * *</code> - Каждые 2 часа</li>
+                                                <li><code>0 0 * * 0</code> - Каждое воскресенье в полночь</li>
+                                                <li><code>30 14 * * *</code> - Каждый день в 14:30 UTC</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <form id="addReminderForm">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label for="channelId" class="form-label">Channel ID <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="channelId" name="channel_id"
+                                                    placeholder="channel_id" required>
+                                                <div class="form-text">ID канала в Mattermost, куда будет отправляться
+                                                    напоминание</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="channelName" class="form-label">Название канала</label>
+                                                <input type="text" class="form-control" id="channelName"
+                                                    name="channel_name" placeholder="Название канала (опционально)">
+                                                <div class="form-text">Отображаемое название канала (для удобства)</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="schedule" class="form-label">Cron-расписание <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="schedule" name="schedule"
+                                                    placeholder="0 9 * * 1-5" required>
+                                                <div class="form-text">Формат: минуты часы день месяц день_недели (UTC)
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="message" class="form-label">Сообщение <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="message" name="message"
+                                                    placeholder="Время для перерыва на кофе!" required>
+                                                <div class="form-text">Текст напоминания, который будет отправлен в
+                                                    канал</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch mt-md-4 pt-md-2">
+                                                    <input class="form-check-input" type="checkbox"
+                                                        id="useWorkingDays" name="use_working_days">
+                                                    <label class="form-check-label" for="useWorkingDays">
+                                                        Отправлять только в рабочие дни
+                                                    </label>
+                                                </div>
+                                                <div class="form-text">Если включено, напоминание не отправится в
+                                                    выходной или праздник</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bi bi-plus-circle me-1"></i>Добавить напоминание
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <div class="card shadow-sm">
+                                <div class="card-header reminders-list-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-list-ul me-2"></i>Текущие напоминания
+                                        </h5>
+                                        <% if (channels && channels.length> 0) { %>
+                                            <span class="badge bg-primary">
+                                                Всего: <%= channels.reduce((sum, ch)=> sum + ch.reminders.length, 0) %>
+                                                    напоминаний
+                                            </span>
+                                            <% } %>
+                                    </div>
+                                </div>
+                                <div class="card-body p-0">
+                                    <% if (channels && channels.length> 0) { %>
+                                        <div class="accordion accordion-flush" id="remindersAccordion">
+                                            <% channels.forEach((channel, index)=> { %>
+                                                <div class="accordion-item border-bottom">
+                                                    <h2 class="accordion-header" id="heading<%= index %>">
+                                                        <button
+                                                            class="accordion-button <%= index === 0 ? '' : 'collapsed' %>"
+                                                            type="button" data-bs-toggle="collapse"
+                                                            data-bs-target="#collapse<%= index %>">
+                                                            <div class="d-flex align-items-center w-100">
+                                                                <i class="bi bi-hash me-2 text-primary"></i>
+                                                                <strong class="me-2">
+                                                                    <%= channel.name %>
+                                                                </strong>
+                                                                <span class="badge bg-primary rounded-pill ms-auto">
+                                                                    <%= channel.reminders.length %> напоминание(ий)
+                                                                </span>
+                                                            </div>
+                                                        </button>
+                                                    </h2>
+                                                    <div id="collapse<%= index %>"
+                                                        class="accordion-collapse collapse <%= index === 0 ? 'show' : '' %>"
+                                                        data-bs-parent="#remindersAccordion">
+                                                        <div class="accordion-body p-0">
+                                                            <div class="table-responsive">
+                                                                <table class="table table-hover align-middle mb-0">
+                                                                    <thead class="table-head-themed">
+                                                                        <tr>
+                                                                            <th scope="col" style="width: 8%;">
+                                                                                <i
+                                                                                    class="bi bi-hash me-1 text-muted"></i>ID
+                                                                            </th>
+                                                                            <th scope="col" style="width: 22%;">
+                                                                                <i
+                                                                                    class="bi bi-clock me-1 text-muted"></i>Расписание
+                                                                            </th>
+                                                                            <th scope="col" style="width: 35%;">
+                                                                                <i
+                                                                                    class="bi bi-chat-text me-1 text-muted"></i>Сообщение
+                                                                            </th>
+                                                                            <th scope="col" style="width: 15%;">
+                                                                                <i
+                                                                                    class="bi bi-calendar-check me-1 text-muted"></i>Дни
+                                                                            </th>
+                                                                            <th scope="col" style="width: 10%;">
+                                                                                <i
+                                                                                    class="bi bi-person me-1 text-muted"></i>Автор
+                                                                            </th>
+                                                                            <th scope="col" style="width: 10%;"
+                                                                                class="text-end">
+                                                                                <i
+                                                                                    class="bi bi-gear me-1 text-muted"></i>Действия
+                                                                            </th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <% channel.reminders.forEach(reminder=> { %>
+                                                                            <tr data-id="<%= reminder.id %>"
+                                                                                class="reminder-row">
+                                                                                <td>
+                                                                                    <span
+                                                                                        class="badge bg-primary rounded-pill">
+                                                                                        #<%= reminder.id %>
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <div
+                                                                                        class="d-flex align-items-center">
+                                                                                        <i
+                                                                                            class="bi bi-calendar-event me-2 text-primary"></i>
+                                                                                        <code
+                                                                                            class="schedule-code px-2 py-1 rounded"><%= reminder.schedule %></code>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <div
+                                                                                        class="d-flex align-items-center">
+                                                                                        <i
+                                                                                            class="bi bi-bell me-2 text-warning"></i>
+                                                                                        <span class="text-break">
+                                                                                            <%= reminder.message %>
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <div class="form-check form-switch mb-0">
+                                                                                        <input
+                                                                                            class="form-check-input working-days-toggle"
+                                                                                            type="checkbox"
+                                                                                            id="workingDays-<%= reminder.id %>"
+                                                                                            data-id="<%= reminder.id %>"
+                                                                                            <%= reminder.use_working_days
+                                                                                                ? 'checked' : '' %>>
+                                                                                        <label class="form-check-label small"
+                                                                                            for="workingDays-<%= reminder.id %>">
+                                                                                            Рабочие
+                                                                                        </label>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <div
+                                                                                        class="d-flex align-items-center">
+                                                                                        <i
+                                                                                            class="bi bi-person-circle me-2 text-secondary"></i>
+                                                                                        <small class="text-muted">
+                                                                                            <%= reminder.user_name
+                                                                                                || 'System' %>
+                                                                                        </small>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td class="text-end">
+                                                                                    <button type="button"
+                                                                                        class="btn btn-sm btn-danger remove-reminder-btn"
+                                                                                        data-id="<%= reminder.id %>"
+                                                                                        data-channel-id="<%= reminder.channel_id %>"
+                                                                                        data-message="<%= reminder.message %>"
+                                                                                        title="Удалить напоминание">
+                                                                                        <i class="bi bi-trash"></i>
+                                                                                    </button>
+                                                                                </td>
+                                                                            </tr>
+                                                                            <% }); %>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <% }); %>
+                                        </div>
+                                        <% } else { %>
+                                            <div class="text-center py-5">
+                                                <i class="bi bi-bell-slash text-muted" style="font-size: 4rem;"></i>
+                                                <p class="text-muted mt-3 mb-1 fs-5">Напоминания не найдены</p>
+                                                <p class="text-muted small">Добавьте первое напоминание используя форму
+                                                    выше</p>
+                                            </div>
+                                            <% } %>
+                                </div>
+                            </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Добавление напоминания
+            document.getElementById('addReminderForm')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(e.target);
+                const data = {
+                    channel_id: formData.get('channel_id').trim(),
+                    channel_name: formData.get('channel_name')?.trim() || formData.get('channel_id').trim(),
+                    schedule: formData.get('schedule').trim(),
+                    message: formData.get('message').trim(),
+                    use_working_days: document.getElementById('useWorkingDays')?.checked || false
+                };
+
+                try {
+                    const response = await fetch('/reminders/api/reminders', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                    }
+                } catch (error) {
+                    alert('Ошибка: ' + error.message);
+                }
+            });
+
+            // Переключение рабочих дней
+            document.querySelectorAll('.working-days-toggle').forEach(toggle => {
+                toggle.addEventListener('change', async () => {
+                    const id = toggle.dataset.id;
+                    const previousValue = !toggle.checked;
+                    toggle.disabled = true;
+
+                    try {
+                        const response = await fetch(`/reminders/api/reminders/${id}/working-days`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ use_working_days: toggle.checked })
+                        });
+
+                        const result = await response.json();
+                        if (!result.success) {
+                            throw new Error(result.error || 'Неизвестная ошибка');
+                        }
+                    } catch (error) {
+                        toggle.checked = previousValue;
+                        alert('Ошибка: ' + error.message);
+                    } finally {
+                        toggle.disabled = false;
+                    }
+                });
+            });
+
+            // Удаление напоминания
+            document.querySelectorAll('.remove-reminder-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.id;
+                    const channelId = btn.dataset.channelId;
+                    const message = btn.dataset.message;
+
+                    if (!confirm(`Удалить напоминание #${id}?\nСообщение: "${message}"`)) {
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`/reminders/api/reminders/${id}?channel_id=${encodeURIComponent(channelId)}`, {
+                            method: 'DELETE'
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            location.reload();
+                        } else {
+                            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                        }
+                    } catch (error) {
+                        alert('Ошибка: ' + error.message);
+                    }
+                });
+            });
+        </script>
+
+        <style>
+            .hover-shadow {
+                transition: box-shadow 0.2s ease-in-out;
+            }
+
+            .hover-shadow:hover {
+                box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+            }
+
+            .reminder-row {
+                transition: background-color 0.2s ease-in-out;
+            }
+
+            .reminder-row:hover {
+                background-color: rgba(13, 110, 253, 0.05) !important;
+            }
+
+            .table-head-themed {
+                background-color: var(--bs-secondary-bg, #f8f9fa);
+            }
+
+            .table-head-themed th {
+                border-bottom: 2px solid var(--bs-border-color, #dee2e6);
+                font-weight: 600;
+                text-transform: uppercase;
+                font-size: 0.85rem;
+                letter-spacing: 0.5px;
+                color: var(--bs-secondary-color, #6c757d);
+            }
+
+            .table tbody td {
+                vertical-align: middle;
+                padding: 1rem 0.75rem;
+            }
+
+            .table code,
+            .schedule-code {
+                font-size: 0.9rem;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                font-family: 'Courier New', monospace;
+                background-color: var(--bs-secondary-bg, #f8f9fa);
+            }
+
+            .btn-sm {
+                padding: 0.375rem 0.75rem;
+                font-size: 0.875rem;
+                border-radius: 0.375rem;
+            }
+
+            .badge {
+                font-weight: 500;
+                padding: 0.35em 0.65em;
+            }
+
+            .accordion-flush .accordion-item {
+                border-left: none;
+                border-right: none;
+            }
+
+            .accordion-button:not(.collapsed) {
+                background-color: rgba(13, 110, 253, 0.08);
+                color: inherit;
+            }
+
+            .accordion-button:focus {
+                box-shadow: none;
+                border-color: rgba(13, 110, 253, 0.25);
+            }
+
+            .reminders-list-header {
+                background-color: var(--bs-secondary-bg, #f8f9fa);
+                color: var(--bs-body-color);
+            }
+        </style>

@@ -1,295 +1,1189 @@
 <% layout('layout') -%>
-    <% block('title', 'Дежурства' ); -%>
+    <% block('title', 'Настройки дежурств' ); -%>
 
         <div class="container my-5">
+            <!-- Скрытые поля для передачи данных в JavaScript -->
+            <input type="hidden" id="dataChannelId" value="<%= channel_id %>">
+            <input type="hidden" id="dataSchedule" value="<%= scheduleJson %>">
+            <input type="hidden" id="dataCurrentDutyIndex"
+                value="<%= currentDutyIndex !== undefined ? currentDutyIndex : -1 %>">
+            <input type="hidden" id="dataEmployeesCount" value="<%= employees ? employees.length : 0 %>">
+            <input type="hidden" id="dataIsCurrentDutyUnscheduled"
+                value="<%= isCurrentDutyUnscheduled !== undefined ? isCurrentDutyUnscheduled : false %>">
+            <input type="hidden" id="dataTagSettings" value="<%= tagSettingsJson %>">
+
             <div class="row">
-                <div class="col-12 col-md-8 mx-auto">
-                    <div class="card shadow">
+                <div class="col-12 col-lg-10 mx-auto">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="mb-0">
+                            <i class="bi bi-calendar-check me-2"></i>Настройки дежурств
+                            <% if (channel) { %>
+                                <small class="text-muted">— <%= channel.name %></small>
+                                <% } %>
+                        </h2>
+                        <a href="/duty/list" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-left me-1"></i>Назад к списку
+                        </a>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="bi bi-clock-history me-2"></i>Расписание
+                            </h5>
+                        </div>
                         <div class="card-body">
-                            <div class="d-flex flex-column align-items-center">
-                                <h1 class="card-title text-center">Дежурства</h1>
-                                <h6 class="text-center text-muted small" id="cronDescription"></h6>
-                            </div>
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Имя</th>
-                                        <th scope="col">Статус</th>
-                                        <th scope="col" class="text-end">
-                                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
-                                                data-bs-target="#addUserModal">
-                                                Добавить
-                                            </button>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sortableTableBody">
-                                    <% employees.forEach(employee=> { %>
-                                        <tr data-id="<%= employee.id %>">
-                                            <td class="align-middle">
-                                                <%= employee.name %>
-                                            </td>
-                                            <td class="align-middle">
-                                                <span
-                                                    class="badge <%= statusBadgeClasses[employee.status] || 'bg-secondary' %>">
-                                                    <%= employee.status %>
-                                                </span>
-                                                <% if(employee.return_date) { %>
-                                                    </br>
-                                                    <span class="badge bg-warning text-dark">
-                                                        до <%= employee.return_date %>
-                                                    </span>
-                                                    <% } %>
-                                                        <% if(employee.isUnsheduled) { %>
-                                                            </br>
-                                                            <span class="badge bg-warning text-dark">
-                                                                Внеочередной
+                            <p class="mb-0 text-muted" id="cronDescription">
+                                <i class="bi bi-hourglass-split me-2"></i>Загрузка расписания...
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-people me-2"></i>Очередь дежурных
+                            </h5>
+                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#addUserModal">
+                                <i class="bi bi-person-plus me-1"></i>Добавить
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <% if (employees && employees.length> 0) { %>
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 50px;">#</th>
+                                                <th scope="col">Имя</th>
+                                                <th scope="col">Статус</th>
+                                                <th scope="col">Когда будет дежурным</th>
+                                                <th scope="col" class="text-end">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sortableTableBody">
+                                            <% employees.forEach((employee, index)=> { %>
+                                                <tr data-id="<%= employee.id %>" data-index="<%= index %>">
+                                                    <td class="align-middle">
+                                                        <span class="badge bg-secondary">
+                                                            <%= index + 1 %>
+                                                        </span>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <%= employee.name %>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <span
+                                                            class="badge <%= statusBadgeClasses[employee.status] || 'bg-secondary' %>">
+                                                            <%= employee.status %>
+                                                        </span>
+                                                        <% if(employee.status==='Текущий' && employee.isDisabled) { %>
+                                                            <span class="badge bg-danger ms-1">
+                                                                Отключен
                                                             </span>
                                                             <% } %>
-                                            </td>
-                                            <td class="text-end align-middle">
-                                                <% if (employee.status==='Текущий' ) { %>
-                                                    <form action="/duty/change-next" method="post"
-                                                        style="display: inline;">
-                                                        <input type="hidden" name="channel_id"
-                                                            value="<%= channel_id %>">
-                                                        <button type="submit"
-                                                            class="btn btn-outline-light btn-sm me-2">Сменить</button>
-                                                    </form>
-                                                    <form action="/duty/update-status" method="post"
-                                                        style="display: inline;" id="statusForm-<%= employee.id %>">
-                                                        <input type="hidden" name="id" value="<%= employee.id %>">
-                                                        <input type="hidden" name="username"
-                                                            value="<%= employee.username %>">
-                                                        <input type="hidden" name="channel_id"
-                                                            value="<%= channel_id %>">
-                                                        <input type="hidden" name="status" value="-1">
-                                                        <button type="submit"
-                                                            class="btn btn-outline-warning btn-sm">Сдвинуть</button>
-                                                    </form>
-                                                    <% } else { %>
-                                                        <form action="/duty/update-status" method="post"
-                                                            id="statusForm-<%= employee.id %>">
-                                                            <input type="hidden" name="id" value="<%= employee.id %>">
-                                                            <input type="hidden" name="username"
-                                                                value="<%= employee.username %>">
-                                                            <input type="hidden" name="channel_id"
-                                                                value="<%= channel_id %>">
-                                                            <% if (employee.status==='Активный' ) { %>
-                                                                <input type="hidden" name="status" value="1">
-                                                                <input type="hidden" name="return_date" value="">
+                                                        <% if(employee.return_date) { %>
+                                                            </br>
+                                                            <span class="badge bg-warning text-dark">
+                                                                до <%= employee.return_date %>
+                                                            </span>
+                                                            <% } %>
+                                                                <% if(employee.isUnsheduled) { %>
+                                                                    </br>
+                                                                    <span class="badge bg-warning text-dark">
+                                                                        Внеочередной
+                                                                    </span>
+                                                                    <% } %>
+                                                    </td>
+                                                    <td class="align-middle">
+                                                        <span class="next-duty-date" data-employee-index="<%= index %>">
+                                                            <i class="bi bi-hourglass-split me-1"></i>Расчет...
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end align-middle">
+                                                        <% if (employee.status==='Текущий' ) { %>
+                                                            <form action="/duty/change-next" method="post"
+                                                                style="display: inline;">
+                                                                <input type="hidden" name="channel_id"
+                                                                    value="<%= channel_id %>">
+                                                                <button type="submit"
+                                                                    class="btn btn-outline-light btn-sm me-2">Сменить</button>
+                                                            </form>
+                                                            <% if (isAdmin) { %>
+                                                                <form action="/duty/change-next" method="post"
+                                                                    style="display: inline;"
+                                                                    onsubmit="return confirm('Принудительно сменить дежурного без проверок доступности?');">
+                                                                    <input type="hidden" name="channel_id"
+                                                                        value="<%= channel_id %>">
+                                                                    <input type="hidden" name="force" value="true">
+                                                                    <button type="submit"
+                                                                        class="btn btn-outline-danger btn-sm me-2">
+                                                                        Форс смена
+                                                                    </button>
+                                                                </form>
+                                                                <% } %>
+                                                            <form action="/duty/update-status" method="post"
+                                                                style="display: inline;"
+                                                                id="statusForm-<%= employee.id %>">
+                                                                <input type="hidden" name="id"
+                                                                    value="<%= employee.id %>">
+                                                                <input type="hidden" name="username"
+                                                                    value="<%= employee.username %>">
+                                                                <input type="hidden" name="channel_id"
+                                                                    value="<%= channel_id %>">
+                                                                <input type="hidden" name="status" value="-1">
                                                                 <div class="btn-group">
                                                                     <button type="submit"
-                                                                        class="btn btn-outline-danger btn-sm">Отключить</button>
+                                                                        class="btn btn-outline-warning btn-sm">Сдвинуть</button>
                                                                     <button type="button"
-                                                                        class="btn btn-outline-danger dropdown-toggle dropdown-toggle-split btn-sm"
-                                                                        data-bs-toggle="dropdown" aria-expanded="false"
+                                                                        class="btn btn-outline-warning dropdown-toggle dropdown-toggle-split btn-sm"
+                                                                        data-bs-toggle="dropdown"
+                                                                        aria-expanded="false"
                                                                         data-bs-reference="parent">
-                                                                        <span class="visually-hidden">Отключить</span>
+                                                                        <span class="visually-hidden">Действия</span>
                                                                     </button>
                                                                     <ul class="dropdown-menu">
-                                                                        <li><a class="dropdown-item" href="#"
-                                                                                data-bs-toggle="modal"
-                                                                                data-bs-username="<%= employee.name %>"
-                                                                                data-bs-target="#disableUntilDateModal">Отключить
-                                                                                до
-                                                                                даты</a>
-                                                                        </li>
                                                                         <li><button type="button"
                                                                                 class="dropdown-item text-danger"
-                                                                                onclick="deleteUser('<%= employee.id %>')">Удалить</button>
+                                                                                onclick="deleteUser('<%= employee.id %>')">
+                                                                                <i class="bi bi-trash me-2"></i>Удалить
+                                                                            </button>
                                                                         </li>
                                                                     </ul>
                                                                 </div>
-                                                                <% } else if (employee.status==='Отключен' ) { %>
-                                                                    <input type="hidden" name="status" value="0">
-                                                                    <button type="submit"
-                                                                        class="btn btn-outline-primary btn-sm">Включить</button>
-                                                                    <% } %>
-                                                        </form>
-                                                        <% } %>
+                                                            </form>
+                                                            <% } else { %>
+                                                                <form action="/duty/update-status" method="post"
+                                                                    id="statusForm-<%= employee.id %>">
+                                                                    <input type="hidden" name="id"
+                                                                        value="<%= employee.id %>">
+                                                                    <input type="hidden" name="username"
+                                                                        value="<%= employee.username %>">
+                                                                    <input type="hidden" name="channel_id"
+                                                                        value="<%= channel_id %>">
+                                                                    <% if (employee.status==='Активный' ) { %>
+                                                                        <input type="hidden" name="status" value="1">
+                                                                        <input type="hidden" name="return_date"
+                                                                            value="">
+                                                                        <div class="btn-group">
+                                                                            <button type="submit"
+                                                                                class="btn btn-outline-danger btn-sm">Отключить</button>
+                                                                            <button type="button"
+                                                                                class="btn btn-outline-danger dropdown-toggle dropdown-toggle-split btn-sm"
+                                                                                data-bs-toggle="dropdown"
+                                                                                aria-expanded="false"
+                                                                                data-bs-reference="parent">
+                                                                                <span
+                                                                                    class="visually-hidden">Отключить</span>
+                                                                            </button>
+                                                                            <ul class="dropdown-menu">
+                                                                                <li><a class="dropdown-item" href="#"
+                                                                                        data-bs-toggle="modal"
+                                                                                        data-bs-username="<%= employee.name %>"
+                                                                                        data-bs-target="#disableUntilDateModal">Отключить
+                                                                                        до
+                                                                                        даты</a>
+                                                                                </li>
+                                                                                <li>
+                                                                                    <hr class="dropdown-divider">
+                                                                                </li>
+                                                                                <li><button type="button"
+                                                                                        class="dropdown-item text-danger"
+                                                                                        onclick="deleteUser('<%= employee.id %>')">
+                                                                                        <i class="bi bi-trash me-2"></i>Удалить
+                                                                                    </button>
+                                                                                </li>
+                                                                            </ul>
+                                                                        </div>
+                                                                        <% } else if (employee.status==='Отключен' ) {
+                                                                            %>
+                                                                            <input type="hidden" name="status"
+                                                                                value="0">
+                                                                            <div class="btn-group">
+                                                                                <button type="submit"
+                                                                                    class="btn btn-outline-primary btn-sm">Включить</button>
+                                                                                <button type="button"
+                                                                                    class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split btn-sm"
+                                                                                    data-bs-toggle="dropdown"
+                                                                                    aria-expanded="false"
+                                                                                    data-bs-reference="parent">
+                                                                                    <span
+                                                                                        class="visually-hidden">Действия</span>
+                                                                                </button>
+                                                                                <ul class="dropdown-menu">
+                                                                                    <li><button type="button"
+                                                                                            class="dropdown-item text-danger"
+                                                                                            onclick="deleteUser('<%= employee.id %>')">
+                                                                                            <i class="bi bi-trash me-2"></i>Удалить
+                                                                                        </button>
+                                                                                    </li>
+                                                                                </ul>
+                                                                            </div>
+                                                                            <% } %>
+                                                                </form>
+                                                                <% } %>
 
-                                            </td>
-                                        </tr>
-                                        <% }) %>
-                                </tbody>
-                            </table>
+                                                    </td>
+                                                </tr>
+                                                <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="form-text mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>Перетащите строки для изменения порядка
+                                </div>
+                                <% } else { %>
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                                        <p class="text-muted mt-3">Очередь дежурных пуста</p>
+                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                                            data-bs-target="#addUserModal">
+                                            <i class="bi bi-person-plus me-1"></i>Добавить первого дежурного
+                                        </button>
+                                    </div>
+                                    <% } %>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-tag me-2"></i>Тэгание дежурного в тредах
+                            </h5>
+                            <button type="button" class="btn btn-success btn-sm" onclick="openAddTagSettingModal()">
+                                <i class="bi bi-plus-circle me-1"></i>Добавить настройку
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="tagSettingsList">
+                                <% if (tagSettings && tagSettings.length> 0) { %>
+                                    <div class="table-responsive">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Тег</th>
+                                                    <th>Префикс канала</th>
+                                                    <th>Исключения</th>
+                                                    <th>Статус</th>
+                                                    <th class="text-end">Действия</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% tagSettings.forEach((setting)=> { %>
+                                                    <tr data-setting-id="<%= setting.id %>">
+                                                        <td>
+                                                            <code><%= setting.tag %></code>
+                                                        </td>
+                                                        <td>
+                                                            <% if (setting.channel_prefix) { %>
+                                                                <span class="badge bg-info">
+                                                                    <%= setting.channel_prefix %>
+                                                                </span>
+                                                                <% } else { %>
+                                                                    <span class="text-muted">Все каналы</span>
+                                                                    <% } %>
+                                                        </td>
+                                                        <td>
+                                                            <% if (setting.excluded_user_ids &&
+                                                                setting.excluded_user_ids.length> 0) { %>
+                                                                <span class="badge bg-warning text-dark">
+                                                                    <%= setting.excluded_user_ids.length %>
+                                                                        пользователей
+                                                                </span>
+                                                                <% } else { %>
+                                                                    <span class="text-muted">Нет</span>
+                                                                    <% } %>
+                                                        </td>
+                                                        <td>
+                                                            <% if (setting.is_enabled) { %>
+                                                                <span class="badge bg-success">Включено</span>
+                                                                <% } else { %>
+                                                                    <span class="badge bg-secondary">Выключено</span>
+                                                                    <% } %>
+                                                        </td>
+                                                        <td class="text-end">
+                                                            <button type="button"
+                                                                class="btn btn-sm btn-outline-primary me-2 edit-tag-setting-btn"
+                                                                data-setting-id="<%= setting.id %>"
+                                                                data-tag="<%= setting.tag %>"
+                                                                data-enabled="<%= setting.is_enabled ? 'true' : 'false' %>"
+                                                                data-channel-prefix="<%= setting.channel_prefix || '' %>"
+                                                                data-excluded-user-ids="<%= JSON.stringify(setting.excluded_user_ids || []) %>"
+                                                                data-message-template="<%= JSON.stringify(setting.message_template || '{duty_mention}') %>"
+                                                                data-allow-bots="<%= setting.allow_bots ? 'true' : 'false' %>">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                                onclick="deleteTagSetting(<%= setting.id %>)">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <% }); %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <% } else { %>
+                                        <div class="text-center py-4">
+                                            <i class="bi bi-tag text-muted" style="font-size: 3rem;"></i>
+                                            <p class="text-muted mt-3">Настройки тэгания не добавлены</p>
+                                            <p class="text-muted small">
+                                                При упоминании указанного тега в треде будет автоматически тэгаться
+                                                текущий дежурный
+                                            </p>
+                                        </div>
+                                        <% } %>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Modal для добавления пользователя -->
         <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="addUserModalLabel">Добавить пользователя</h1>
+                        <h5 class="modal-title" id="addUserModalLabel">
+                            <i class="bi bi-person-plus me-2"></i>Добавить пользователя
+                        </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <form action="/duty/add-user" method="post" onsubmit="disableSubmitButton(this);">
+                        <form action="/duty/add-user" method="post" id="addUserForm">
                             <input type="hidden" name="channel_id" value="<%= channel_id %>">
-                            <div class="input-group mb-3">
-                                <span class="input-group-text" id="username">@</span>
-                                <input type="text" class="form-control" placeholder="Имя пользователя" id="username"
-                                    name="username" aria-label="username" aria-describedby="username">
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                                <button type="submit" class="btn btn-success">Добавить</button>
+                            <div class="mb-3">
+                                <label for="username" class="form-label">
+                                    <i class="bi bi-at me-1"></i>Username
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">@</span>
+                                    <input type="text" class="form-control" id="username" name="username"
+                                        placeholder="username" required>
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Введите username пользователя (без @)
+                                </div>
                             </div>
                         </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" form="addUserForm" class="btn btn-success" id="addUserBtn">
+                            <i class="bi bi-check-circle me-1"></i>Добавить
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Modal для добавления/редактирования настройки тэгания -->
+        <div class="modal fade" id="addTagSettingModal" tabindex="-1" aria-labelledby="addTagSettingModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addTagSettingModalLabel">
+                            <i class="bi bi-tag me-2"></i>Настройка тэгания дежурного
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="tagSettingForm">
+                            <input type="hidden" id="tagSettingId" name="id" value="">
+                            <div class="mb-3">
+                                <label for="tagInput" class="form-label">
+                                    <i class="bi bi-at me-1"></i>Тег для тэгания
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">@</span>
+                                    <input type="text" class="form-control" id="tagInput" name="tag"
+                                        placeholder="c1-back" required>
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Тег, при упоминании которого в треде будет
+                                    тэгаться дежурный (без @)
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="channelPrefixInput" class="form-label">
+                                    <i class="bi bi-hash me-1"></i>Префикс каналов (опционально)
+                                </label>
+                                <input type="text" class="form-control" id="channelPrefixInput" name="channel_prefix"
+                                    placeholder="c1-">
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Если указан, тэгание будет работать только в
+                                    каналах, начинающихся с этого префикса. Оставьте пустым для всех каналов.
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="excludedUsersInput" class="form-label">
+                                    <i class="bi bi-person-x me-1"></i>Исключения (пользователи, которые не будут
+                                    тэгаться)
+                                </label>
+                                <input type="text" class="form-control" id="excludedUsersInput" name="excluded_user_ids"
+                                    placeholder="Загрузка пользователей...">
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Выберите пользователей, которые не будут
+                                    тэгаться при упоминании тега.
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="messageTemplateInput" class="form-label">
+                                    <i class="bi bi-chat-text me-1"></i>Шаблон сообщения
+                                </label>
+                                <textarea class="form-control" id="messageTemplateInput" name="message_template"
+                                    rows="3" placeholder="{duty_mention}"></textarea>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Шаблон сообщения для тэгания дежурного.</br>
+                                    Используйте <code>{duty_mention}</code> для вставки упоминания текущего дежурного.</br>
+                                    Используйте <code>{next_duty_mention}</code> для вставки упоминания следующего дежурного.</br>
+                                    По умолчанию: <code>{duty_mention}</code>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="isEnabledInput"
+                                        name="is_enabled" checked>
+                                    <label class="form-check-label" for="isEnabledInput">
+                                        Включено
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="allowBotsInput"
+                                        name="allow_bots">
+                                    <label class="form-check-label" for="allowBotsInput">
+                                        Реагировать на сообщения ботов
+                                    </label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-success" id="saveTagSettingBtn" onclick="saveTagSetting()">
+                            <i class="bi bi-check-circle me-1"></i>Сохранить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal для отключения до даты -->
         <div class="modal fade" id="disableUntilDateModal" data-bs-backdrop="static" data-bs-keyboard="false"
             tabindex="-1" aria-labelledby="disableUntilDateModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="disableUntilDateModalLabel"></h1>
+                        <h5 class="modal-title" id="disableUntilDateModalLabel">
+                            <i class="bi bi-calendar-x me-2"></i>Отключить до даты
+                        </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <label for="returnDate">Дата</label>
-                        <input id="returnDate" class="form-control" type="date" />
+                        <div class="mb-3">
+                            <label for="returnDate" class="form-label">
+                                <i class="bi bi-calendar3 me-1"></i>Дата возврата
+                            </label>
+                            <input id="returnDate" class="form-control" type="date" required />
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>Выберите дату, до которой пользователь будет
+                                отключен
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                        <button type="button" class="btn btn-danger" id="disableUntilDateButton">Отключить</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-danger" id="disableUntilDateButton">
+                            <i class="bi bi-x-circle me-1"></i>Отключить
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
+        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/css/tom-select.bootstrap5.min.css"
+            rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/js/tom-select.complete.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script>
-            const channelId = "<%= channel_id %>";
+            // Глобальные переменные для данных
+            let channelId, schedule, currentDutyIndex, employeesCount, isCurrentDutyUnscheduled, tagSettings;
 
             document.addEventListener('DOMContentLoaded', function () {
+                // Получаем данные из скрытых полей после загрузки DOM
+                channelId = document.getElementById('dataChannelId')?.value || '';
+                const scheduleValue = document.getElementById('dataSchedule')?.value || 'null';
+                schedule = scheduleValue === 'null' ? null : JSON.parse(scheduleValue);
+                currentDutyIndex = parseInt(document.getElementById('dataCurrentDutyIndex')?.value || '-1') || -1;
+                employeesCount = parseInt(document.getElementById('dataEmployeesCount')?.value || '0') || 0;
+                isCurrentDutyUnscheduled = document.getElementById('dataIsCurrentDutyUnscheduled')?.value === 'true';
+                tagSettings = JSON.parse(document.getElementById('dataTagSettings')?.value || '[]');
+
                 fetchCronDescription();
+                calculateNextDutyDates();
+
+                // Обработчик для кнопок редактирования настроек тэгания
+                document.querySelectorAll('.edit-tag-setting-btn').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const id = this.getAttribute('data-setting-id');
+                        const tag = this.getAttribute('data-tag');
+                        const isEnabled = this.getAttribute('data-enabled') === 'true';
+                        const channelPrefix = this.getAttribute('data-channel-prefix') || '';
+                        const excludedUserIdsJson = this.getAttribute('data-excluded-user-ids') || '[]';
+                        const messageTemplateJson = this.getAttribute('data-message-template') || '"{duty_mention}"';
+                        const allowBots = this.getAttribute('data-allow-bots') === 'true';
+
+                        let excludedUserIds = [];
+                        try {
+                            excludedUserIds = JSON.parse(excludedUserIdsJson);
+                        } catch (e) {
+                            console.error('Error parsing excludedUserIds:', e);
+                        }
+
+                        let messageTemplate = '{duty_mention}';
+                        try {
+                            messageTemplate = JSON.parse(messageTemplateJson);
+                        } catch (e) {
+                            console.error('Error parsing messageTemplate:', e);
+                        }
+
+                        editTagSetting(id, tag, isEnabled, channelPrefix, excludedUserIds, messageTemplate, allowBots);
+                    });
+                });
 
                 // Блокировка всех кнопок после отправки форм
                 const forms = document.querySelectorAll('form');
                 forms.forEach(form => {
                     form.addEventListener('submit', function (e) {
-                        // Блокируем все кнопки submit на странице
-                        const allSubmitButtons = document.querySelectorAll('form button[type="submit"]');
-                        allSubmitButtons.forEach(button => {
-                            button.disabled = true;
-                            const originalText = button.textContent;
-                            button.dataset.originalText = originalText;
-                            if (originalText !== 'Добавление...') {
-                                button.textContent = 'Отправка...';
-                            }
-                        });
+                        const submitButton = form.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            const originalHTML = submitButton.innerHTML;
+                            submitButton.dataset.originalHTML = originalHTML;
+                            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
+                        }
                     });
                 });
 
-                const sortable = new Sortable(document.getElementById('sortableTableBody'), {
-                    animation: 150,
-                    handle: 'tr',
-                    onEnd: function (evt) {
-                        const sortedIds = Array.from(evt.to.children).map(row => row.dataset.id);
+                // Инициализация Sortable для таблицы
+                const sortableTableBody = document.getElementById('sortableTableBody');
+                if (sortableTableBody) {
+                    const sortable = new Sortable(sortableTableBody, {
+                        animation: 150,
+                        handle: 'tr',
+                        onEnd: function (evt) {
+                            const sortedIds = Array.from(evt.to.children).map(row => row.dataset.id);
 
-                        fetch('/duty/update-order', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ channel_id: channelId, order: sortedIds })
-                        })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    console.log('Order updated successfully.');
-                                } else {
-                                    console.error('Failed to update order.');
-                                }
+                            fetch('/duty/update-order', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ channel_id: channelId, order: sortedIds })
                             })
-                            .catch(error => {
-                                console.error('Error updating order:', error);
-                            });
-                    }
-                });
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        // Обновляем номера в таблице
+                                        const rows = sortableTableBody.querySelectorAll('tr');
+                                        rows.forEach((row, index) => {
+                                            const badge = row.querySelector('.badge.bg-secondary');
+                                            if (badge) {
+                                                badge.textContent = index + 1;
+                                            }
+                                        });
+                                    } else {
+                                        throw new Error(data.message || 'Ошибка при обновлении порядка');
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error updating order:', error);
+                                    alert('Ошибка при обновлении порядка: ' + (error.message || 'Неизвестная ошибка'));
+                                    location.reload();
+                                });
+                        }
+                    });
+                }
 
+                // Обработка модального окна для отключения до даты
                 let relatedTarget = null;
                 const modal = document.getElementById('disableUntilDateModal');
-                modal.addEventListener('show.bs.modal', event => {
-                    relatedTarget = event.relatedTarget;
-                    const username = relatedTarget.getAttribute('data-bs-username');
-                    const modalTitle = modal.querySelector('.modal-title');
-                    const modalBodyInput = modal.querySelector('.modal-body input');
-
-                    modalTitle.textContent = `Отключить до даты: ${username}`;
-                });
-
-                const disableUntilDateButton = document.getElementById('disableUntilDateButton');
-                disableUntilDateButton.addEventListener('click', () => {
-                    const returnDate = document.getElementById('returnDate').value;
-                    const form = relatedTarget.closest('form');
-                    form.querySelector('input[name="return_date"]').value = returnDate;
-
-                    // Блокируем все кнопки перед отправкой
-                    const allSubmitButtons = document.querySelectorAll('form button[type="submit"]');
-                    allSubmitButtons.forEach(button => {
-                        button.disabled = true;
-                        const originalText = button.textContent;
-                        button.dataset.originalText = originalText;
-                        if (originalText !== 'Добавление...') {
-                            button.textContent = 'Отправка...';
+                if (modal) {
+                    modal.addEventListener('show.bs.modal', event => {
+                        relatedTarget = event.relatedTarget;
+                        const username = relatedTarget.getAttribute('data-bs-username');
+                        const modalTitle = modal.querySelector('.modal-title');
+                        if (modalTitle && username) {
+                            modalTitle.innerHTML = `<i class="bi bi-calendar-x me-2"></i>Отключить до даты: ${username}`;
+                        }
+                        // Сбрасываем дату
+                        const dateInput = document.getElementById('returnDate');
+                        if (dateInput) {
+                            dateInput.value = '';
                         }
                     });
 
-                    form.submit();
-                });
-            });
+                    const disableUntilDateButton = document.getElementById('disableUntilDateButton');
+                    if (disableUntilDateButton) {
+                        disableUntilDateButton.addEventListener('click', () => {
+                            const returnDate = document.getElementById('returnDate').value;
+                            if (!returnDate) {
+                                alert('Пожалуйста, выберите дату');
+                                return;
+                            }
 
-            function disableSubmitButton(form) {
-                const submitButton = form.querySelector('button[type="submit"]');
-                submitButton.disabled = true;
-                submitButton.textContent = 'Добавление...';
-            }
+                            if (relatedTarget) {
+                                const form = relatedTarget.closest('form');
+                                if (form) {
+                                    const returnDateInput = form.querySelector('input[name="return_date"]');
+                                    if (returnDateInput) {
+                                        returnDateInput.value = returnDate;
+                                    }
+
+                                    const submitButton = form.querySelector('button[type="submit"]');
+                                    if (submitButton) {
+                                        submitButton.disabled = true;
+                                        const originalHTML = submitButton.innerHTML;
+                                        submitButton.dataset.originalHTML = originalHTML;
+                                        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
+                                    }
+
+                                    form.submit();
+                                }
+                            }
+                        });
+                    }
+                }
+
+                // Обработка формы добавления пользователя
+                const addUserForm = document.getElementById('addUserForm');
+                if (addUserForm) {
+                    addUserForm.addEventListener('submit', function (e) {
+                        const submitButton = document.getElementById('addUserBtn');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Добавление...';
+                        }
+                    });
+                }
+
+                function fetchCronDescription() {
+                    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+                    fetch('/duty/schedule', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ channel_id: channelId, timezone })
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            const cronDescElement = document.getElementById('cronDescription');
+                            if (cronDescElement) {
+                                if (data.cronDescription) {
+                                    cronDescElement.innerHTML = `<i class="bi bi-clock-history me-2"></i>${data.cronDescription}`;
+                                } else if (data.message) {
+                                    cronDescElement.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i>${data.message}`;
+                                } else {
+                                    cronDescElement.innerHTML = '<i class="bi bi-info-circle me-2"></i>Расписание не настроено';
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching cron description:', error);
+                            const cronDescElement = document.getElementById('cronDescription');
+                            if (cronDescElement) {
+                                cronDescElement.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Ошибка загрузки расписания';
+                            }
+                        });
+                }
+            });
 
             function deleteUser(userId) {
                 if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
                     const form = document.getElementById(`statusForm-${userId}`);
-                    form.action = '/duty/delete-user';
+                    if (form) {
+                        form.action = '/duty/delete-user';
 
-                    // Блокируем все кнопки перед отправкой
-                    const allSubmitButtons = document.querySelectorAll('form button[type="submit"]');
-                    allSubmitButtons.forEach(button => {
-                        button.disabled = true;
-                        const originalText = button.textContent;
-                        button.dataset.originalText = originalText;
-                        if (originalText !== 'Добавление...') {
-                            button.textContent = 'Отправка...';
+                        const submitButton = form.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            const originalHTML = submitButton.innerHTML;
+                            submitButton.dataset.originalHTML = originalHTML;
+                            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Удаление...';
                         }
-                    });
 
-                    form.submit();
+                        form.submit();
+                    }
                 }
             }
 
-            function fetchCronDescription() {
-                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            async function calculateNextDutyDates() {
+                // Проверяем только наличие расписания и сотрудников
+                // currentDutyIndex может быть -1, если нет текущего дежурного, но это не блокирует расчет
+                if (!schedule || !schedule.cron_schedule || employeesCount === 0) {
+                    // Если нет расписания или сотрудников, показываем сообщение
+                    document.querySelectorAll('.next-duty-date').forEach(el => {
+                        el.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Не настроено</span>';
+                    });
+                    return;
+                }
 
-                fetch('/duty/schedule', {
+                // Убеждаемся, что use_working_days - boolean
+                const useWorkingDays = Boolean(schedule.use_working_days);
+
+                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const rows = document.querySelectorAll('#sortableTableBody tr');
+
+                rows.forEach((row, index) => {
+                    const dateElement = row.querySelector('.next-duty-date');
+                    if (!dateElement) return;
+
+                    // Рассчитываем количество смен до дежурства этого пользователя
+                    // Начинаем от текущего дежурного, а не от начала списка
+                    let shiftsAhead = 0;
+
+                    if (currentDutyIndex === -1) {
+                        // Если нет текущего дежурного, начинаем с начала
+                        shiftsAhead = index + 1;
+                    } else if (index === currentDutyIndex) {
+                        // Текущий дежурный - следующее дежурство через полный цикл
+                        shiftsAhead = employeesCount;
+                    } else {
+                        // Рассчитываем количество смен от текущего дежурного
+                        // Если текущий внеочередной, следующая смена будет через 2 позиции (increment = 2)
+                        const increment = isCurrentDutyUnscheduled ? 2 : 1;
+
+                        if (index > currentDutyIndex) {
+                            // Пользователь после текущего дежурного
+                            const distance = index - currentDutyIndex;
+                            if (isCurrentDutyUnscheduled && distance === 1) {
+                                // Если текущий внеочередной, следующий пользователь (distance=1) будет пропущен
+                                // Реальная следующая смена будет через 2 позиции
+                                shiftsAhead = increment;
+                            } else {
+                                // Обычный расчет: если текущий внеочередной, первая смена через 2, остальные по порядку
+                                shiftsAhead = distance;
+                            }
+                        } else {
+                            // Пользователь до текущего дежурного (следующий цикл)
+                            const distance = employeesCount - currentDutyIndex + index;
+                            if (isCurrentDutyUnscheduled && distance === 1) {
+                                // Если текущий внеочередной, следующий пользователь будет пропущен
+                                shiftsAhead = increment;
+                            } else {
+                                shiftsAhead = distance;
+                            }
+                        }
+                    }
+
+                    // Запрашиваем расчет следующей даты дежурства
+                    fetch('/duty/next-duty-date', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            channel_id: channelId,
+                            cron_schedule: schedule.cron_schedule,
+                            use_working_days: useWorkingDays,
+                            shifts_ahead: shiftsAhead,
+                            timezone: timezone
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.nextDate) {
+                                const date = new Date(data.nextDate);
+                                // Форматируем дату: день недели, дата (без времени)
+                                const dayNames = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+                                const dayName = dayNames[date.getDay()];
+                                const formattedDate = date.toLocaleDateString('ru-RU', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric'
+                                });
+                                dateElement.innerHTML = `<i class="bi bi-calendar-event me-1"></i>${dayName}, ${formattedDate}`;
+                            } else if (data.error) {
+                                dateElement.innerHTML = `<span class="text-muted"><i class="bi bi-exclamation-triangle me-1"></i>${data.error}</span>`;
+                            } else {
+                                dateElement.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Не рассчитано</span>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error calculating next duty date:', error);
+                            dateElement.innerHTML = '<span class="text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Ошибка расчета</span>';
+                        });
+                });
+            }
+
+            // Функции для работы с настройками тэгания
+            let excludedUsersSelect = null;
+            let pendingExcludedUserIds = null;
+
+            // Загрузка пользователей канала
+            async function loadChannelUsers() {
+                const excludedUsersInput = document.getElementById('excludedUsersInput');
+
+                // Уничтожаем предыдущий экземпляр Tom Select, если он существует
+                if (excludedUsersSelect) {
+                    excludedUsersSelect.destroy();
+                    excludedUsersSelect = null;
+                }
+
+                try {
+                    const response = await fetch(`/duty/api/channel-users?channelId=${channelId}`);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        excludedUsersInput.placeholder = `Ошибка: ${data.error}`;
+                        excludedUsersInput.disabled = true;
+                        return;
+                    }
+
+                    if (data.users && data.users.length > 0) {
+                        // Создаем опции для Tom Select
+                        const options = data.users.map(user => ({
+                            value: user.id,
+                            text: `${user.displayName} (@${user.username})`,
+                            username: user.username,
+                            displayName: user.displayName
+                        }));
+
+                        // Включаем поле ПЕРЕД инициализацией Tom Select
+                        excludedUsersInput.disabled = false;
+                        excludedUsersInput.placeholder = 'Выберите пользователей...';
+
+                        // Сохраняем значения для установки после инициализации
+                        const idsToSet = pendingExcludedUserIds && pendingExcludedUserIds.length > 0
+                            ? [...pendingExcludedUserIds]
+                            : null;
+
+                        // Инициализируем Tom Select
+                        excludedUsersSelect = new TomSelect('#excludedUsersInput', {
+                            maxItems: null, // Неограниченное количество выбора
+                            valueField: 'value',
+                            labelField: 'text',
+                            searchField: ['text', 'username', 'displayName'],
+                            create: false,
+                            preload: true,
+                            options: options,
+                            placeholder: 'Выберите пользователей...',
+                            disabled: false,
+                            plugins: {
+                                remove_button: {
+                                    title: 'Удалить этот элемент'
+                                }
+                            },
+                            render: {
+                                option: (item, escape) => {
+                                    const displayName = item.displayName || item.username;
+                                    return `
+                                        <div>
+                                            <strong>${escape(displayName)}</strong>
+                                            <span class="text-muted"> — ${escape(item.username)}</span>
+                                        </div>
+                                    `;
+                                },
+                                item: (item, escape) => `<div>${escape(item.text)}</div>`
+                            }
+                        });
+
+                        // Убеждаемся, что Tom Select активирован
+                        if (excludedUsersSelect) {
+                            excludedUsersSelect.enable();
+
+                            // Подписываемся на событие initialize для установки значений
+                            excludedUsersSelect.on('initialize', function () {
+                                if (idsToSet && idsToSet.length > 0) {
+                                    setTimeout(() => {
+                                        try {
+                                            this.setValue(idsToSet, true);
+                                        } catch (e) {
+                                            console.error('Error setting values in initialize event:', e);
+                                        }
+                                    }, 50);
+                                }
+                            });
+
+                            // Устанавливаем значения сразу после создания (на случай, если событие уже произошло)
+                            if (idsToSet && idsToSet.length > 0) {
+                                // Пробуем несколько раз с разными задержками
+                                [100, 300, 500].forEach(delay => {
+                                    setTimeout(() => {
+                                        if (excludedUsersSelect && idsToSet.length > 0) {
+                                            try {
+                                                const currentItems = excludedUsersSelect.items || [];
+                                                // Проверяем, что значения еще не установлены
+                                                const allSet = idsToSet.every(id => currentItems.includes(id));
+                                                if (!allSet) {
+                                                    excludedUsersSelect.setValue(idsToSet, true);
+                                                }
+                                            } catch (e) {
+                                                console.error(`Error setting values in setTimeout(${delay}ms):`, e);
+                                            }
+                                        }
+                                    }, delay);
+                                });
+                            }
+                        }
+
+                        // Возвращаем промис, который резолвится после небольшой задержки для завершения инициализации
+                        return new Promise(resolve => setTimeout(resolve, 200));
+                    } else {
+                        excludedUsersInput.placeholder = 'В канале нет пользователей';
+                        excludedUsersInput.disabled = true;
+                        return Promise.resolve();
+                    }
+                } catch (error) {
+                    console.error('Error loading channel users:', error);
+                    excludedUsersInput.placeholder = `Ошибка загрузки: ${error.message}`;
+                    excludedUsersInput.disabled = true;
+                    return Promise.resolve();
+                }
+            }
+
+            function openAddTagSettingModal() {
+                // Сбрасываем форму
+                const form = document.getElementById('tagSettingForm');
+                form.reset();
+
+                // Явно очищаем скрытое поле ID
+                document.getElementById('tagSettingId').value = '';
+
+                // Устанавливаем значения по умолчанию
+                document.getElementById('isEnabledInput').checked = true;
+                document.getElementById('allowBotsInput').checked = false;
+                document.getElementById('messageTemplateInput').value = '{duty_mention}';
+
+                // Сбрасываем Tom Select если он инициализирован
+                if (excludedUsersSelect) {
+                    excludedUsersSelect.clear();
+                }
+
+                document.getElementById('addTagSettingModalLabel').innerHTML = '<i class="bi bi-tag me-2"></i>Настройка тэгания дежурного';
+
+                const modal = new bootstrap.Modal(document.getElementById('addTagSettingModal'));
+                modal.show();
+            }
+
+            async function editTagSetting(id, tag, isEnabled, channelPrefix, excludedUserIds, messageTemplate, allowBots) {
+                // Сначала сбрасываем форму
+                document.getElementById('tagSettingForm').reset();
+
+                // Устанавливаем ID и другие значения
+                document.getElementById('tagSettingId').value = id;
+                document.getElementById('tagInput').value = tag;
+                document.getElementById('isEnabledInput').checked = isEnabled === true || isEnabled === 'true';
+                document.getElementById('allowBotsInput').checked = allowBots === true || allowBots === 'true';
+                document.getElementById('channelPrefixInput').value = channelPrefix || '';
+                document.getElementById('messageTemplateInput').value = messageTemplate || '{duty_mention}';
+
+                // Обрабатываем excludedUserIds - может быть строкой JSON или массивом
+                let savedExcludedUserIds = [];
+                if (excludedUserIds) {
+                    if (typeof excludedUserIds === 'string') {
+                        try {
+                            savedExcludedUserIds = JSON.parse(excludedUserIds);
+                        } catch (e) {
+                            console.error('Error parsing excludedUserIds:', e);
+                            savedExcludedUserIds = [];
+                        }
+                    } else if (Array.isArray(excludedUserIds)) {
+                        savedExcludedUserIds = excludedUserIds;
+                    }
+                }
+
+                // Сохраняем excludedUserIds для установки после загрузки пользователей
+                pendingExcludedUserIds = savedExcludedUserIds;
+
+                // Загружаем пользователей канала и ждем завершения
+                await loadChannelUsers();
+
+                document.getElementById('addTagSettingModalLabel').innerHTML = '<i class="bi bi-pencil me-2"></i>Редактировать настройку тэгания';
+                const modal = new bootstrap.Modal(document.getElementById('addTagSettingModal'));
+                modal.show();
+            }
+
+            function deleteTagSetting(id) {
+                if (!confirm('Вы уверены, что хотите удалить эту настройку?')) {
+                    return;
+                }
+
+                fetch(`/duty/api/tag-settings/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Ошибка при удалении настройки');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting tag setting:', error);
+                        alert('Ошибка при удалении настройки');
+                    });
+            }
+
+            function saveTagSetting() {
+                const form = document.getElementById('tagSettingForm');
+                const formData = new FormData(form);
+                const tag = formData.get('tag');
+                const isEnabled = document.getElementById('isEnabledInput').checked;
+                const allowBots = document.getElementById('allowBotsInput').checked;
+                const channelPrefix = formData.get('channel_prefix') || null;
+                const id = formData.get('id');
+                const messageTemplate = document.getElementById('messageTemplateInput').value.trim() || '{duty_mention}';
+
+                // Получаем выбранные пользователи для исключений из Tom Select
+                let excludedUserIds = [];
+                if (excludedUsersSelect && excludedUsersSelect.items && excludedUsersSelect.items.length > 0) {
+                    excludedUserIds = excludedUsersSelect.items;
+                }
+
+                if (!tag) {
+                    alert('Пожалуйста, укажите тег');
+                    return;
+                }
+
+                const saveBtn = document.getElementById('saveTagSettingBtn');
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Сохранение...';
+
+                fetch('/duty/api/tag-settings', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ channel_id: channelId, timezone })
+                    body: JSON.stringify({
+                        id: id,
+                        channel_id: channelId,
+                        tag: tag,
+                        is_enabled: isEnabled,
+                        channel_prefix: channelPrefix,
+                        excluded_user_ids: excludedUserIds,
+                        message_template: messageTemplate,
+                        allow_bots: allowBots
+                    })
                 })
                     .then(response => response.json())
                     .then(data => {
-                        document.getElementById('cronDescription').innerText = data.cronDescription;
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Ошибка при сохранении настройки: ' + (data.error || 'Неизвестная ошибка'));
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранить';
+                        }
                     })
                     .catch(error => {
-                        console.error('Error fetching cron description:', error);
+                        console.error('Error saving tag setting:', error);
+                        alert('Ошибка при сохранении настройки');
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранить';
                     });
             }
+
+            // Сброс формы при открытии модального окна для добавления
+            const addTagSettingModal = document.getElementById('addTagSettingModal');
+            if (addTagSettingModal) {
+                addTagSettingModal.addEventListener('show.bs.modal', function () {
+                    // Загружаем пользователей канала при открытии модального окна
+                    loadChannelUsers();
+                });
+
+                // Очистка при закрытии модального окна
+                addTagSettingModal.addEventListener('hidden.bs.modal', function () {
+                    // Уничтожаем Tom Select при закрытии модального окна
+                    if (excludedUsersSelect) {
+                        excludedUsersSelect.destroy();
+                        excludedUsersSelect = null;
+                    }
+                });
+            }
+
         </script>
+
+        <style>
+            /* === Tom Select: Dark Mode Fixes === */
+            [data-bs-theme="dark"] .ts-control,
+            body.dark .ts-control {
+                background-color: #212529 !important;
+                color: #f8f9fa !important;
+                border-color: #495057 !important;
+            }
+
+            [data-bs-theme="dark"] .ts-control:focus,
+            body.dark .ts-control:focus {
+                border-color: #0d6efd !important;
+                box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+            }
+
+            [data-bs-theme="dark"] .ts-control input,
+            body.dark .ts-control input {
+                color: #f8f9fa !important;
+                caret-color: #0d6efd !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown,
+            body.dark .ts-dropdown {
+                background-color: #212529 !important;
+                border-color: #343a40 !important;
+                color: #f8f9fa !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option {
+                background-color: transparent !important;
+                color: #dee2e6 !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option:hover,
+            [data-bs-theme="dark"] .ts-dropdown .option.active,
+            body.dark .ts-dropdown .option.active {
+                background-color: #495057 !important;
+                color: #ffffff !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown .option span.text-muted {
+                color: #adb5bd !important;
+            }
+
+            [data-bs-theme="dark"] .ts-dropdown mark,
+            body.dark .ts-dropdown mark {
+                background-color: transparent !important;
+                color: #0d6efd !important;
+                font-weight: 600;
+            }
+
+            [data-bs-theme="dark"] .ts-wrapper.multi .ts-control>.item {
+                background-color: #495057 !important;
+                color: #f8f9fa !important;
+                border-color: #6c757d !important;
+            }
+
+            [data-bs-theme="dark"] .ts-wrapper.multi .ts-control>.item.active {
+                background-color: #0d6efd !important;
+                color: #ffffff !important;
+            }
+        </style>

@@ -35,4 +35,7 @@ module.exports = {
     TEAMCITY_USERNAME: process.env.TEAMCITY_USERNAME,
     TEAMCITY_PASSWORD: process.env.TEAMCITY_PASSWORD,
     ALLOWED_EMAIL_DOMAINS: process.env.ALLOWED_EMAIL_DOMAINS ? process.env.ALLOWED_EMAIL_DOMAINS.split(",").map(d => d.trim()) : [],
+    PATCH_CHANNEL_NAME: process.env.PATCH_CHANNEL_NAME || 'c1_team_important',
+    CRON_WATCHDOG_INTERVAL_MS: parseInt(process.env.CRON_WATCHDOG_INTERVAL_MS || '300000', 10) || 300000,
+    CRON_WATCHDOG_TOLERANCE_MS: parseInt(process.env.CRON_WATCHDOG_TOLERANCE_MS || '120000', 10) || 120000,
 };

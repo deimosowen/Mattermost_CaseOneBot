@@ -1,14 +1,19 @@
 const express = require('express');
 const moment = require('moment');
 const cronstrue = require('cronstrue');
-const { rotateDuty, changeNextDuty } = require('../../services/dutyService');
+const { rotateDuty, changeNextDuty, forceChangeNextDuty } = require('../../services/dutyService');
 const { getDutySchedule, getDutyUsers,
     getCurrentDuty, updateUserActivityStatus,
     getUnscheduledList, removeDutyUser, addDutyUser,
-    updateDutyUsersOrder, getDutySchedules, getAllChannelsWithCurrentDuty } = require('../../db/models/duty');
-const { getUserByUsernameOrEmail, postMessage, getChannelById, getUser } = require('../../mattermost/utils');
+    updateDutyUsersOrder, getDutySchedules, getAllChannelsWithCurrentDuty,
+    getDutyTagSettings, addDutyTagSetting, updateDutyTagSetting, deleteDutyTagSetting,
+    getDutyUserById, setCurrentDuty, deleteCurrentDuty, deleteDutySchedule,
+    deleteAllDutyUsers, deleteUnscheduledUsersByUser, deleteAllUnscheduledUsers } = require('../../db/models/duty');
+const { getUserByUsernameOrEmail, postMessage, getChannelById, getUser, getUserByUsername, getChannelMembers } = require('../../mattermost/utils');
 const { TZ } = require('../../config');
 const logger = require('../../logger');
+const cronManager = require('../../cron/cronManager');
+const CronServiceTypes = require('../../cron/сronServiceTypes');
 require('cronstrue/locales/ru');
 
 const router = express.Router();
@@ -26,10 +31,10 @@ router.get('/', async (req, res) => {
             const userDetails = await getUserByUsernameOrEmail(user.user_name);
 
             let status;
-            if (user.is_disabled) {
-                status = 'Отключен';
-            } else if (currentDuty && user.user_id === currentDuty.user_id) {
+            if (currentDuty && user.user_id === currentDuty.user_id) {
                 status = 'Текущий';
+            } else if (user.is_disabled) {
+                status = 'Отключен';
             } else {
                 status = 'Активный';
             }
@@ -39,6 +44,7 @@ router.get('/', async (req, res) => {
                 username: userDetails?.username,
                 name: `${userDetails?.first_name} ${userDetails?.last_name}`,
                 status: status,
+                isDisabled: Boolean(user.is_disabled),
                 isUnsheduled: unscheduledUsers.some(u => u.user_id === user.user_id),
                 return_date: user.return_date ? moment(user.return_date).format('DD-MM-YYYY') : null,
             };
@@ -52,7 +58,66 @@ router.get('/', async (req, res) => {
             'Отключен': 'bg-danger',
         };
 
-        res.render('dutySettings', { employees, statusBadgeClasses, channel_id });
+        // Получаем информацию о канале
+        let channel = null;
+        try {
+            const channelData = await getChannelById(channel_id);
+            if (channelData) {
+                channel = {
+                    id: channelData.id,
+                    name: channelData.display_name || channelData.name || `Канал ${channel_id}`
+                };
+            }
+        } catch (error) {
+            logger.warn(`Could not get channel info for ${channel_id}:`, error);
+        }
+
+        // Получаем расписание для расчета дат дежурства
+        let schedule = null;
+        try {
+            const dutySchedule = await getDutySchedule(channel_id);
+            if (dutySchedule) {
+                schedule = {
+                    cron_schedule: dutySchedule.cron_schedule,
+                    use_working_days: Boolean(dutySchedule.use_working_days)
+                };
+            }
+        } catch (error) {
+            logger.warn(`Could not get duty schedule for ${channel_id}:`, error);
+        }
+
+        // Определяем индекс текущего дежурного для расчета дат
+        // Ищем сотрудника со статусом "Текущий"
+        let currentDutyIndex = employees.findIndex(emp => emp.status === 'Текущий');
+
+        // Получаем тип текущего дежурного (для учета внеочередных)
+        let isCurrentDutyUnscheduled = false;
+        if (currentDuty && currentDuty.duty_type) {
+            const DutyType = require('../../types/dutyTypes');
+            isCurrentDutyUnscheduled = currentDuty.duty_type === DutyType.UNSCHEDULED;
+        }
+
+        // Получаем настройки тэгания
+        const tagSettings = await getDutyTagSettings(channel_id);
+        const isAdmin = res.locals.user?.isAdmin || req.user?.isAdmin || false;
+
+        // Подготавливаем JSON строки для передачи в шаблон
+        const scheduleJson = (schedule !== null && schedule !== undefined) ? JSON.stringify(schedule) : 'null';
+        const tagSettingsJson = JSON.stringify(tagSettings || []);
+
+        res.render('dutySettings', {
+            employees,
+            statusBadgeClasses,
+            channel_id,
+            channel,
+            schedule,
+            scheduleJson,
+            currentDutyIndex,
+            isCurrentDutyUnscheduled,
+            isAdmin,
+            tagSettings: tagSettings || [],
+            tagSettingsJson
+        });
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
     }
@@ -80,8 +145,16 @@ router.post('/update-status', async (req, res) => {
 
 router.post('/change-next', async (req, res) => {
     try {
-        const { channel_id } = req.body;
-        const nextDuty = await changeNextDuty(channel_id);
+        const { channel_id, force } = req.body;
+        const shouldForce = force === 'true' || force === true || force === '1';
+
+        if (shouldForce && !(res.locals.user?.isAdmin || req.user?.isAdmin)) {
+            return res.status(403).send('Forbidden: Admin access required');
+        }
+
+        const nextDuty = shouldForce
+            ? await forceChangeNextDuty(channel_id)
+            : await changeNextDuty(channel_id);
         postMessage(channel_id, nextDuty);
         res.redirect(`/duty?channel_id=${channel_id}`);
     } catch (error) {
@@ -94,10 +167,10 @@ router.post('/update-order', async (req, res) => {
     try {
         const { channel_id, order } = req.body;
         await updateDutyUsersOrder(channel_id, order);
-        res.json({ message: 'OK' });
+        res.json({ success: true, message: 'Порядок обновлен' });
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
-        res.status(500).json({ message: 'Ошибка при обновлении порядка пользователей' });
+        res.status(500).json({ success: false, message: 'Ошибка при обновлении порядка пользователей' });
     }
 });
 
@@ -118,10 +191,59 @@ router.post('/add-user', async (req, res) => {
 router.post('/delete-user', async (req, res) => {
     try {
         const { id, channel_id } = req.body;
+        const dutyUser = await getDutyUserById(id, channel_id);
+        if (!dutyUser) {
+            return res.redirect(`/duty?channel_id=${channel_id}`);
+        }
+
         await removeDutyUser(id, channel_id);
+        await deleteUnscheduledUsersByUser(channel_id, dutyUser.user_id);
+
+        const currentDuty = await getCurrentDuty(channel_id);
+        if (currentDuty?.user_id === dutyUser.user_id) {
+            const remainingUsers = await getDutyUsers(channel_id);
+            if (remainingUsers.length > 0) {
+                const nextUser = remainingUsers.find(user => !user.is_disabled) || remainingUsers[0];
+                await setCurrentDuty(channel_id, nextUser.user_id);
+            } else {
+                await deleteCurrentDuty(channel_id);
+            }
+        }
+
         res.redirect(`/duty?channel_id=${channel_id}`);
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.redirect(`/duty?channel_id=${req.body.channel_id}`);
+    }
+});
+
+router.post('/delete-duty', async (req, res) => {
+    const { channel_id } = req.body;
+
+    try {
+        if (!channel_id) {
+            return res.redirect('/duty/list');
+        }
+
+        const dutySchedule = await getDutySchedule(channel_id);
+        if (dutySchedule?.id) {
+            try {
+                const dutyService = cronManager.get(CronServiceTypes.DUTY);
+                dutyService?.removeJob(dutySchedule.id);
+            } catch (cronError) {
+                logger.error(`Failed to remove duty cron job: ${cronError.message}`);
+            }
+        }
+
+        await deleteDutySchedule(channel_id);
+        await deleteAllDutyUsers(channel_id);
+        await deleteCurrentDuty(channel_id);
+        await deleteAllUnscheduledUsers(channel_id);
+
+        res.redirect('/duty/list');
+    } catch (error) {
+        logger.error(`Error deleting duty ${channel_id}: ${error.message}\nStack trace:\n${error.stack}`);
+        res.redirect('/duty/list');
     }
 });
 
@@ -140,22 +262,130 @@ router.post('/schedule', async (req, res) => {
     }
 });
 
+router.post('/next-duty-date', async (req, res) => {
+    const { cron_schedule, use_working_days, shifts_ahead, timezone } = req.body;
+    try {
+        if (!cron_schedule || shifts_ahead === undefined) {
+            return res.status(400).json({ error: 'Missing required parameters' });
+        }
+
+        const dayOffService = require('../../services/dayOffService');
+
+        // Используем cron-parser для точного расчета
+        let parser;
+        try {
+            parser = require('cron-parser');
+        } catch (e) {
+            // Если cron-parser недоступен, используем упрощенный расчет
+            logger.warn('cron-parser not available, installing...');
+            return res.status(500).json({ error: 'cron-parser library required' });
+        }
+
+        // Начинаем с текущей даты в указанном timezone
+        let currentDate = moment.tz(timezone || TZ || 'UTC');
+        let nextDate = null;
+        let iterations = 0;
+        const maxIterations = shifts_ahead * 20; // Защита от бесконечного цикла
+
+        // Рассчитываем дату через N смен
+        while (iterations < shifts_ahead && iterations < maxIterations) {
+            try {
+                // Создаем парсер с текущей датой как отправной точкой
+                const interval = parser.parseExpression(cron_schedule, {
+                    tz: timezone || TZ || 'UTC',
+                    currentDate: currentDate.toDate()
+                });
+
+                // Получаем следующую дату выполнения cron
+                nextDate = moment(interval.next().toDate());
+
+                // Если нужно учитывать рабочие дни, пропускаем выходные
+                if (use_working_days) {
+                    let attempts = 0;
+                    const maxAttempts = 30; // Защита от бесконечного цикла
+                    while (await dayOffService.isHoliday(nextDate) && attempts < maxAttempts) {
+                        // Если дата выходная, переходим к следующему дню и ищем следующее выполнение cron
+                        const nextDay = nextDate.clone().add(1, 'day').startOf('day');
+                        const nextInterval = parser.parseExpression(cron_schedule, {
+                            tz: timezone || TZ || 'UTC',
+                            currentDate: nextDay.toDate()
+                        });
+                        nextDate = moment(nextInterval.next().toDate());
+                        attempts++;
+                    }
+                }
+
+                // Для следующей итерации используем полученную дату как отправную точку
+                // Добавляем небольшую задержку (1 секунда), чтобы следующее выполнение cron было после этой даты
+                currentDate = nextDate.clone().add(1, 'second');
+                iterations++;
+            } catch (error) {
+                logger.error(`Error calculating next cron date: ${error.message}`);
+                break;
+            }
+        }
+
+        if (nextDate) {
+            res.json({ nextDate: nextDate.toISOString() });
+        } else {
+            res.status(500).json({ error: 'Не удалось рассчитать дату' });
+        }
+    } catch (error) {
+        logger.error(`Error in next-duty-date: ${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 // Список всех дежурств
 router.get('/list', async (req, res) => {
     try {
+        const user_id = req.user?.mattermostUserId;
+
+        if (!user_id) {
+            return res.render('dutyList', {
+                duties: [],
+                error: 'Необходима авторизация для просмотра списка дежурств'
+            });
+        }
+
         // Получаем все каналы с дежурствами (из duty_schedule и duty_current)
         const schedules = await getDutySchedules();
         const allChannelIds = new Set();
 
         // Добавляем каналы из расписаний
-        schedules.forEach(schedule => allChannelIds.add(schedule.channel_id));
+        schedules.forEach(schedule => allChannelIds.add(String(schedule.channel_id)));
 
         // Также получаем каналы из duty_current (текущие дежурства)
         const allCurrentDuties = await getAllChannelsWithCurrentDuty();
-        allCurrentDuties.forEach(duty => allChannelIds.add(duty.channel_id));
+        allCurrentDuties.forEach(duty => allChannelIds.add(String(duty.channel_id)));
+
+        // Проверяем, является ли пользователь администратором
+        const isAdmin = res.locals.user?.isAdmin || req.user?.isAdmin || false;
+
+        // Фильтруем каналы: для админов показываем все, для обычных пользователей - только те, где они участники
+        let userChannels = [];
+        if (isAdmin) {
+            // Администратор видит все каналы
+            userChannels = Array.from(allChannelIds);
+            logger.debug(`Admin user ${user_id}: showing all ${userChannels.length} channels`);
+        } else {
+            // Обычный пользователь видит только каналы, где он участник
+            for (const channelId of allChannelIds) {
+                try {
+                    const members = await getChannelMembers(channelId);
+                    const isMember = members.some(member => String(member.user_id) === String(user_id));
+                    if (isMember) {
+                        userChannels.push(channelId);
+                    }
+                } catch (err) {
+                    logger.warn(`Could not check membership for channel ${channelId}:`, err);
+                }
+            }
+            logger.debug(`Filtered channels: ${userChannels.length} out of ${allChannelIds.size} (checked membership for user ${user_id})`);
+        }
 
         // Получаем информацию о каждом канале с дежурством
-        const dutiesPromises = Array.from(allChannelIds).map(async (channelId) => {
+        const dutiesPromises = userChannels.map(async (channelId) => {
             try {
                 const channel = await getChannelById(channelId);
                 const currentDuty = await getCurrentDuty(channelId);
@@ -172,26 +402,16 @@ router.get('/list', async (req, res) => {
                 if (currentDuty && currentDuty.user_id) {
                     try {
                         // Пробуем получить пользователя по ID напрямую
-                        const userDetails = await getUser(currentDuty.user_id);
+                        const userDetails = await getUserByUsername(currentDuty.user_id.substring(1));
                         if (userDetails) {
                             currentDutyUser = {
                                 id: currentDuty.user_id,
                                 name: `${userDetails.first_name || ''} ${userDetails.last_name || ''}`.trim() || userDetails.username,
                                 username: userDetails.username
                             };
-                        } else {
-                            // Если не получилось по ID, пробуем по username/email
-                            const userDetailsAlt = await getUserByUsernameOrEmail(currentDuty.user_id);
-                            if (userDetailsAlt) {
-                                currentDutyUser = {
-                                    id: currentDuty.user_id,
-                                    name: `${userDetailsAlt.first_name || ''} ${userDetailsAlt.last_name || ''}`.trim() || userDetailsAlt.username,
-                                    username: userDetailsAlt.username
-                                };
-                            }
                         }
                     } catch (err) {
-                        logger.warn(`Could not get user details for ${currentDuty.user_id}:`, err);
+                        logger.error(err);
                         // Если не удалось получить данные пользователя, все равно показываем что дежурный назначен
                         currentDutyUser = {
                             id: currentDuty.user_id,
@@ -248,6 +468,114 @@ router.get('/list', async (req, res) => {
             duties: [],
             error: 'Ошибка при загрузке списка дежурств'
         });
+    }
+});
+
+// Получение настроек тэгания
+router.get('/api/tag-settings', async (req, res) => {
+    try {
+        const { channel_id } = req.query;
+        if (!channel_id) {
+            return res.status(400).json({ error: 'channel_id is required' });
+        }
+        const settings = await getDutyTagSettings(channel_id);
+        res.json(settings || []);
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Сохранение настройки тэгания
+router.post('/api/tag-settings', async (req, res) => {
+    try {
+        const { id, channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots } = req.body;
+        if (!channel_id || !tag) {
+            return res.status(400).json({ error: 'channel_id and tag are required' });
+        }
+
+        if (id) {
+            await updateDutyTagSetting(id, channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots);
+        } else {
+            await addDutyTagSetting(channel_id, tag, is_enabled, channel_prefix, excluded_user_ids, message_template, allow_bots);
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Удаление настройки тэгания
+router.delete('/api/tag-settings/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await deleteDutyTagSetting(id);
+        res.json({ success: true });
+    } catch (error) {
+        logger.error(`${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// API: Получение пользователей канала
+router.get('/api/channel-users', async (req, res) => {
+    try {
+        const { channelId } = req.query;
+
+        if (!channelId) {
+            return res.status(400).json({ error: 'Не указан channelId' });
+        }
+
+        // Получаем участников канала
+        let members = [];
+        try {
+            members = await getChannelMembers(channelId);
+        } catch (error) {
+            logger.error(`Error getting channel members for ${channelId}: ${error.message}`);
+            return res.status(500).json({ error: 'Не удалось получить участников канала' });
+        }
+
+        // Получаем детали каждого пользователя
+        const users = await Promise.allSettled(
+            members.map(async (member) => {
+                try {
+                    const user = await getUser(member.user_id);
+
+                    // Фильтруем удаленных пользователей (delete_at > 0 означает удаление)
+                    if (user.delete_at && user.delete_at > 0) {
+                        return null;
+                    }
+
+                    // Фильтруем ботов
+                    if (user.is_bot === true) {
+                        return null;
+                    }
+
+                    return {
+                        id: user.id,
+                        username: user.username,
+                        displayName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username,
+                        email: user.email
+                    };
+                } catch (err) {
+                    logger.warn(`Could not get user ${member.user_id}:`, err);
+                    return null;
+                }
+            })
+        );
+
+        // Фильтруем результаты Promise.allSettled и null значения
+        const validUsers = users
+            .filter(result => result.status === 'fulfilled' && result.value !== null)
+            .map(result => result.value)
+            .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+        res.json({ users: validUsers });
+    } catch (error) {
+        logger.error(`Error getting channel users: ${error.message}\nStack trace:\n${error.stack}`);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 

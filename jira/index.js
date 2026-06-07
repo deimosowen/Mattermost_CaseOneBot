@@ -44,7 +44,13 @@ async function getTask(taskId, authHeader) {
         });
         return (response.data);
     } catch (error) {
+        // Если задача не найдена (404), возвращаем null
+        if (error.response && error.response.status === 404) {
+            logger.warn(`Задача ${taskId} не найдена`);
+            return null;
+        }
         logger.error('Ошибка при получении задачи:', error);
+        throw error;
     }
 }
 
@@ -108,6 +114,39 @@ async function setReviewers(taskId, reviewers, authHeader) {
     }
 }
 
+async function searchTasks(jql, maxResults, authHeader) {
+    const url = `${JIRA_API_URL}/tasks/search`;
+    try {
+        const response = await axios.get(url, {
+            params: { jql, maxResults },
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+            }
+        });
+        return response.data;
+    } catch (error) {
+        // Если ошибка поиска, логируем детали и возвращаем пустой массив
+        const errorDetails = {
+            message: error.message,
+            response: error.response ? {
+                status: error.response.status,
+                statusText: error.response.statusText,
+                data: error.response.data
+            } : null,
+            jql: jql
+        };
+        logger.error('Ошибка при поиске задач:', JSON.stringify(errorDetails, null, 2));
+        
+        // Если есть детали ошибки в response.data, логируем их отдельно
+        if (error.response?.data) {
+            console.error('Jira API error details:', JSON.stringify(error.response.data, null, 2));
+        }
+        
+        return [];
+    }
+}
+
 module.exports = {
     getSubtasks,
     logTime,
@@ -116,4 +155,5 @@ module.exports = {
     changeStatus,
     addComment,
     setReviewers,
+    searchTasks,
 };

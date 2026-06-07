@@ -2,9 +2,41 @@ const express = require('express');
 const router = express.Router();
 const jiraService = require('../services/jiraService');
 
+// Роут /search должен быть ПЕРЕД /:taskId, иначе "search" будет интерпретироваться как taskId
+router.get('/search', async (req, res) => {
+    try {
+        const { jql, maxResults } = req.query;
+        if (!jql) {
+            return res.status(400).json({ error: 'JQL query is required' });
+        }
+        const tasks = await jiraService.searchTasks(req.jira, jql, parseInt(maxResults) || 50);
+        res.json(tasks);
+    } catch (error) {
+        // Логируем детали ошибки
+        console.error('Error in /search route:', {
+            message: error.message,
+            errorMessages: error.errorMessages,
+            errors: error.errors,
+            stack: error.stack
+        });
+        
+        // Возвращаем детали ошибки в ответе
+        const errorResponse = {
+            error: error.message || 'Unknown error',
+            errorMessages: error.errorMessages,
+            errors: error.errors
+        };
+        
+        res.status(500).json(errorResponse);
+    }
+});
+
 router.get('/:taskId', async (req, res) => {
     try {
         const task = await jiraService.getTask(req.jira, req.params.taskId);
+        if (!task) {
+            return res.status(404).json({ error: 'Задача не найдена' });
+        }
         res.json(task);
     } catch (error) {
         res.status(500).send(error.toString());
