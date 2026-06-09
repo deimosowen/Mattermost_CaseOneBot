@@ -35,7 +35,7 @@
                                             <select class="form-select" id="taskKey" name="taskKey" required>
                                                 <option value="">Загрузка задач...</option>
                                             </select>
-                                            <div class="form-text">Выберите задачу из списка или начните вводить для
+                                            <div class="form-text" id="taskLoadHint">Выберите задачу из списка или начните вводить для
                                                 поиска. Показываются ваши задачи в статусе "In Progress"</div>
                                         </div>
 
@@ -238,14 +238,32 @@
             let tasksSelect = null;
             let mrSelect = null;
 
+            async function fetchJsonWithTimeout(url, timeoutMs = 15000) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+                try {
+                    const response = await fetch(url, { signal: controller.signal });
+                    return await response.json();
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+            }
+
             // Функция загрузки задач пользователя
             async function loadUserTasks(searchTerm = '') {
                 const taskSelect = document.getElementById('taskKey');
+                const taskLoadHint = document.getElementById('taskLoadHint');
 
                 // Уничтожаем предыдущий экземпляр Tom Select, если он существует
                 if (tasksSelect) {
                     tasksSelect.destroy();
                     tasksSelect = null;
+                }
+                taskSelect.disabled = false;
+                taskSelect.innerHTML = '<option value="">Загрузка задач...</option>';
+                if (taskLoadHint) {
+                    taskLoadHint.textContent = 'Выберите задачу из списка или начните вводить для поиска. Показываются ваши задачи в статусе "In Progress"';
+                    taskLoadHint.classList.remove('text-warning', 'text-danger');
                 }
 
                 try {
@@ -253,13 +271,16 @@
                         ? `/review/api/user-tasks?search=${encodeURIComponent(searchTerm)}`
                         : '/review/api/user-tasks';
 
-                    const response = await fetch(url);
-                    const data = await response.json();
+                    const data = await fetchJsonWithTimeout(url);
 
                     if (data.error) {
-                        taskSelect.innerHTML = `<option value="">Ошибка: ${data.error}</option>`;
-                        taskSelect.disabled = true;
+                        initManualTaskSelect(`Ошибка: ${data.error}`);
                         return;
+                    }
+
+                    if (data.warning && taskLoadHint) {
+                        taskLoadHint.textContent = data.warning;
+                        taskLoadHint.classList.add('text-warning');
                     }
 
                     if (data.tasks && data.tasks.length > 0) {
@@ -311,8 +332,7 @@
                                     return;
                                 }
 
-                                fetch(`/review/api/user-tasks?search=${encodeURIComponent(query)}`)
-                                    .then(response => response.json())
+                                fetchJsonWithTimeout(`/review/api/user-tasks?search=${encodeURIComponent(query)}`)
                                     .then(data => {
                                         if (data.error) {
                                             callback();
@@ -334,38 +354,52 @@
                         });
                     } else {
                         // Если нет задач, все равно инициализируем Tom Select с возможностью ввода вручную
-                        tasksSelect = new TomSelect('#taskKey', {
-                            maxItems: 1,
-                            valueField: 'value',
-                            labelField: 'text',
-                            create: function (input) {
-                                const value = input.trim().toUpperCase();
-                                if (/^(CASEM|REN)-\d+$/.test(value)) {
-                                    return {
-                                        value: value,
-                                        text: value,
-                                        key: value,
-                                        summary: ''
-                                    };
-                                }
-                                return null;
-                            },
-                            createOnBlur: true,
-                            placeholder: 'Введите ключ задачи (например: CASEM-123)',
-                            options: [],
-                            onChange: function (value) {
-                                // При выборе задачи загружаем её детали и заполняем Merge Request
-                                if (!value) return;
-
-                                const taskKey = value;
-                                loadTaskDetails(taskKey);
-                            }
-                        });
+                        initManualTaskSelect(data.warning || null);
                     }
                 } catch (error) {
-                    taskSelect.innerHTML = `<option value="">Ошибка загрузки: ${error.message}</option>`;
-                    taskSelect.disabled = true;
+                    const message = error.name === 'AbortError'
+                        ? 'Jira отвечает слишком долго. Введите ключ задачи вручную.'
+                        : `Ошибка загрузки задач: ${error.message}`;
+                    initManualTaskSelect(message);
                 }
+            }
+
+            function initManualTaskSelect(message) {
+                const taskSelect = document.getElementById('taskKey');
+                const taskLoadHint = document.getElementById('taskLoadHint');
+
+                taskSelect.disabled = false;
+                taskSelect.innerHTML = '<option value=""></option>';
+                if (taskLoadHint && message) {
+                    taskLoadHint.textContent = message;
+                    taskLoadHint.classList.remove('text-danger');
+                    taskLoadHint.classList.add('text-warning');
+                }
+
+                tasksSelect = new TomSelect('#taskKey', {
+                    maxItems: 1,
+                    valueField: 'value',
+                    labelField: 'text',
+                    create: function (input) {
+                        const value = input.trim().toUpperCase();
+                        if (/^(CASEM|REN)-\d+$/.test(value)) {
+                            return {
+                                value: value,
+                                text: value,
+                                key: value,
+                                summary: ''
+                            };
+                        }
+                        return null;
+                    },
+                    createOnBlur: true,
+                    placeholder: 'Введите ключ задачи (например: CASEM-123)',
+                    options: [],
+                    onChange: function (value) {
+                        if (!value) return;
+                        loadTaskDetails(value);
+                    }
+                });
             }
 
             // Функция загрузки деталей задачи и заполнения выпадающего списка Merge Request
