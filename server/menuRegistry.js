@@ -54,6 +54,15 @@ const userMenuItems = [
         section: 'main'
     },
     {
+        key: 'message_forwarding',
+        title: 'Пересылка сообщений',
+        description: 'Настройка маршрутов пересылки между каналами',
+        url: '/forward',
+        icon: 'bi-arrow-left-right',
+        color: 'info',
+        section: 'main'
+    },
+    {
         key: 'jira_worklog',
         title: 'Jira Worklog',
         description: 'Учет времени в Jira',
@@ -185,6 +194,7 @@ function getMenuKeyForPath(path) {
     if (path === '/patch' || path.startsWith('/patch/')) return 'patch_message';
     if (path === '/teamcity' || path.startsWith('/teamcity/')) return 'teamcity';
     if (path === '/invite' || path.startsWith('/invite/')) return 'invite';
+    if (path === '/forward' || path.startsWith('/forward/')) return 'message_forwarding';
     if (path === '/jira' || path.startsWith('/jira/')) return 'jira_worklog';
     if (path === '/review' || path.startsWith('/review/')) return 'review';
     if (path === '/reminders' || path.startsWith('/reminders/')) return 'reminders';

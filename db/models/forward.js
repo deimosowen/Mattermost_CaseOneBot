@@ -17,7 +17,7 @@ const addChannelMapping = async (sourceChannelId, targetChannelId, message, thre
 
 // Получение всех маппингов
 const getAllChannelMappings = async () => {
-    return db.all('SELECT * FROM forward_channel_mapping');
+    return db.all('SELECT * FROM forward_channel_mapping ORDER BY id DESC');
 };
 
 const getSourceChannelId = async (channel_id) => {
@@ -45,14 +45,21 @@ const addProcessedMessage = async (channel_id, channel_name, user_id, user_name,
 };
 
 // Проверка, было ли сообщение обработано
-const isMessageProcessed = (message_id, callback) => {
-    db.get('SELECT * FROM forward_processed_messages WHERE message_id = ?', [message_id], (err, row) => {
-        if (err) {
-            callback(err, null);
-        } else {
-            callback(null, !!row);
+const isMessageProcessed = async (message_id, callback) => {
+    try {
+        const row = await db.get('SELECT * FROM forward_processed_messages WHERE message_id = ?', [message_id]);
+        const result = Boolean(row);
+        if (callback) {
+            callback(null, result);
         }
-    });
+        return result;
+    } catch (err) {
+        if (callback) {
+            callback(err, null);
+            return false;
+        }
+        throw err;
+    }
 };
 
 const getChannelMapping = async (id) => {
@@ -64,8 +71,19 @@ const getChannelMapping = async (id) => {
     }
 };
 
+const updateChannelMapping = async (id, sourceChannelId, targetChannelId, message, threadMessage) => {
+    const result = await db.runAsync(
+        `UPDATE forward_channel_mapping
+         SET source_channel_id = ?, target_channel_id = ?, message = ?, thread_message = ?
+         WHERE id = ?`,
+        [sourceChannelId, targetChannelId, message, threadMessage, id]
+    );
+    return result.changes;
+};
+
 const deleteChannelMapping = async (id) => {
-    return db.run('DELETE FROM forward_channel_mapping WHERE id = ?', id);
+    const result = await db.runAsync('DELETE FROM forward_channel_mapping WHERE id = ?', [id]);
+    return result.changes;
 };
 
 const getForwardMessageByMessageId = async (id) => {
@@ -77,13 +95,23 @@ const getForwardMessageByMessageId = async (id) => {
     }
 };
 
+const getForwardStatsBySourceChannel = async () => {
+    return db.all(`
+        SELECT channel_id, COUNT(*) AS forwarded_count, MAX(timestamp) AS last_forwarded_at
+        FROM forward_processed_messages
+        GROUP BY channel_id
+    `);
+};
+
 module.exports = {
     getChannelMapping,
     addChannelMapping,
+    updateChannelMapping,
     getSourceChannelId,
     getAllChannelMappings,
     addProcessedMessage,
     isMessageProcessed,
     deleteChannelMapping,
     getForwardMessageByMessageId,
+    getForwardStatsBySourceChannel,
 };

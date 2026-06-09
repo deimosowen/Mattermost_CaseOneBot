@@ -10,6 +10,7 @@ const oauthController = require('./controllers/oauthController');
 const calendarController = require('./controllers/calendarController');
 const dutyController = require('./controllers/dutyController');
 const inviteController = require('./controllers/inviteController');
+const forwardController = require('./controllers/forwardController');
 const jiraController = require('./controllers/jiraController');
 const featureController = require('./controllers/featureController');
 const patchController = require('./controllers/patchController');
@@ -116,6 +117,7 @@ function buildApp() {
     app.use('/calendar', calendarController);
     app.use('/duty', dutyController);
     app.use('/invite', inviteController);
+    app.use('/forward', forwardController);
     app.use('/jira', jiraController);
     app.use('/feature', featureController);
     app.use('/patch', patchController);
