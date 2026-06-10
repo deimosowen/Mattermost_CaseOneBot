@@ -47,6 +47,7 @@ const getFeaturesWithOpenMRs = async () => {
             fmr.merge_request_id,
             fmr.role,
             fmr.has_conflicts,
+            COALESCE(fmr.conflict_announced, 0) AS conflict_announced,
             gmr.mr_iid,
             gmr.project_id,
             gmr.status AS mr_status
@@ -57,10 +58,29 @@ const getFeaturesWithOpenMRs = async () => {
     `, FINAL_STATUSES);
 };
 
-const updateMergeRequestConflicts = async (featureMergeRequestId, hasConflicts) => {
+const updateMergeRequestConflicts = async (featureMergeRequestId, hasConflicts, conflictAnnounced) => {
+    const updates = ['has_conflicts = ?'];
+    const params = [hasConflicts ? 1 : 0];
+
+    if (conflictAnnounced !== undefined) {
+        updates.push('conflict_announced = ?');
+        params.push(conflictAnnounced ? 1 : 0);
+    }
+
+    params.push(featureMergeRequestId);
+
     return db.runAsync(
-        'UPDATE feature_merge_requests SET has_conflicts = ? WHERE id = ?',
-        [hasConflicts ? 1 : 0, featureMergeRequestId]
+        `UPDATE feature_merge_requests SET ${updates.join(', ')} WHERE id = ?`,
+        params
+    );
+};
+
+const updateFeatureMergeRequestConflictState = async (featureId, role, hasConflicts, conflictAnnounced) => {
+    return db.runAsync(
+        `UPDATE feature_merge_requests
+         SET has_conflicts = ?, conflict_announced = ?
+         WHERE feature_id = ? AND role = ?`,
+        [hasConflicts ? 1 : 0, conflictAnnounced ? 1 : 0, featureId, role]
     );
 };
 
@@ -151,4 +171,5 @@ module.exports = {
     deleteFeatureReady,
     parseMergeTasks,
     updateMergeRequestConflicts,
+    updateFeatureMergeRequestConflictState,
 }

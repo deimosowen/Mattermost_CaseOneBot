@@ -55,47 +55,62 @@ class FeatureReadyCronService extends BaseCronService {
             }
 
             for (const merge_request of feature_merge_requests) {
-                try {
-                    const mr = await this.gitlab.getMergeRequestStatus(merge_request.project_id, merge_request.mr_iid);
-                    if (!mr) continue;
-
-                    // Проверяем, изменился ли статус конфликтов
-                    const currentHasConflicts = Boolean(mr.hasConflicts);
-                    const previousHasConflicts = Boolean(merge_request.has_conflicts);
-
-                    if (previousHasConflicts !== currentHasConflicts) {
-                        // Обновляем статус в базе данных
-                        await updateMergeRequestConflicts(merge_request.feature_merge_request_id, currentHasConflicts);
-
-                        if (previousHasConflicts && !currentHasConflicts) {
-                            // Конфликты были разрешены - отправляем сообщение в тред
-                            const roleName = this._getRoleName(merge_request.role);
-                            const message = `✅ Конфликты для ${roleName} Merge Request были *разрешены*!`;
-                            await postMessageInTreed(merge_request.mattermost_post_id, message);
-                            logger.debug(`[FeatureReadyCron] Конфликты разрешены для ${roleName} MR ${merge_request.mr_iid}`);
-                        } else if (!previousHasConflicts && currentHasConflicts) {
-                            // Появились новые конфликты
-                            logger.debug(`[FeatureReadyCron] Обнаружены конфликты для MR ${merge_request.mr_iid}`);
-                        }
-                    }
-
-                    // Проверяем, изменился ли статус MR на финальный статус
-                    if (this.gitlab.isFinalStatus(mr.status) && merge_request.mr_status !== mr.status) {
-                        await this.gitlab.updateReviewTaskStatus(merge_request.merge_request_id, mr.status);
-
-                        const message = this._formatStatusMessage(merge_request.role, mr.status);
-                        await postMessageInTreed(merge_request.mattermost_post_id, message);
-
-                        await addReaction(merge_request.mattermost_post_id, this.reaction);
-
-                        // Закрываем соответствующие задачи на влитие
-                        await this._closeMergeTasks(merge_request, mr.status);
-                    }
-                } catch (error) {
-                    logger.error(error);
-                }
+                await this._processMergeRequest(merge_request);
             }
         });
+    }
+
+    async _processMergeRequest(merge_request) {
+        try {
+            const mr = await this.gitlab.getMergeRequestStatus(merge_request.project_id, merge_request.mr_iid);
+            if (!mr) return;
+
+            await this._handleConflictStateChange(merge_request, Boolean(mr.hasConflicts));
+
+            // Проверяем, изменился ли статус MR на финальный статус
+            if (this.gitlab.isFinalStatus(mr.status) && merge_request.mr_status !== mr.status) {
+                await this.gitlab.updateReviewTaskStatus(merge_request.merge_request_id, mr.status);
+
+                const message = this._formatStatusMessage(merge_request.role, mr.status);
+                await postMessageInTreed(merge_request.mattermost_post_id, message);
+
+                await addReaction(merge_request.mattermost_post_id, this.reaction);
+
+                // Закрываем соответствующие задачи на влитие
+                await this._closeMergeTasks(merge_request, mr.status);
+            }
+        } catch (error) {
+            logger.error(error);
+        }
+    }
+
+    async _handleConflictStateChange(merge_request, currentHasConflicts) {
+        const previousHasConflicts = Boolean(merge_request.has_conflicts);
+        if (previousHasConflicts === currentHasConflicts) {
+            return;
+        }
+
+        if (currentHasConflicts) {
+            await updateMergeRequestConflicts(merge_request.feature_merge_request_id, true, true);
+            const roleName = this._getRoleName(merge_request.role);
+            const message = `⚠️ Обнаружены конфликты для ${roleName} Merge Request.`;
+            await postMessageInTreed(merge_request.mattermost_post_id, message);
+            logger.debug(`[FeatureReadyCron] Обнаружены конфликты для MR ${merge_request.mr_iid}`);
+            return;
+        }
+
+        const wasAnnounced = Boolean(merge_request.conflict_announced);
+        await updateMergeRequestConflicts(merge_request.feature_merge_request_id, false, false);
+
+        if (!wasAnnounced) {
+            logger.debug(`[FeatureReadyCron] Конфликты для MR ${merge_request.mr_iid} разрешены без уведомления: конфликт не был объявлен`);
+            return;
+        }
+
+        const roleName = this._getRoleName(merge_request.role);
+        const message = `✅ Конфликты для ${roleName} Merge Request были *разрешены*!`;
+        await postMessageInTreed(merge_request.mattermost_post_id, message);
+        logger.debug(`[FeatureReadyCron] Конфликты разрешены для ${roleName} MR ${merge_request.mr_iid}`);
     }
 
     _formatStatusMessage(role, mrStatus) {
