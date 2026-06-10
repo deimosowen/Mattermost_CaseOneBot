@@ -109,8 +109,28 @@ function buildApp() {
         '^/api/public/.*', // если будут публичные API
     ];
 
+    const isPublicPath = (path) => {
+        const exactOrWildcard = publicPaths.some(publicPath => {
+            if (path === publicPath) return true;
+            if (publicPath.endsWith('*') && path.startsWith(publicPath.slice(0, -1))) return true;
+            return false;
+        });
+
+        if (exactOrWildcard) {
+            return true;
+        }
+
+        return publicPatterns.some(pattern => new RegExp(pattern).test(path));
+    };
+
     app.use(requireAuth(publicPaths, publicPatterns));
-    app.use(menuAccessMiddleware);
+    app.use((req, res, next) => {
+        if (isPublicPath(req.path)) {
+            return next();
+        }
+
+        return menuAccessMiddleware(req, res, next);
+    });
 
     // Защищенные маршруты
     app.use('/', homeController);

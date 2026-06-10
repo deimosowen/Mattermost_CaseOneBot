@@ -104,6 +104,24 @@ describe('review command', () => {
         expect(addReviewTask).not.toHaveBeenCalled();
     });
 
+    test('не создает запись review task, если Mattermost не создал пост', async () => {
+        postMessage.mockResolvedValueOnce(undefined);
+
+        await reviewCommand({
+            post_id: 'post-1',
+            user_id: 'user-1',
+            user_name: 'john',
+            channel_id: 'test-channel-1',
+            args: ['CASEM-1', null, null],
+        });
+
+        expect(postMessage).toHaveBeenCalledWith(
+            'test-channel-1',
+            expect.stringContaining('**IN REVIEW**')
+        );
+        expect(addReviewTask).not.toHaveBeenCalled();
+    });
+
     test('если To Do -> In Progress не удалось — пишет ошибку и останавливается', async () => {
         JiraService.fetchTask.mockResolvedValue({
             key: 'CASEM-2',

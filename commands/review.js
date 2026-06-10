@@ -178,6 +178,10 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
             }
 
             const post = await postMessage(channelId, messageToPost);
+            if (!post?.id) {
+                logger.error(`[Review] Не удалось отправить сообщение в канал ${channelId} для задачи ${key}`);
+                continue;
+            }
 
             // Обрабатываем GitLab merge request
             const gitlabMergeRequestId = await reviewTaskService.processGitlabMergeRequest(mergeRequestLink);

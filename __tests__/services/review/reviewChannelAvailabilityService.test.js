@@ -34,16 +34,38 @@ describe('reviewChannelAvailabilityService', () => {
     beforeEach(() => {
         jest.clearAllMocks();
 
-        getAllReviewChannelIds.mockResolvedValue(['channel-a', 'channel-b', 'channel-c']);
+        getAllReviewChannelIds.mockResolvedValue(['channel-a', 'channel-b', 'channel-c', 'channel-d', 'channel-e']);
         getExcludedReviewChannelIds.mockResolvedValue(['channel-b']);
         getChannelMember.mockImplementation(async (channelId) => {
             if (channelId === 'channel-c') return null;
             return { user_id: 'user-1', channel_id: channelId };
         });
-        getChannelById.mockImplementation(async (channelId) => ({
-            id: channelId,
-            display_name: `Name ${channelId}`,
-        }));
+        getChannelById.mockImplementation(async (channelId) => {
+            if (channelId === 'channel-d') {
+                return {
+                    id: channelId,
+                    display_name: `Name ${channelId}`,
+                    delete_at: 123456,
+                    type: 'O',
+                };
+            }
+
+            if (channelId === 'channel-e') {
+                return {
+                    id: channelId,
+                    display_name: `Name ${channelId}`,
+                    delete_at: 0,
+                    type: 'G',
+                };
+            }
+
+            return {
+                id: channelId,
+                display_name: `Name ${channelId}`,
+                delete_at: 0,
+                type: 'O',
+            };
+        });
         setExcludedReviewChannelIds.mockResolvedValue(['channel-b']);
     });
 
@@ -54,6 +76,8 @@ describe('reviewChannelAvailabilityService', () => {
         expect(getChannelMember).toHaveBeenCalledWith('channel-a', 'user-1');
         expect(getChannelMember).toHaveBeenCalledWith('channel-b', 'user-1');
         expect(getChannelMember).toHaveBeenCalledWith('channel-c', 'user-1');
+        expect(getChannelMember).toHaveBeenCalledWith('channel-d', 'user-1');
+        expect(getChannelMember).toHaveBeenCalledWith('channel-e', 'user-1');
     });
 
     test('для UI возвращает доступные каналы вместе со статусом исключения', async () => {
