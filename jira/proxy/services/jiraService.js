@@ -1,6 +1,7 @@
 const JiraClient = require('jira-client');
 const moment = require('moment');
 const NodeCache = require('node-cache');
+const axios = require('axios');
 const cache = new NodeCache();
 
 const createJiraClient = ({ username, password }) => {
@@ -140,6 +141,10 @@ const logTime = async (jiraClient, { taskId, started, duration, comment }) => {
     }
 };
 
+const getIssueWorklogs = async (jiraClient, taskId) => {
+    return jiraClient.getIssueWorklogs(taskId, 0, 1000);
+};
+
 const changeStatus = async (jiraClient, taskId, status) => {
     try {
         const transitions = await jiraClient.listTransitions(taskId);
@@ -184,8 +189,7 @@ const setReviewers = async (jiraClient, taskId, reviewers) => {
                 }
             }
         };
-        const res = await jiraClient.updateIssue(issue.id, bodyData);
-        console.log('gegege');
+        await jiraClient.updateIssue(issue.id, bodyData);
     } catch (error) {
         throw error;
     }
@@ -199,6 +203,159 @@ const addComment = async (jiraClient, taskId, comment) => {
     }
 };
 
+const mapWithConcurrency = async (items, limit, mapper) => {
+    const results = new Array(items.length);
+    let cursor = 0;
+    const workerCount = Math.min(Math.max(Number(limit) || 1, 1), items.length);
+
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (cursor < items.length) {
+            const currentIndex = cursor;
+            cursor += 1;
+            results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+        }
+    }));
+
+    return results;
+};
+
+const getJiraBaseUrl = (jiraClient) => {
+    const host = process.env.JIRA_HOST || jiraClient?.host || '';
+    if (!host) {
+        throw new Error('JIRA_HOST is required for Tempo worklog report');
+    }
+    return host.startsWith('http') ? host : `https://${host}`;
+};
+
+const createJiraRestClient = (authHeader, jiraClient) => axios.create({
+    baseURL: getJiraBaseUrl(jiraClient),
+    timeout: Number(process.env.WORKLOG_REPORT_TEMPO_TIMEOUT_MS || 60000),
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+    headers: {
+        Authorization: authHeader,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+    },
+});
+
+const normalizeDate = (value) => {
+    if (!value) return null;
+    const parsed = moment.parseZone(value, ['YYYY-MM-DD', 'YYYY-MM-DD HH:mm:ss.SSS', moment.ISO_8601], true);
+    return parsed.isValid() ? parsed.format('YYYY-MM-DD') : String(value).slice(0, 10);
+};
+
+const getTempoWorklogSeconds = (worklog) => Number(worklog?.timeSpentSeconds || worklog?.timeSpent || 0);
+
+const resolveJiraUsersForTempo = async (client, users) => {
+    const concurrency = parseInt(process.env.WORKLOG_REPORT_TEMPO_USER_CONCURRENCY || '6', 10) || 6;
+    const resolved = [];
+
+    await mapWithConcurrency(users, concurrency, async (user) => {
+        const values = new Set([user.username, user.email, user.id].filter(Boolean).map((value) => String(value)));
+        let jiraUser = null;
+
+        try {
+            const response = await client.get('/rest/api/2/user', {
+                params: { username: user.username },
+            });
+            jiraUser = response.data;
+        } catch (error) {
+            jiraUser = null;
+        }
+
+        if (jiraUser) {
+            [jiraUser.name, jiraUser.key, jiraUser.emailAddress, jiraUser.accountId]
+                .filter(Boolean)
+                .forEach((value) => values.add(String(value)));
+        }
+
+        resolved.push({
+            ...user,
+            tempoWorkers: [...values],
+            primaryTempoWorker: String(jiraUser?.key || jiraUser?.name || user.username),
+        });
+    });
+
+    return resolved;
+};
+
+const buildTempoUserMap = (users) => {
+    const map = new Map();
+    for (const user of users) {
+        for (const value of user.tempoWorkers || []) {
+            map.set(String(value).toLowerCase(), user);
+        }
+    }
+    return map;
+};
+
+const getWorklogReport = async (jiraClient, { users, startDate, endDate }, authHeader) => {
+    const startedAt = Date.now();
+    const normalizedUsers = (users || []).filter((user) => user?.username);
+    const hoursByUser = {};
+    for (const user of normalizedUsers) {
+        hoursByUser[user.username] = {};
+    }
+
+    if (!normalizedUsers.length || !startDate || !endDate) {
+        return { hoursByUser, issueCount: 0, worklogCount: 0, timings: { totalMs: Date.now() - startedAt } };
+    }
+
+    if (!authHeader) {
+        throw new Error('Tempo worklog report requires Jira authorization header');
+    }
+
+    const client = createJiraRestClient(authHeader, jiraClient);
+    const resolveStartedAt = Date.now();
+    const resolvedUsers = await resolveJiraUsersForTempo(client, normalizedUsers);
+    const userMap = buildTempoUserMap(resolvedUsers);
+    const workers = [...new Set(resolvedUsers.map((user) => user.primaryTempoWorker).filter(Boolean))];
+    const resolveMs = Date.now() - resolveStartedAt;
+
+    const tempoStartedAt = Date.now();
+    const response = await client.post('/rest/tempo-timesheets/4/worklogs/search', {
+        from: startDate,
+        to: endDate,
+        worker: workers,
+    });
+    const tempoWorklogs = Array.isArray(response.data) ? response.data : [];
+    const tempoMs = Date.now() - tempoStartedAt;
+    let worklogCount = 0;
+
+    for (const worklog of tempoWorklogs) {
+        const date = normalizeDate(worklog.started || worklog.dateStarted || worklog.startDate);
+        if (!date || date < startDate || date > endDate) {
+            continue;
+        }
+
+        const worker = String(worklog.worker || '').toLowerCase();
+        const user = userMap.get(worker);
+        if (!user) {
+            continue;
+        }
+
+        if (!hoursByUser[user.username][date]) {
+            hoursByUser[user.username][date] = 0;
+        }
+        hoursByUser[user.username][date] += getTempoWorklogSeconds(worklog) / 3600;
+        worklogCount += 1;
+    }
+
+    const issueKeys = new Set(tempoWorklogs.map((worklog) => worklog.issue?.key).filter(Boolean));
+    return {
+        hoursByUser,
+        issueCount: issueKeys.size,
+        worklogCount,
+        source: 'tempo',
+        timings: {
+            resolveMs,
+            tempoMs,
+            totalMs: Date.now() - startedAt,
+        },
+    };
+};
+
 const searchTasks = async (jiraClient, jql, maxResults = 50) => {
     try {
         const result = await jiraClient.searchJira(jql, {
@@ -206,10 +363,7 @@ const searchTasks = async (jiraClient, jql, maxResults = 50) => {
             fields: ['key', 'summary', 'status', 'assignee']
         });
 
-        if (!result || !result.issues) {
-            console.log('No issues found in search result');
-            return [];
-        }
+        if (!result || !result.issues) return [];
 
         const mappedTasks = result.issues.map(issue => {
             const assignee = issue.fields.assignee;
@@ -269,4 +423,6 @@ module.exports = {
     addComment,
     setReviewers,
     searchTasks,
+    getIssueWorklogs,
+    getWorklogReport,
 };

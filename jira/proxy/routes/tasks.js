@@ -31,6 +31,25 @@ router.get('/search', async (req, res) => {
     }
 });
 
+router.post('/worklog-report', async (req, res) => {
+    try {
+        const report = await jiraService.getWorklogReport(req.jira, req.body || {}, req.headers.authorization);
+        res.json(report);
+    } catch (error) {
+        console.error('Error in /worklog-report route:', {
+            message: error.message,
+            errorMessages: error.errorMessages,
+            errors: error.errors,
+            stack: error.stack
+        });
+        res.status(500).json({
+            error: error.message || 'Unknown error',
+            errorMessages: error.errorMessages,
+            errors: error.errors
+        });
+    }
+});
+
 router.get('/:taskId', async (req, res) => {
     try {
         const task = await jiraService.getTask(req.jira, req.params.taskId);
@@ -56,6 +75,15 @@ router.get('/:taskId/subtasks', async (req, res) => {
     try {
         const subtasks = await jiraService.getSubtasks(req.jira, req.params.taskId);
         res.json(subtasks);
+    } catch (error) {
+        res.status(500).send(error.toString());
+    }
+});
+
+router.get('/:taskId/worklogs', async (req, res) => {
+    try {
+        const worklogs = await jiraService.getIssueWorklogs(req.jira, req.params.taskId);
+        res.json(worklogs);
     } catch (error) {
         res.status(500).send(error.toString());
     }

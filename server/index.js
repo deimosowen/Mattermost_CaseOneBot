@@ -21,6 +21,7 @@ const adminController = require('./controllers/adminController');
 const reminderController = require('./controllers/reminderController');
 const commandsController = require('./controllers/commandsController');
 const profileController = require('./controllers/profileController');
+const worklogReportController = require('./controllers/worklogReportController');
 
 const passport = require('./middleware/passport');
 const requireAuth = require('./middleware/auth');
@@ -148,6 +149,7 @@ function buildApp() {
     app.use('/reminders', reminderController);
     app.use('/commands', commandsController);
     app.use('/profile', profileController);
+    app.use('/worklogs', worklogReportController);
 
     return app;
 }

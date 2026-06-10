@@ -4,4 +4,5 @@ module.exports = {
     DUTY: 'DutyCron',
     PING: 'PingCron',
     SCHEDULED_MESSAGE: 'ScheduledMessageCron',
+    WORKLOG_REPORT: 'WorklogReportCron',
 };

@@ -72,6 +72,15 @@ const userMenuItems = [
         section: 'main'
     },
     {
+        key: 'worklog_reports',
+        title: 'Проверка таймлогов',
+        description: 'Автоматические отчеты по заполнению Jira worklog',
+        url: '/worklogs',
+        icon: 'bi-calendar-check',
+        color: 'warning',
+        section: 'main'
+    },
+    {
         key: 'review',
         title: 'Перевод в ревью',
         description: 'Перевод задачи в статус IN REVIEW и отправка в канал',
@@ -196,6 +205,7 @@ function getMenuKeyForPath(path) {
     if (path === '/invite' || path.startsWith('/invite/')) return 'invite';
     if (path === '/forward' || path.startsWith('/forward/')) return 'message_forwarding';
     if (path === '/jira' || path.startsWith('/jira/')) return 'jira_worklog';
+    if (path === '/worklogs' || path.startsWith('/worklogs/')) return 'worklog_reports';
     if (path === '/review' || path.startsWith('/review/')) return 'review';
     if (path === '/reminders' || path.startsWith('/reminders/')) return 'reminders';
     if (path === '/commands' || path.startsWith('/commands/')) return 'commands';

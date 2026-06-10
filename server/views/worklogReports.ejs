@@ -1,0 +1,500 @@
+<% layout('layout') -%>
+<% block('title', 'Проверка таймлогов' ); -%>
+
+<div class="container my-5 worklog-page">
+    <div class="row">
+        <div class="col-12 col-xl-11 mx-auto">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="bi bi-calendar-check me-2"></i>Проверка таймлогов
+                    </h2>
+                    <div class="text-muted">Плановые отчеты по Jira worklog для участников канала</div>
+                </div>
+                <a href="/" class="btn btn-outline-secondary btn-sm align-self-start align-self-md-center">
+                    <i class="bi bi-arrow-left me-1"></i>На главную
+                </a>
+            </div>
+
+            <% if (error) { %>
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <%= error %>
+                </div>
+            <% } %>
+
+            <div id="worklogAlert" class="alert d-none" role="alert"></div>
+
+            <div class="row g-4 align-items-start">
+                <div class="col-12 col-lg-5">
+                    <div class="card shadow-sm worklog-form-card">
+                        <div class="card-header">
+                            <div class="d-flex align-items-center justify-content-between gap-3">
+                                <h5 class="mb-0" id="formTitle">
+                                    <i class="bi bi-plus-circle me-2"></i>Новая проверка
+                                </h5>
+                                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="cancelEditBtn">
+                                    <i class="bi bi-x-lg me-1"></i>Отменить
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form id="worklogForm">
+                                <input type="hidden" id="settingId" name="id">
+
+                                <div class="mb-3">
+                                    <label for="settingName" class="form-label">Название <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-tag"></i></span>
+                                        <input type="text" class="form-control" id="settingName" name="name"
+                                            placeholder="Back-End weekly worklog" required>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <label for="sourceChannelId" class="form-label">Канал с людьми <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="sourceChannelId" name="source_channel_id"
+                                            placeholder="channel_id" required>
+                                        <div class="form-text">Из этого канала берем список участников</div>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label for="targetChannelId" class="form-label">Канал отчета <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="targetChannelId" name="target_channel_id"
+                                            placeholder="channel_id" required>
+                                        <div class="form-text">Сюда бот отправит таблицу</div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3 mt-1">
+                                    <div class="col-12 col-md-6">
+                                        <label for="cronSchedule" class="form-label">Cron <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control font-monospace" id="cronSchedule"
+                                            name="cron_schedule" placeholder="0 7 * * 1" required>
+                                        <div class="form-text">Расписание в UTC</div>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label for="periodPreset" class="form-label">Период</label>
+                                        <select class="form-select" id="periodPreset" name="period_preset">
+                                            <% Object.entries(periodLabels).forEach(([value, label]) => { %>
+                                                <option value="<%= value %>"><%= label %></option>
+                                            <% }) %>
+                                        </select>
+                                        <div class="form-text">Для текущего периода проверяем даты до сегодняшнего дня</div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <label class="form-label">Кого показывать в отчете</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="show_mode" id="showProblems"
+                                            value="problems" checked>
+                                        <label class="btn btn-outline-primary" for="showProblems">
+                                            <i class="bi bi-exclamation-circle me-1"></i>Проблемных
+                                        </label>
+                                        <input type="radio" class="btn-check" name="show_mode" id="showAll"
+                                            value="all">
+                                        <label class="btn btn-outline-primary" for="showAll">
+                                            <i class="bi bi-people me-1"></i>Всех
+                                        </label>
+                                    </div>
+                                    <div class="form-text">Проблемные - участники, у которых есть рабочий день без таймлога</div>
+                                </div>
+
+                                <div class="settings-strip mt-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="runOnWorkdaysOnly"
+                                            name="run_on_workdays_only" checked>
+                                        <label class="form-check-label" for="runOnWorkdaysOnly">
+                                            Запускать cron только в рабочий день
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="isEnabled"
+                                            name="is_enabled" checked>
+                                        <label class="form-check-label" for="isEnabled">
+                                            Проверка включена
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <label for="messageTemplate" class="form-label">Шаблон сообщения</label>
+                                    <textarea class="form-control template-input" id="messageTemplate" name="message_template"
+                                        rows="8"><%= defaultTemplate %></textarea>
+                                    <div class="template-token-list mt-2">
+                                        <button type="button" class="btn btn-sm btn-outline-primary token-btn" data-token="{period}">{period}</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary token-btn" data-token="{summary}">{summary}</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary token-btn" data-token="{table}">{table}</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary token-btn" data-token="{source_channel}">{source_channel}</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary token-btn" data-token="{generated_at}">{generated_at}</button>
+                                    </div>
+                                </div>
+
+                                <div class="d-grid mt-4">
+                                    <button type="submit" class="btn btn-primary" id="saveSettingBtn">
+                                        <i class="bi bi-save me-1"></i>Сохранить проверку
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-7">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-list-check me-2"></i>Настроенные проверки
+                                </h5>
+                                <span class="badge bg-primary align-self-start align-self-sm-center">
+                                    <%= settings.length %> проверка(ок)
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <% if (!settings || settings.length === 0) { %>
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="bi bi-calendar-check"></i>
+                                    </div>
+                                    <h5>Проверок пока нет</h5>
+                                    <p class="text-muted mb-0">Создайте первую проверку, чтобы бот отправлял таблицу по расписанию.</p>
+                                </div>
+                            <% } else { %>
+                                <div class="worklog-list">
+                                    <% settings.forEach((setting) => { %>
+                                        <article class="worklog-report <%= Number(setting.is_enabled) ? '' : 'is-disabled' %>">
+                                            <div class="report-main">
+                                                <div class="d-flex justify-content-between gap-3 align-items-start">
+                                                    <div>
+                                                        <h5 class="mb-1"><%= setting.name %></h5>
+                                                        <div class="text-muted small">
+                                                            <i class="bi bi-clock me-1"></i><code><%= setting.cron_schedule %></code>
+                                                            <span class="mx-1">·</span>
+                                                            <%= setting.period_label %>
+                                                        </div>
+                                                    </div>
+                                                    <span class="badge <%= Number(setting.is_enabled) ? 'text-bg-success' : 'text-bg-secondary' %>">
+                                                        <%= Number(setting.is_enabled) ? 'Включена' : 'Выключена' %>
+                                                    </span>
+                                                </div>
+
+                                                <div class="route-path mt-3">
+                                                    <div class="route-channel">
+                                                        <span class="route-label">Люди</span>
+                                                        <strong><%= setting.source_channel_name %></strong>
+                                                        <small><%= setting.source_channel_id %></small>
+                                                    </div>
+                                                    <div class="route-arrow">
+                                                        <i class="bi bi-arrow-right"></i>
+                                                    </div>
+                                                    <div class="route-channel">
+                                                        <span class="route-label">Отчет</span>
+                                                        <strong><%= setting.target_channel_name %></strong>
+                                                        <small><%= setting.target_channel_id %></small>
+                                                    </div>
+                                                </div>
+
+                                                <div class="route-meta mt-3">
+                                                    <span class="badge text-bg-light border">
+                                                        <i class="bi <%= setting.show_mode === 'all' ? 'bi-people' : 'bi-exclamation-circle' %> me-1"></i>
+                                                        <%= setting.show_mode === 'all' ? 'Показывать всех' : 'Только проблемных' %>
+                                                    </span>
+                                                    <span class="badge text-bg-light border">
+                                                        <i class="bi bi-briefcase me-1"></i>
+                                                        <%= Number(setting.run_on_workdays_only) ? 'Запуск в рабочие дни' : 'Запуск в любые дни' %>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="report-actions">
+                                                <button type="button" class="btn btn-outline-success btn-sm run-btn"
+                                                    data-id="<%= setting.id %>" title="Запустить сейчас">
+                                                    <i class="bi bi-play-fill"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-primary btn-sm edit-btn"
+                                                    data-id="<%= setting.id %>" title="Редактировать">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger btn-sm delete-btn"
+                                                    data-id="<%= setting.id %>" title="Удалить">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </article>
+                                    <% }) %>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const settings = <%- settingsJson %>;
+    const defaultTemplate = <%- JSON.stringify(defaultTemplate) %>;
+
+    function showAlert(type, message) {
+        const alert = document.getElementById('worklogAlert');
+        alert.className = `alert alert-${type}`;
+        alert.innerHTML = `<i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>${message}`;
+        alert.classList.remove('d-none');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function getPayload() {
+        return {
+            name: document.getElementById('settingName').value.trim(),
+            source_channel_id: document.getElementById('sourceChannelId').value.trim(),
+            target_channel_id: document.getElementById('targetChannelId').value.trim(),
+            cron_schedule: document.getElementById('cronSchedule').value.trim(),
+            period_preset: document.getElementById('periodPreset').value,
+            show_mode: document.querySelector('input[name="show_mode"]:checked')?.value || 'problems',
+            run_on_workdays_only: document.getElementById('runOnWorkdaysOnly').checked,
+            is_enabled: document.getElementById('isEnabled').checked,
+            message_template: document.getElementById('messageTemplate').value.trim(),
+        };
+    }
+
+    function resetForm() {
+        document.getElementById('worklogForm').reset();
+        document.getElementById('settingId').value = '';
+        document.getElementById('messageTemplate').value = defaultTemplate;
+        document.getElementById('showProblems').checked = true;
+        document.getElementById('runOnWorkdaysOnly').checked = true;
+        document.getElementById('isEnabled').checked = true;
+        document.getElementById('formTitle').innerHTML = '<i class="bi bi-plus-circle me-2"></i>Новая проверка';
+        document.getElementById('cancelEditBtn').classList.add('d-none');
+        document.getElementById('saveSettingBtn').innerHTML = '<i class="bi bi-save me-1"></i>Сохранить проверку';
+    }
+
+    function startEdit(id) {
+        const setting = settings.find((item) => String(item.id) === String(id));
+        if (!setting) return;
+
+        document.getElementById('settingId').value = setting.id;
+        document.getElementById('settingName').value = setting.name || '';
+        document.getElementById('sourceChannelId').value = setting.source_channel_id || '';
+        document.getElementById('targetChannelId').value = setting.target_channel_id || '';
+        document.getElementById('cronSchedule').value = setting.cron_schedule || '';
+        document.getElementById('periodPreset').value = setting.period_preset || 'previous_week';
+        document.getElementById(setting.show_mode === 'all' ? 'showAll' : 'showProblems').checked = true;
+        document.getElementById('runOnWorkdaysOnly').checked = Number(setting.run_on_workdays_only) === 1;
+        document.getElementById('isEnabled').checked = Number(setting.is_enabled) === 1;
+        document.getElementById('messageTemplate').value = setting.message_template || defaultTemplate;
+        document.getElementById('formTitle').innerHTML = '<i class="bi bi-pencil me-2"></i>Редактирование проверки';
+        document.getElementById('cancelEditBtn').classList.remove('d-none');
+        document.getElementById('saveSettingBtn').innerHTML = '<i class="bi bi-check2 me-1"></i>Сохранить изменения';
+        document.querySelector('.worklog-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function submitSetting(event) {
+        event.preventDefault();
+        const id = document.getElementById('settingId').value;
+        const url = id ? `/worklogs/api/settings/${encodeURIComponent(id)}` : '/worklogs/api/settings';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(getPayload()),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Не удалось сохранить настройку');
+            showAlert('success', result.message || 'Настройка сохранена');
+            setTimeout(() => window.location.reload(), 700);
+        } catch (error) {
+            showAlert('danger', error.message);
+        }
+    }
+
+    async function deleteSetting(id) {
+        if (!confirm('Удалить эту проверку таймлогов?')) return;
+        try {
+            const response = await fetch(`/worklogs/api/settings/${encodeURIComponent(id)}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Не удалось удалить настройку');
+            showAlert('success', result.message || 'Настройка удалена');
+            setTimeout(() => window.location.reload(), 700);
+        } catch (error) {
+            showAlert('danger', error.message);
+        }
+    }
+
+    async function runSetting(id, button) {
+        const originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        try {
+            const response = await fetch(`/worklogs/api/settings/${encodeURIComponent(id)}/run`, { method: 'POST' });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Не удалось запустить отчет');
+            showAlert('success', result.message || 'Отчет отправлен');
+        } catch (error) {
+            showAlert('danger', error.message);
+        } finally {
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        }
+    }
+
+    document.getElementById('worklogForm').addEventListener('submit', submitSetting);
+    document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
+    document.querySelectorAll('.edit-btn').forEach((button) => {
+        button.addEventListener('click', () => startEdit(button.dataset.id));
+    });
+    document.querySelectorAll('.delete-btn').forEach((button) => {
+        button.addEventListener('click', () => deleteSetting(button.dataset.id));
+    });
+    document.querySelectorAll('.run-btn').forEach((button) => {
+        button.addEventListener('click', () => runSetting(button.dataset.id, button));
+    });
+    document.querySelectorAll('.token-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+            const textarea = document.getElementById('messageTemplate');
+            const start = textarea.selectionStart || textarea.value.length;
+            const end = textarea.selectionEnd || textarea.value.length;
+            textarea.value = `${textarea.value.slice(0, start)}${button.dataset.token}${textarea.value.slice(end)}`;
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = start + button.dataset.token.length;
+        });
+    });
+</script>
+
+<style>
+    .worklog-page .card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .worklog-page .card-header {
+        background: var(--bs-tertiary-bg);
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    .template-input {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 0.9rem;
+    }
+
+    .template-token-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .settings-strip {
+        display: grid;
+        gap: 0.75rem;
+        padding: 0.9rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        background: var(--bs-tertiary-bg);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 1.5rem;
+    }
+
+    .empty-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 1rem;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--bs-tertiary-bg);
+        color: var(--bs-primary);
+        font-size: 2rem;
+    }
+
+    .worklog-list {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .worklog-report {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+        padding: 1.25rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        background: var(--bs-body-bg);
+    }
+
+    .worklog-report:last-child {
+        border-bottom: 0;
+    }
+
+    .worklog-report.is-disabled {
+        opacity: 0.72;
+    }
+
+    .route-path {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .route-channel {
+        min-width: 0;
+        padding: 0.85rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        background: var(--bs-tertiary-bg);
+    }
+
+    .route-channel strong,
+    .route-channel small {
+        display: block;
+        overflow-wrap: anywhere;
+    }
+
+    .route-label {
+        display: block;
+        color: var(--bs-secondary-color);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0;
+        margin-bottom: 0.25rem;
+    }
+
+    .route-arrow {
+        color: var(--bs-secondary-color);
+    }
+
+    .route-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .report-actions {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .worklog-report {
+            grid-template-columns: 1fr;
+        }
+
+        .route-path {
+            grid-template-columns: 1fr;
+        }
+
+        .route-arrow {
+            transform: rotate(90deg);
+            justify-self: center;
+        }
+    }
+</style>
