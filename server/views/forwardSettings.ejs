@@ -76,6 +76,23 @@
                                     <div class="form-text">Опциональное сообщение под оригинальным постом после пересылки</div>
                                 </div>
 
+                                <div class="mb-3">
+                                    <label class="form-label">Режим отправки ответа в тред</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="thread_message_delivery_mode"
+                                            id="threadDeliveryImmediate" value="immediate" checked>
+                                        <label class="btn btn-outline-primary" for="threadDeliveryImmediate">
+                                            <i class="bi bi-lightning-charge me-1"></i>Сразу
+                                        </label>
+                                        <input type="radio" class="btn-check" name="thread_message_delivery_mode"
+                                            id="threadDeliveryRules" value="rules">
+                                        <label class="btn btn-outline-primary" for="threadDeliveryRules">
+                                            <i class="bi bi-calendar2-check me-1"></i>По рабочему окну
+                                        </label>
+                                    </div>
+                                    <div class="form-text">Рабочее окно задаётся в ENV и учитывает рабочие дни</div>
+                                </div>
+
                                 <div class="d-grid">
                                     <button type="submit" class="btn btn-primary" id="saveMappingBtn">
                                         <i class="bi bi-save me-1"></i>Сохранить маршрут
@@ -167,6 +184,10 @@
                                                             <i class="bi bi-clock-history me-1"></i><%= mapping.last_forwarded_at %>
                                                         </span>
                                                     <% } %>
+                                                    <span class="badge <%= mapping.thread_message_delivery_mode === 'rules' ? 'text-bg-warning' : 'text-bg-light border' %>">
+                                                        <i class="bi <%= mapping.thread_message_delivery_mode === 'rules' ? 'bi-calendar2-check' : 'bi-lightning-charge' %> me-1"></i>
+                                                        <%= mapping.thread_message_delivery_mode === 'rules' ? 'По рабочему окну' : 'Сразу' %>
+                                                    </span>
                                                 </div>
 
                                                 <div class="route-template">
@@ -222,13 +243,15 @@
             source_channel_id: document.getElementById('sourceChannelId').value.trim(),
             target_channel_id: document.getElementById('targetChannelId').value.trim(),
             message: document.getElementById('messageTemplate').value.trim(),
-            thread_message: document.getElementById('threadMessage').value.trim()
+            thread_message: document.getElementById('threadMessage').value.trim(),
+            thread_message_delivery_mode: document.querySelector('input[name="thread_message_delivery_mode"]:checked')?.value || 'immediate'
         };
     }
 
     function resetForm() {
         document.getElementById('forwardForm').reset();
         document.getElementById('mappingId').value = '';
+        document.getElementById('threadDeliveryImmediate').checked = true;
         document.getElementById('formTitle').innerHTML = '<i class="bi bi-plus-circle me-2"></i>Новый маршрут';
         document.getElementById('cancelEditBtn').classList.add('d-none');
         document.getElementById('saveMappingBtn').innerHTML = '<i class="bi bi-save me-1"></i>Сохранить маршрут';
@@ -243,6 +266,9 @@
         document.getElementById('targetChannelId').value = mapping.target_channel_id || '';
         document.getElementById('messageTemplate').value = mapping.message || '';
         document.getElementById('threadMessage').value = mapping.thread_message || '';
+        document.getElementById(
+            mapping.thread_message_delivery_mode === 'rules' ? 'threadDeliveryRules' : 'threadDeliveryImmediate'
+        ).checked = true;
         document.getElementById('formTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Редактирование маршрута';
         document.getElementById('cancelEditBtn').classList.remove('d-none');
         document.getElementById('saveMappingBtn').innerHTML = '<i class="bi bi-save me-1"></i>Обновить маршрут';

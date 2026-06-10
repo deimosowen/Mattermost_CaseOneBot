@@ -58,7 +58,7 @@ jest.mock('../../../db/index.js', () => {
 
         run: jest.fn((sql, params = [], callback = () => {}) => {
             if (sql.includes('INSERT INTO forward_channel_mapping')) {
-                const [sourceChannelId, targetChannelId, message, threadMessage] = params;
+                const [sourceChannelId, targetChannelId, message, threadMessage, threadMessageDeliveryMode] = params;
                 const id = state.nextMappingId++;
                 state.mappings.push({
                     id,
@@ -66,6 +66,7 @@ jest.mock('../../../db/index.js', () => {
                     target_channel_id: targetChannelId,
                     message,
                     thread_message: threadMessage,
+                    thread_message_delivery_mode: threadMessageDeliveryMode,
                 });
                 callback.call({ lastID: id, changes: 1 }, null);
                 return;
@@ -93,13 +94,14 @@ jest.mock('../../../db/index.js', () => {
 
         runAsync: jest.fn(async (sql, params = []) => {
             if (sql.includes('UPDATE forward_channel_mapping')) {
-                const [sourceChannelId, targetChannelId, message, threadMessage, id] = params;
+                const [sourceChannelId, targetChannelId, message, threadMessage, threadMessageDeliveryMode, id] = params;
                 const row = state.mappings.find(item => item.id === Number(id));
                 if (!row) return { changes: 0 };
                 row.source_channel_id = sourceChannelId;
                 row.target_channel_id = targetChannelId;
                 row.message = message;
                 row.thread_message = threadMessage;
+                row.thread_message_delivery_mode = threadMessageDeliveryMode;
                 return { changes: 1 };
             }
 
@@ -136,20 +138,22 @@ describe('forward model', () => {
     });
 
     test('creates, updates and deletes channel mappings', async () => {
-        const id = await addChannelMapping('source-a', 'target-a', '{post_link}', 'done');
+        const id = await addChannelMapping('source-a', 'target-a', '{post_link}', 'done', 'rules');
 
         expect(id).toBe(1);
         expect(await getChannelMapping(id)).toMatchObject({
             source_channel_id: 'source-a',
             target_channel_id: 'target-a',
+            thread_message_delivery_mode: 'rules',
         });
 
-        await expect(updateChannelMapping(id, 'source-b', 'target-b', '{message}', null)).resolves.toBe(1);
+        await expect(updateChannelMapping(id, 'source-b', 'target-b', '{message}', null, 'immediate')).resolves.toBe(1);
         expect(await getChannelMapping(id)).toMatchObject({
             source_channel_id: 'source-b',
             target_channel_id: 'target-b',
             message: '{message}',
             thread_message: null,
+            thread_message_delivery_mode: 'immediate',
         });
 
         await expect(deleteChannelMapping(id)).resolves.toBe(1);

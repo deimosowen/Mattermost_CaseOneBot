@@ -1,12 +1,12 @@
 const db = require('../index.js');
 
 // Добавление маппинга каналов
-const addChannelMapping = async (sourceChannelId, targetChannelId, message, threadMessage) => {
+const addChannelMapping = async (sourceChannelId, targetChannelId, message, threadMessage, threadMessageDeliveryMode = 'immediate') => {
     return new Promise((resolve, reject) => {
         db.run(
-            `INSERT INTO forward_channel_mapping (source_channel_id, target_channel_id, message, thread_message )
-             VALUES (?, ?, ?, ?)`,
-            [sourceChannelId, targetChannelId, message, threadMessage],
+            `INSERT INTO forward_channel_mapping (source_channel_id, target_channel_id, message, thread_message, thread_message_delivery_mode)
+             VALUES (?, ?, ?, ?, ?)`,
+            [sourceChannelId, targetChannelId, message, threadMessage, threadMessageDeliveryMode || 'immediate'],
             function (err) {
                 if (err) reject(err);
                 else resolve(this.lastID);
@@ -71,12 +71,12 @@ const getChannelMapping = async (id) => {
     }
 };
 
-const updateChannelMapping = async (id, sourceChannelId, targetChannelId, message, threadMessage) => {
+const updateChannelMapping = async (id, sourceChannelId, targetChannelId, message, threadMessage, threadMessageDeliveryMode = 'immediate') => {
     const result = await db.runAsync(
         `UPDATE forward_channel_mapping
-         SET source_channel_id = ?, target_channel_id = ?, message = ?, thread_message = ?
+         SET source_channel_id = ?, target_channel_id = ?, message = ?, thread_message = ?, thread_message_delivery_mode = ?
          WHERE id = ?`,
-        [sourceChannelId, targetChannelId, message, threadMessage, id]
+        [sourceChannelId, targetChannelId, message, threadMessage, threadMessageDeliveryMode || 'immediate', id]
     );
     return result.changes;
 };

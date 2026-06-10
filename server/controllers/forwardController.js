@@ -9,6 +9,7 @@ const {
 } = require('../../db/models/forward');
 const { getChannelById } = require('../../mattermost/utils');
 const logger = require('../../logger');
+const { DELIVERY_MODE } = require('../../services/messageDeliveryService');
 
 const router = express.Router();
 
@@ -26,6 +27,9 @@ function validateMappingPayload(body) {
     const targetChannelId = normalizeChannelId(body.target_channel_id);
     const message = normalizeText(body.message);
     const threadMessage = normalizeText(body.thread_message);
+    const threadMessageDeliveryMode = [DELIVERY_MODE.IMMEDIATE, DELIVERY_MODE.RULES].includes(body.thread_message_delivery_mode)
+        ? body.thread_message_delivery_mode
+        : DELIVERY_MODE.IMMEDIATE;
 
     if (!sourceChannelId || !targetChannelId) {
         throw new Error('Укажите исходный и целевой канал');
@@ -39,7 +43,8 @@ function validateMappingPayload(body) {
         sourceChannelId,
         targetChannelId,
         message,
-        threadMessage
+        threadMessage,
+        threadMessageDeliveryMode
     };
 }
 
@@ -110,7 +115,8 @@ router.post('/api/mappings', async (req, res) => {
             payload.sourceChannelId,
             payload.targetChannelId,
             payload.message,
-            payload.threadMessage
+            payload.threadMessage,
+            payload.threadMessageDeliveryMode
         );
 
         res.json({ success: true, id, message: 'Пересылка создана' });
@@ -138,7 +144,8 @@ router.put('/api/mappings/:id', async (req, res) => {
             payload.sourceChannelId,
             payload.targetChannelId,
             payload.message,
-            payload.threadMessage
+            payload.threadMessage,
+            payload.threadMessageDeliveryMode
         );
 
         res.json({ success: true, message: 'Пересылка обновлена' });

@@ -4,6 +4,7 @@ const ReminderCronService = require('./reminderCronService');
 const PingCronService = require('./pingCronService');
 const FeatureReadyCronService = require('./featureReadyCronService');
 const TeamCityBuildCronService = require('./teamcityBuildCronService');
+const ScheduledMessageCronService = require('./scheduledMessageCronService');
 const cronWatchdogService = require('./cronWatchdogService');
 const logger = require('../logger');
 
@@ -16,6 +17,7 @@ class CronManager {
         this._register(new PingCronService());
         this._register(new FeatureReadyCronService());
         this._register(new TeamCityBuildCronService());
+        this._register(new ScheduledMessageCronService());
     }
 
     get(name) {

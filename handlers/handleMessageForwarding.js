@@ -1,6 +1,7 @@
 const { postMessage, getTeam } = require('../mattermost/utils');
 const { getSourceChannelId, addProcessedMessage, isMessageProcessed } = require('../db/models/forward');
 const { getCurrentDuty } = require('../db/models/duty');
+const messageDeliveryService = require('../services/messageDeliveryService');
 const { API_BASE_URL } = require('../config');
 const logger = require('../logger');
 
@@ -22,7 +23,14 @@ module.exports = async (post, eventData) => {
         const sendMessage = await postMessage(currentMapping.target_channel_id, message);
         await addProcessedMessage(post.channel_id, eventData.channel_name, post.user_id, eventData.sender_name, post.id, sendMessage.id);
         if (currentMapping.thread_message) {
-            postMessage(post.channel_id, currentMapping.thread_message, post.id);
+            await messageDeliveryService.sendMattermostThread({
+                postId: post.id,
+                message: currentMapping.thread_message,
+                deliveryMode: currentMapping.thread_message_delivery_mode || 'immediate',
+                sourceType: 'forward_thread_message',
+                sourceId: String(currentMapping.id),
+                idempotencyKey: `forward:${currentMapping.id}:${post.id}:thread_message`
+            });
         }
     } catch (error) {
         logger.error(`${error.message}\nStack trace:\n${error.stack}`);
