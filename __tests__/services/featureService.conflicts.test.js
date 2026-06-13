@@ -42,14 +42,14 @@ describe('FeatureService conflict announcement state', () => {
     test('marks only announced conflicts for later resolved notification', async () => {
         await FeatureService._markAnnouncedConflicts(42, {
             details: [
-                { tag: '@c1-back', hasConflicts: true },
+                { tag: '@c1-back', hasConflicts: true, sourceSha: 'back-sha' },
                 { tag: '@c1-front', hasConflicts: false },
-                { tag: '@c1-aqa', hasConflicts: true },
+                { tag: '@c1-aqa', hasConflicts: true, sourceSha: 'aqa-sha' },
             ],
         });
 
         expect(updateFeatureMergeRequestConflictState).toHaveBeenCalledTimes(2);
-        expect(updateFeatureMergeRequestConflictState).toHaveBeenCalledWith(42, '@c1-back', true, true);
-        expect(updateFeatureMergeRequestConflictState).toHaveBeenCalledWith(42, '@c1-aqa', true, true);
+        expect(updateFeatureMergeRequestConflictState).toHaveBeenCalledWith(42, '@c1-back', true, true, 'back-sha');
+        expect(updateFeatureMergeRequestConflictState).toHaveBeenCalledWith(42, '@c1-aqa', true, true, 'aqa-sha');
     });
 });

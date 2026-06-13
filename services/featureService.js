@@ -71,7 +71,7 @@ class FeatureServices {
 
         const conflicted = conflictResults.details.filter(d => d.hasConflicts);
         for (const conflict of conflicted) {
-            await updateFeatureMergeRequestConflictState(featureId, conflict.tag, true, true);
+            await updateFeatureMergeRequestConflictState(featureId, conflict.tag, true, true, conflict.sourceSha);
         }
     }
 
@@ -90,6 +90,7 @@ class FeatureServices {
                     tag: mr.tag,
                     url: mr.url,
                     title: mrInfo.title,
+                    sourceSha: mrInfo.sourceSha || null,
                     hasConflicts
                 });
 

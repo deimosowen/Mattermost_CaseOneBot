@@ -48,6 +48,9 @@ const getFeaturesWithOpenMRs = async () => {
             fmr.role,
             fmr.has_conflicts,
             COALESCE(fmr.conflict_announced, 0) AS conflict_announced,
+            fmr.conflict_pending_has_conflicts,
+            COALESCE(fmr.conflict_pending_count, 0) AS conflict_pending_count,
+            fmr.conflict_source_sha,
             gmr.mr_iid,
             gmr.project_id,
             gmr.status AS mr_status
@@ -75,12 +78,72 @@ const updateMergeRequestConflicts = async (featureMergeRequestId, hasConflicts, 
     );
 };
 
-const updateFeatureMergeRequestConflictState = async (featureId, role, hasConflicts, conflictAnnounced) => {
+const updateMergeRequestConflictMonitoring = async (
+    featureMergeRequestId,
+    { hasConflicts, conflictAnnounced, pendingHasConflicts, pendingCount, conflictSourceSha }
+) => {
+    const updates = [];
+    const params = [];
+
+    if (hasConflicts !== undefined) {
+        updates.push('has_conflicts = ?');
+        params.push(hasConflicts ? 1 : 0);
+    }
+
+    if (conflictAnnounced !== undefined) {
+        updates.push('conflict_announced = ?');
+        params.push(conflictAnnounced ? 1 : 0);
+    }
+
+    if (pendingHasConflicts !== undefined) {
+        updates.push('conflict_pending_has_conflicts = ?');
+        params.push(pendingHasConflicts === null ? null : pendingHasConflicts ? 1 : 0);
+    }
+
+    if (pendingCount !== undefined) {
+        updates.push('conflict_pending_count = ?');
+        params.push(Number(pendingCount) || 0);
+    }
+
+    if (conflictSourceSha !== undefined) {
+        updates.push('conflict_source_sha = ?');
+        params.push(conflictSourceSha || null);
+    }
+
+    if (!updates.length) {
+        return null;
+    }
+
+    params.push(featureMergeRequestId);
+
+    return db.runAsync(
+        `UPDATE feature_merge_requests SET ${updates.join(', ')} WHERE id = ?`,
+        params
+    );
+};
+
+const updateFeatureMergeRequestConflictState = async (
+    featureId,
+    role,
+    hasConflicts,
+    conflictAnnounced,
+    conflictSourceSha = null
+) => {
     return db.runAsync(
         `UPDATE feature_merge_requests
-         SET has_conflicts = ?, conflict_announced = ?
+         SET has_conflicts = ?,
+             conflict_announced = ?,
+             conflict_pending_has_conflicts = NULL,
+             conflict_pending_count = 0,
+             conflict_source_sha = ?
          WHERE feature_id = ? AND role = ?`,
-        [hasConflicts ? 1 : 0, conflictAnnounced ? 1 : 0, featureId, role]
+        [
+            hasConflicts ? 1 : 0,
+            conflictAnnounced ? 1 : 0,
+            conflictSourceSha || null,
+            featureId,
+            role,
+        ]
     );
 };
 
@@ -171,5 +234,6 @@ module.exports = {
     deleteFeatureReady,
     parseMergeTasks,
     updateMergeRequestConflicts,
+    updateMergeRequestConflictMonitoring,
     updateFeatureMergeRequestConflictState,
 }

@@ -1,10 +1,16 @@
 const BaseCronService = require('./baseCronService');
-const { getFeaturesWithOpenMRs, getFeatureReadyById, updateMergeRequestConflicts } = require('../db/models/featureReady');
+const {
+    getFeaturesWithOpenMRs,
+    getFeatureReadyById,
+    updateMergeRequestConflictMonitoring,
+} = require('../db/models/featureReady');
 const { postMessageInTreed, addReaction } = require('../mattermost/utils');
 const GitlabService = require('../services/gitlabService');
 const JiraService = require('../services/jiraService');
 const JiraStatusType = require('../types/jiraStatusTypes');
 const logger = require('../logger');
+
+const CONFLICT_STATE_CONFIRMATIONS = 2;
 
 class FeatureReadyCronService extends BaseCronService {
     constructor() {
@@ -65,7 +71,10 @@ class FeatureReadyCronService extends BaseCronService {
             const mr = await this.gitlab.getMergeRequestStatus(merge_request.project_id, merge_request.mr_iid);
             if (!mr) return;
 
-            await this._handleConflictStateChange(merge_request, Boolean(mr.hasConflicts));
+            await this._handleConflictStateChange(merge_request, {
+                hasConflicts: Boolean(mr.hasConflicts),
+                sourceSha: mr.sourceSha || null,
+            });
 
             // Проверяем, изменился ли статус MR на финальный статус
             if (this.gitlab.isFinalStatus(mr.status) && merge_request.mr_status !== mr.status) {
@@ -84,14 +93,34 @@ class FeatureReadyCronService extends BaseCronService {
         }
     }
 
-    async _handleConflictStateChange(merge_request, currentHasConflicts) {
+    async _handleConflictStateChange(merge_request, currentState) {
+        const currentHasConflicts = Boolean(currentState.hasConflicts);
+        const currentSourceSha = currentState.sourceSha || null;
         const previousHasConflicts = Boolean(merge_request.has_conflicts);
         if (previousHasConflicts === currentHasConflicts) {
+            await this._syncStableConflictState(merge_request, currentHasConflicts, currentSourceSha);
+            return;
+        }
+
+        if (this._isTargetBranchRecalculation(merge_request, currentHasConflicts, currentSourceSha)) {
+            await this._rememberSuppressedConflictState(merge_request, currentHasConflicts);
+            logger.debug(`[FeatureReadyCron] Пропущено resolved-уведомление для MR ${merge_request.mr_iid}: source SHA не изменился`);
+            return;
+        }
+
+        const confirmed = await this._confirmConflictStateChange(merge_request, currentHasConflicts);
+        if (!confirmed) {
             return;
         }
 
         if (currentHasConflicts) {
-            await updateMergeRequestConflicts(merge_request.feature_merge_request_id, true, true);
+            await updateMergeRequestConflictMonitoring(merge_request.feature_merge_request_id, {
+                hasConflicts: true,
+                conflictAnnounced: true,
+                pendingHasConflicts: null,
+                pendingCount: 0,
+                conflictSourceSha: currentSourceSha,
+            });
             const roleName = this._getRoleName(merge_request.role);
             const message = `⚠️ Обнаружены конфликты для ${roleName} Merge Request.`;
             await postMessageInTreed(merge_request.mattermost_post_id, message);
@@ -100,7 +129,13 @@ class FeatureReadyCronService extends BaseCronService {
         }
 
         const wasAnnounced = Boolean(merge_request.conflict_announced);
-        await updateMergeRequestConflicts(merge_request.feature_merge_request_id, false, false);
+        await updateMergeRequestConflictMonitoring(merge_request.feature_merge_request_id, {
+            hasConflicts: false,
+            conflictAnnounced: false,
+            pendingHasConflicts: null,
+            pendingCount: 0,
+            conflictSourceSha: null,
+        });
 
         if (!wasAnnounced) {
             logger.debug(`[FeatureReadyCron] Конфликты для MR ${merge_request.mr_iid} разрешены без уведомления: конфликт не был объявлен`);
@@ -111,6 +146,94 @@ class FeatureReadyCronService extends BaseCronService {
         const message = `✅ Конфликты для ${roleName} Merge Request были *разрешены*!`;
         await postMessageInTreed(merge_request.mattermost_post_id, message);
         logger.debug(`[FeatureReadyCron] Конфликты разрешены для ${roleName} MR ${merge_request.mr_iid}`);
+    }
+
+    _isTargetBranchRecalculation(merge_request, currentHasConflicts, currentSourceSha) {
+        return Boolean(
+            merge_request.has_conflicts &&
+            !currentHasConflicts &&
+            currentSourceSha &&
+            merge_request.conflict_source_sha &&
+            merge_request.conflict_source_sha === currentSourceSha
+        );
+    }
+
+    async _rememberSuppressedConflictState(merge_request, currentHasConflicts) {
+        const pendingRaw = merge_request.conflict_pending_has_conflicts;
+        const pendingHasConflicts = pendingRaw === null || pendingRaw === undefined
+            ? null
+            : Boolean(pendingRaw);
+        const pendingCount = Number(merge_request.conflict_pending_count) || 0;
+
+        if (pendingHasConflicts === currentHasConflicts && pendingCount > 0) {
+            return;
+        }
+
+        await updateMergeRequestConflictMonitoring(merge_request.feature_merge_request_id, {
+            pendingHasConflicts: currentHasConflicts,
+            pendingCount: 1,
+        });
+    }
+
+    async _confirmConflictStateChange(merge_request, currentHasConflicts) {
+        const pendingRaw = merge_request.conflict_pending_has_conflicts;
+        const pendingHasConflicts = pendingRaw === null || pendingRaw === undefined
+            ? null
+            : Boolean(pendingRaw);
+        const pendingCount = Number(merge_request.conflict_pending_count) || 0;
+
+        if (pendingHasConflicts !== currentHasConflicts) {
+            await updateMergeRequestConflictMonitoring(merge_request.feature_merge_request_id, {
+                pendingHasConflicts: currentHasConflicts,
+                pendingCount: 1,
+            });
+            logger.debug(`[FeatureReadyCron] Зафиксировано неподтвержденное состояние конфликтов MR ${merge_request.mr_iid}: ${currentHasConflicts}`);
+            return false;
+        }
+
+        const nextCount = pendingCount + 1;
+        if (nextCount < CONFLICT_STATE_CONFIRMATIONS) {
+            await updateMergeRequestConflictMonitoring(merge_request.feature_merge_request_id, {
+                pendingHasConflicts: currentHasConflicts,
+                pendingCount: nextCount,
+            });
+            return false;
+        }
+
+        return true;
+    }
+
+    async _syncStableConflictState(merge_request, currentHasConflicts, currentSourceSha) {
+        const pendingRaw = merge_request.conflict_pending_has_conflicts;
+        const pendingCount = Number(merge_request.conflict_pending_count) || 0;
+        const shouldClearPending = pendingRaw !== null && pendingRaw !== undefined || pendingCount !== 0;
+        const shouldBackfillSourceSha = Boolean(
+            currentHasConflicts &&
+            currentSourceSha &&
+            !merge_request.conflict_source_sha
+        );
+
+        if (!shouldClearPending && !shouldBackfillSourceSha) {
+            return;
+        }
+
+        const updates = {};
+        if (shouldClearPending) {
+            updates.pendingHasConflicts = null;
+            updates.pendingCount = 0;
+        }
+        if (shouldBackfillSourceSha) {
+            updates.conflictSourceSha = currentSourceSha;
+        }
+
+        await updateMergeRequestConflictMonitoring(merge_request.feature_merge_request_id, updates);
+
+        if (shouldClearPending) {
+            logger.debug(`[FeatureReadyCron] Сброшено неподтвержденное состояние конфликтов MR ${merge_request.mr_iid}`);
+        }
+        if (shouldBackfillSourceSha) {
+            logger.debug(`[FeatureReadyCron] Запомнен source SHA для активного конфликта MR ${merge_request.mr_iid}`);
+        }
     }
 
     _formatStatusMessage(role, mrStatus) {
