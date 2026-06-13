@@ -94,6 +94,7 @@ describe('MessageDeliveryService', () => {
             transport: TRANSPORT.MATTERMOST_THREAD,
             payload: { post_id: 'post-1' },
             message: 'later',
+            send_after: '2026-06-10 06:00:00',
             max_attempts: 3,
             source_type: 'forward_thread_message',
             source_id: '7',
@@ -117,7 +118,7 @@ describe('MessageDeliveryService', () => {
         expect(postMessageInTreed).not.toHaveBeenCalled();
         expect(scheduledMessages.rescheduleScheduledMessage).toHaveBeenCalledWith(
             9,
-            '2026-06-10T06:00:00.000Z'
+            '2026-06-10 06:00:00'
         );
     });
 });

@@ -13,8 +13,8 @@ jest.mock('../../db/models/duty', () => ({
     getCurrentDuty: jest.fn(),
 }));
 
-jest.mock('../../services/messageDeliveryService', () => ({
-    sendMattermostThread: jest.fn(),
+jest.mock('../../services/forwardThreadMessageService', () => ({
+    sendOrScheduleReply: jest.fn(),
 }));
 
 jest.mock('../../logger', () => ({
@@ -23,7 +23,7 @@ jest.mock('../../logger', () => ({
 
 const { postMessage } = require('../../mattermost/utils');
 const { getSourceChannelId, addProcessedMessage, isMessageProcessed } = require('../../db/models/forward');
-const messageDeliveryService = require('../../services/messageDeliveryService');
+const forwardThreadMessageService = require('../../services/forwardThreadMessageService');
 const handleMessageForwarding = require('../../handlers/handleMessageForwarding');
 
 describe('handleMessageForwarding', () => {
@@ -68,13 +68,13 @@ describe('handleMessageForwarding', () => {
             'post-id',
             'sent-post-id'
         );
-        expect(messageDeliveryService.sendMattermostThread).toHaveBeenCalledWith({
+        expect(forwardThreadMessageService.sendOrScheduleReply).toHaveBeenCalledWith({
             postId: 'post-id',
             message: 'Принято',
             deliveryMode: 'rules',
-            sourceType: 'forward_thread_message',
-            sourceId: '7',
+            mappingId: 7,
             idempotencyKey: 'forward:7:post-id:thread_message',
+            targetChannelId: 'target-channel',
         });
     });
 });

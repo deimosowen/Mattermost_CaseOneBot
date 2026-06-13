@@ -43,6 +43,10 @@ function toIsoString(date) {
     return moment.utc(date).toISOString();
 }
 
+function toUtcDateTimeString(date) {
+    return moment.utc(date).format('YYYY-MM-DD HH:mm:ss');
+}
+
 class MessageDeliveryService {
     constructor(options = {}) {
         this.dayOffService = options.dayOffService || dayOffService;
@@ -97,11 +101,26 @@ class MessageDeliveryService {
         }
 
         if (deliveryMode !== DELIVERY_MODE.RULES || await this.isInsideAllowedWindow()) {
-            await this.sendNow({ transport, payload, message });
-            return { status: 'sent' };
+            const result = await this.sendNow({ transport, payload, message });
+            return result?.skipped ? { status: 'skipped' } : { status: 'sent' };
         }
 
-        const sendAfter = await this.getNextAllowedSendAt();
+        return this.schedule({
+            transport,
+            payload,
+            message,
+            sourceType,
+            sourceId,
+            idempotencyKey,
+        });
+    }
+
+    async schedule({ transport, payload, message, sourceType = null, sourceId = null, idempotencyKey = null, sendAfter = null }) {
+        if (!message) {
+            return { status: 'skipped' };
+        }
+
+        const resolvedSendAfter = sendAfter || await this.getNextAllowedSendAt();
         if (idempotencyKey) {
             const existing = await getPendingScheduledMessageByIdempotencyKey(idempotencyKey);
             if (existing) {
@@ -114,20 +133,29 @@ class MessageDeliveryService {
             payload,
             message,
             rule_type: RULE_TYPE.UTC_WORKDAY_WINDOW,
-            send_after: toIsoString(sendAfter),
+            send_after: toUtcDateTimeString(resolvedSendAfter),
             max_attempts: this.maxAttempts,
             source_type: sourceType,
             source_id: sourceId,
             idempotency_key: idempotencyKey
         });
 
-        return { status: 'scheduled', id, send_after: toIsoString(sendAfter) };
+        return { status: 'scheduled', id, send_after: toIsoString(resolvedSendAfter) };
     }
 
-    async sendMattermostThread({ postId, message, deliveryMode = DELIVERY_MODE.IMMEDIATE, sourceType = null, sourceId = null, idempotencyKey = null }) {
+    async sendMattermostThread({
+        postId,
+        message,
+        deliveryMode = DELIVERY_MODE.IMMEDIATE,
+        sourceType = null,
+        sourceId = null,
+        idempotencyKey = null,
+    }) {
+        const payload = { post_id: postId };
+
         return this.sendOrSchedule({
             transport: TRANSPORT.MATTERMOST_THREAD,
-            payload: { post_id: postId },
+            payload,
             message,
             deliveryMode,
             sourceType,
@@ -156,7 +184,7 @@ class MessageDeliveryService {
         try {
             if (scheduledMessage.rule_type === RULE_TYPE.UTC_WORKDAY_WINDOW && !(await this.isInsideAllowedWindow())) {
                 const nextSendAt = await this.getNextAllowedSendAt();
-                await rescheduleScheduledMessage(scheduledMessage.id, toIsoString(nextSendAt));
+                await rescheduleScheduledMessage(scheduledMessage.id, toUtcDateTimeString(nextSendAt));
                 return;
             }
 
@@ -200,3 +228,4 @@ module.exports.MessageDeliveryService = MessageDeliveryService;
 module.exports.DELIVERY_MODE = DELIVERY_MODE;
 module.exports.RULE_TYPE = RULE_TYPE;
 module.exports.TRANSPORT = TRANSPORT;
+module.exports.toUtcDateTimeString = toUtcDateTimeString;
