@@ -7,6 +7,7 @@ jest.mock('../../../services/jiraService');
 jest.mock('../../../services/jiraService/jiraHelper', () => ({
     isToDoStatus: jest.fn(),
     isInProgressStatus: jest.fn(),
+    extractTaskNumber: jest.fn(),
 }));
 jest.mock('../../../config', () => ({
     INREVIEW_CHANNEL_IDS: ['test-channel-1'], // фиксированное значение для тестов
@@ -39,7 +40,7 @@ const {
 const { getEnabledReviewChannelIdsForUser } = require('../../../services/reviewChannelAvailabilityService');
 
 const JiraService = require('../../../services/jiraService');
-const { isToDoStatus, isInProgressStatus } = require('../../../services/jiraService/jiraHelper');
+const { isToDoStatus, isInProgressStatus, extractTaskNumber } = require('../../../services/jiraService/jiraHelper');
 const logger = require('../../../logger');
 
 beforeEach(() => {
@@ -56,6 +57,7 @@ beforeEach(() => {
     // Хелперы статусов: по умолчанию соответствуют строковым статусам
     isToDoStatus.mockImplementation(s => s === 'To Do');
     isInProgressStatus.mockImplementation(s => s === 'In Progress');
+    extractTaskNumber.mockReturnValue(null);
 
     // Заглушки Jira
     JiraService.fetchTask.mockResolvedValue({
@@ -90,6 +92,7 @@ module.exports = {
     JiraService,
     isToDoStatus,
     isInProgressStatus,
+    extractTaskNumber,
 
     // logger
     logger,
