@@ -6,6 +6,8 @@ class BaseCronService {
     constructor(name, tz = 'UTC') {
         this.name = name;
         this.jobs = {};
+        this.runners = {};
+        this.runningJobs = new Set();
         /** Единственное место хранения runner для критичных задач (key -> wrappedCallback). */
         this.criticalRunners = {};
         this.tz = tz;
@@ -14,14 +16,16 @@ class BaseCronService {
     /**
      * Создаёт обычную cron-задачу (без отслеживания и retry).
      */
-    createJob(key, schedule, callback) {
+    createJob(key, schedule, callback, options = {}) {
         try {
             if (this.jobs[key]) {
                 this.jobs[key].stop();
             }
-            const job = new CronJob(schedule, callback, null, false, this.tz);
+            const wrappedCallback = this._wrapCallback(key, callback, options);
+            const job = new CronJob(schedule, wrappedCallback, null, false, this.tz);
             job.start();
             this.jobs[key] = job;
+            this.runners[key] = wrappedCallback;
             logger.info(`[${this.name}] Cron job started: ${key} (${schedule})`);
             return job;
         } catch (error) {
@@ -38,10 +42,10 @@ class BaseCronService {
      * @param {() => Promise<void>} callback — асинхронный колбэк
      * @returns {CronJob|null}
      */
-    createCriticalJob(key, schedule, callback) {
+    createCriticalJob(key, schedule, callback, options = {}) {
         const wrappedCallback = () => {
             cronExecutionTracker.recordStart(key);
-            Promise.resolve(callback())
+            return Promise.resolve(callback())
                 .then(() => cronExecutionTracker.recordSuccess(key))
                 .catch((error) => {
                     cronExecutionTracker.recordFailure(key);
@@ -49,9 +53,9 @@ class BaseCronService {
                 });
         };
 
-        const job = this.createJob(key, schedule, wrappedCallback);
+        const job = this.createJob(key, schedule, wrappedCallback, options);
         if (job) {
-            this.criticalRunners[key] = wrappedCallback;
+            this.criticalRunners[key] = this.runners[key];
             cronExecutionTracker.registerCriticalJob(key, schedule, { tz: this.tz });
         }
         return job;
@@ -68,7 +72,9 @@ class BaseCronService {
         if (this.jobs[key]) {
             this.jobs[key].stop();
             delete this.jobs[key];
+            delete this.runners[key];
             delete this.criticalRunners[key];
+            this.runningJobs.delete(key);
             cronExecutionTracker.unregisterCriticalJob(key);
             logger.info(`[${this.name}] Cron job stopped: ${key}`);
         }
@@ -81,6 +87,27 @@ class BaseCronService {
     // абстрактный метод
     async loadJobsFromDb() {
         throw new Error('loadJobsFromDb() must be implemented');
+    }
+
+    _wrapCallback(key, callback, options = {}) {
+        const noOverlap = options.noOverlap !== false;
+        if (!noOverlap) {
+            return callback;
+        }
+
+        return async () => {
+            if (this.runningJobs.has(key)) {
+                logger.warn(`[${this.name}] Cron job skipped because previous run is still active: ${key}`);
+                return;
+            }
+
+            this.runningJobs.add(key);
+            try {
+                return await callback();
+            } finally {
+                this.runningJobs.delete(key);
+            }
+        };
     }
 }
 

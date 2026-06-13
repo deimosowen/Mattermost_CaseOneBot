@@ -1,5 +1,8 @@
 const GitlabService = require('./gitlabService');
-const { addFeatureReady } = require('../db/models/featureReady');
+const {
+    addFeatureReady,
+    updateFeatureMergeRequestConflictState,
+} = require('../db/models/featureReady');
 const { postMessage, postMessageInTreed, pinPost } = require('../mattermost/utils');
 const { parseGitlabMrUrl } = require('../services/gitlabService/gitlabHelper');
 const { tryResolveBackendConflicts: resolveConflicts } = require('../services/gitlabService/conflictResolver');
@@ -26,7 +29,7 @@ class FeatureServices {
                 { tag: '@c1-aqa', url: data.aqaPullRequestUrl, data: parseGitlabMrUrl(data.aqaPullRequestUrl) }
             ].filter(p => p.url);
 
-            await this._saveToDatabase(data, mergeRequests, post.id);
+            const featureId = await this._saveToDatabase(data, mergeRequests, post.id);
 
             const conflictResults = await this._checkMergeConflicts(mergeRequests);
             if (conflictResults.hasConflicts) {
@@ -41,6 +44,7 @@ class FeatureServices {
                 const conflictMessage = this._buildConflictAlert(conflictResults);
                 if (conflictMessage) {
                     await postMessageInTreed(post.id, conflictMessage);
+                    await this._markAnnouncedConflicts(featureId, conflictResults);
                 }
             }
 
@@ -57,7 +61,18 @@ class FeatureServices {
     }
 
     async _saveToDatabase(data, mergeRequests, postId) {
-        await addFeatureReady(data, mergeRequests, postId);
+        return addFeatureReady(data, mergeRequests, postId);
+    }
+
+    async _markAnnouncedConflicts(featureId, conflictResults) {
+        if (!featureId) {
+            return;
+        }
+
+        const conflicted = conflictResults.details.filter(d => d.hasConflicts);
+        for (const conflict of conflicted) {
+            await updateFeatureMergeRequestConflictState(featureId, conflict.tag, true, true, conflict.sourceSha);
+        }
     }
 
     async _checkMergeConflicts(mergeRequests) {
@@ -75,6 +90,7 @@ class FeatureServices {
                     tag: mr.tag,
                     url: mr.url,
                     title: mrInfo.title,
+                    sourceSha: mrInfo.sourceSha || null,
                     hasConflicts
                 });
 

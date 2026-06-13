@@ -135,6 +135,28 @@ class MattermostService {
         return this.client.getChannelMembers(channelId, 0, 100);
     }
 
+    async getAllChannelMembers(channelId) {
+        const perPage = 100;
+        let page = 0;
+        const members = [];
+
+        while (true) {
+            const batch = await this.client.getChannelMembers(channelId, page, perPage);
+            if (!Array.isArray(batch) || batch.length === 0) {
+                break;
+            }
+
+            members.push(...batch);
+            if (batch.length < perPage) {
+                break;
+            }
+
+            page += 1;
+        }
+
+        return members;
+    }
+
     async getChannelMember(channelId, userId) {
         try {
             return await this.client.getChannelMember(channelId, userId);
@@ -283,6 +305,7 @@ module.exports = {
     getChannel: (...args) => mattermostService.getChannel(...args),
     getChannelById: (...args) => mattermostService.getChannelById(...args),
     getChannelMembers: (...args) => mattermostService.getChannelMembers(...args),
+    getAllChannelMembers: (...args) => mattermostService.getAllChannelMembers(...args),
     getChannelMember: (...args) => mattermostService.getChannelMember(...args),
     addToChannel: (...args) => mattermostService.addToChannel(...args),
     createDirectChannel: (...args) => mattermostService.createDirectChannel(...args),

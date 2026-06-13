@@ -1,31 +1,28 @@
-<% layout('layout') -%>
+<% layout('authLayout') -%>
     <% block('title', 'Ошибка авторизации' ); -%>
 
-        <div class="row justify-content-center">
-            <div class="col-12 col-md-8 col-lg-6">
-                <div class="card shadow-sm border-danger mt-5">
-                    <div class="card-header bg-danger text-white">
-                        <h4 class="mb-0">
-                            <i class="bi bi-shield-x me-2"></i>Ошибка авторизации
-                        </h4>
-                    </div>
-                    <div class="card-body">
-                        <p class="mb-3">
-                            Не удалось войти в CaseOneBot.
-                        </p>
-                        <div class="alert alert-danger mb-4" role="alert">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            <%= errorMessage %>
-                        </div>
-                        <div class="d-flex gap-2 flex-wrap">
-                            <a href="/auth/yandex" class="btn btn-primary">
-                                <i class="bi bi-box-arrow-in-right me-1"></i>Попробовать снова
-                            </a>
-                            <a href="<%= returnUrl || '/' %>" class="btn btn-outline-secondary">
-                                <i class="bi bi-arrow-left me-1"></i>На главную
-                            </a>
-                        </div>
-                    </div>
+        <main class="auth-card">
+            <section class="auth-card-head">
+                <div class="auth-logo bg-danger">
+                    <i class="bi bi-shield-x"></i>
                 </div>
-            </div>
-        </div>
+                <h1 class="auth-title">Ошибка входа</h1>
+                <p class="auth-subtitle">Не удалось завершить авторизацию</p>
+            </section>
+            <section class="auth-card-body">
+                <div class="auth-error" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <%= errorMessage %>
+                </div>
+                <div class="d-grid gap-2">
+                    <a href="/auth/yandex" class="btn btn-primary auth-button">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span>Попробовать снова</span>
+                    </a>
+                    <a href="<%= returnUrl || '/' %>" class="btn btn-outline-secondary auth-button">
+                        <i class="bi bi-arrow-left"></i>
+                        <span>На главную</span>
+                    </a>
+                </div>
+            </section>
+        </main>

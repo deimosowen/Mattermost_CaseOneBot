@@ -17,6 +17,7 @@ const reviewDistributionService = require('../services/reviewDistributionService
 const reviewTaskService = require('../services/reviewTaskService');
 const JiraStatusType = require('../types/jiraStatusTypes');
 const { getEnabledReviewChannelIdsForUser } = require('../services/reviewChannelAvailabilityService');
+const { extractTaskNumber } = require('../services/jiraService/jiraHelper');
 const logger = require('../logger');
 const CONFLUENCE_LINK_ONLY_CHANNEL_ID = '5n7ic16hqfn8ibfgek48bohesh';
 
@@ -70,7 +71,17 @@ const hasValue = (v) => v != null && v !== '';
 /** Найти запись reviewTask по треду */
 async function findReviewTaskByThread(post_id) {
     const post = await getPost(post_id);
-    return getReviewTaskByPostId(post.root_id);
+    const rootPostId = post.root_id || post.id;
+    const reviewTask = await getReviewTaskByPostId(rootPostId);
+
+    if (reviewTask) {
+        return reviewTask;
+    }
+
+    const rootPost = rootPostId === post.id ? post : await getPost(rootPostId);
+    const taskKey = extractTaskNumber(rootPost);
+
+    return taskKey ? getReviewTaskByKey(taskKey) : null;
 }
 
 /** (Опционально) установка ревьюверов в Jira */
@@ -178,6 +189,10 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
             }
 
             const post = await postMessage(channelId, messageToPost);
+            if (!post?.id) {
+                logger.error(`[Review] Не удалось отправить сообщение в канал ${channelId} для задачи ${key}`);
+                continue;
+            }
 
             // Обрабатываем GitLab merge request
             const gitlabMergeRequestId = await reviewTaskService.processGitlabMergeRequest(mergeRequestLink);

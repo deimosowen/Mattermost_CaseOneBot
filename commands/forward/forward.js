@@ -5,9 +5,15 @@ const resources = require('../../resources');
 
 module.exports = async ({ post_id, args }) => {
     try {
-        const [sourceChannelId, targetChannelId, message, threadMessage] = args;
+        const [sourceChannelId, targetChannelId, message, threadMessage, threadMessageDeliveryMode] = args;
 
-        await addChannelMapping(sourceChannelId, targetChannelId, message || null, threadMessage || null);
+        await addChannelMapping(
+            sourceChannelId,
+            targetChannelId,
+            message || null,
+            threadMessage || null,
+            threadMessageDeliveryMode || 'immediate'
+        );
 
         postMessageInTreed(post_id, resources.forward.mappingSetupSuccess);
     } catch (error) {

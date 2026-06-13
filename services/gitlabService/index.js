@@ -137,6 +137,7 @@ class GitlabService {
                 webUrl: mr.web_url,
                 state: mr.state,
                 mergeStatus: mr.merge_status,
+                sourceSha: mr.sha || null,
                 draft: mr.draft === true,
                 status,
                 hasComments,
@@ -161,6 +162,7 @@ class GitlabService {
                 id: mr.id,
                 iid: mr.iid,
                 title: mr.title,
+                sourceSha: mr.sha || null,
                 hasConflicts: mr.has_conflicts,
             }
         } catch (error) {

@@ -14,6 +14,7 @@ const {
     JiraService,
     isToDoStatus,
     isInProgressStatus,
+    extractTaskNumber,
 } = require('./review.setup');
 
 const reviewCommand = require('../../../commands/review'); // путь под проект
@@ -104,6 +105,24 @@ describe('review command', () => {
         expect(addReviewTask).not.toHaveBeenCalled();
     });
 
+    test('не создает запись review task, если Mattermost не создал пост', async () => {
+        postMessage.mockResolvedValueOnce(undefined);
+
+        await reviewCommand({
+            post_id: 'post-1',
+            user_id: 'user-1',
+            user_name: 'john',
+            channel_id: 'test-channel-1',
+            args: ['CASEM-1', null, null],
+        });
+
+        expect(postMessage).toHaveBeenCalledWith(
+            'test-channel-1',
+            expect.stringContaining('**IN REVIEW**')
+        );
+        expect(addReviewTask).not.toHaveBeenCalled();
+    });
+
     test('если To Do -> In Progress не удалось — пишет ошибку и останавливается', async () => {
         JiraService.fetchTask.mockResolvedValue({
             key: 'CASEM-2',
@@ -171,6 +190,46 @@ describe('review command', () => {
             reviewer: '@dev',
         });
         expect(addTaskNotification).toHaveBeenCalledWith(777);
+        expect(postMessage).not.toHaveBeenCalled();
+    });
+
+    test('если reviewTask не найден по root post id, берет задачу из первого сообщения треда', async () => {
+        getPost
+            .mockResolvedValueOnce({ id: 'reply-1', root_id: 'root-3' })
+            .mockResolvedValueOnce({ id: 'root-3', message: '**IN REVIEW** CASEM-4 Existing' });
+        getReviewTaskByPostId.mockResolvedValue(null);
+        extractTaskNumber.mockReturnValue('CASEM-4');
+        getReviewTaskByKey.mockResolvedValue({
+            id: 778,
+            post_id: 'root-3',
+            task_key: 'CASEM-4',
+            reviewer: '@qa',
+        });
+
+        JiraService.fetchTask.mockResolvedValue({
+            key: 'CASEM-4',
+            summary: 'Existing',
+            status: 'In Progress',
+            pullRequests: [],
+            reviewers: [],
+        });
+
+        JiraService.changeTaskStatus.mockResolvedValueOnce(true);
+
+        await reviewCommand({
+            post_id: 'reply-1',
+            user_id: 'user-1',
+            user_name: 'john',
+            channel_id: 'test-channel-1',
+            args: [null, null, '@dev'],
+        });
+
+        expect(extractTaskNumber).toHaveBeenCalledWith({ id: 'root-3', message: '**IN REVIEW** CASEM-4 Existing' });
+        expect(getReviewTaskByKey).toHaveBeenCalledWith('CASEM-4');
+        expect(updateReviewTaskReviewer).toHaveBeenCalledWith({
+            task_key: 'CASEM-4',
+            reviewer: '@dev',
+        });
         expect(postMessage).not.toHaveBeenCalled();
     });
 });

@@ -114,6 +114,38 @@ async function setReviewers(taskId, reviewers, authHeader) {
     }
 }
 
+async function getIssueWorklogs(taskId, authHeader) {
+    const url = `${JIRA_API_URL}/tasks/${taskId}/worklogs`;
+    try {
+        const response = await axios.get(url, {
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+            }
+        });
+        return response.data;
+    } catch (error) {
+        logger.error('Ошибка при получении worklog задачи:', error);
+        throw error;
+    }
+}
+
+async function getWorklogReport(data, authHeader) {
+    const url = `${JIRA_API_URL}/tasks/worklog-report`;
+    try {
+        const response = await axios.post(url, data, {
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+            }
+        });
+        return response.data;
+    } catch (error) {
+        logger.error('Ошибка при получении отчета worklog:', error);
+        throw error;
+    }
+}
+
 async function searchTasks(jql, maxResults, authHeader) {
     const url = `${JIRA_API_URL}/tasks/search`;
     try {
@@ -156,4 +188,6 @@ module.exports = {
     addComment,
     setReviewers,
     searchTasks,
+    getIssueWorklogs,
+    getWorklogReport,
 };
