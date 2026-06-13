@@ -52,6 +52,35 @@ describe('BaseCronService createCriticalJob', () => {
         expect(service.getCriticalRunner('duty_1')).toBe(mockCronJob.mock.calls[0][1]);
     });
 
+    test('createJob не запускает повторный callback, пока предыдущий запуск активен', async () => {
+        let finishFirstRun;
+        const callback = jest
+            .fn()
+            .mockImplementationOnce(() => new Promise((resolve) => {
+                finishFirstRun = resolve;
+            }))
+            .mockResolvedValueOnce(undefined);
+
+        service.createJob('calendar_notifications', '* * * * *', callback);
+        const wrappedCallback = mockCronJob.mock.calls[0][1];
+
+        const firstRun = wrappedCallback();
+        await Promise.resolve();
+        const skippedRun = wrappedCallback();
+
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.stringContaining('previous run is still active')
+        );
+
+        finishFirstRun();
+        await firstRun;
+        await skippedRun;
+
+        await wrappedCallback();
+        expect(callback).toHaveBeenCalledTimes(2);
+    });
+
     test('при вызове обёрнутого callback вызываются recordStart, callback, recordSuccess при успехе', async () => {
         const callback = jest.fn().mockResolvedValue(undefined);
         service.createCriticalJob('duty_1', '0 9 * * *', callback);

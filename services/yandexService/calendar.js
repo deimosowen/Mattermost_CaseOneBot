@@ -6,7 +6,6 @@ const { markEventAsNotified, checkIfEventWasNotified, markStatusAsSet,
 const CacheService = require('../cacheService');
 const YandexService = require('./index');
 const YandexApiManager = require('./apiManager');
-const { CronJob } = require('cron');
 const logger = require('../../logger');
 
 class CalendarManager {
@@ -19,35 +18,12 @@ class CalendarManager {
      * Инициализация задач на уведомления и очистку
      */
     init() {
-        this.startNotificationJob();
-        this.startCleanupJob();
+        logger.warn('CalendarManager.init() is deprecated. Calendar cron jobs are managed by CronManager.');
     }
 
-    /**
-     * Запуск задачи уведомлений
-     */
-    startNotificationJob() {
-        new CronJob(this.notificationCronSchedule, async () => {
-            try {
-                await this.notifyAllUsers();
-            } catch (error) {
-                logger.error('Ошибка в задаче уведомлений:', error);
-            }
-        }, null, true, 'UTC').start();
-    }
-
-    /**
-     * Запуск задачи очистки
-     */
-    startCleanupJob() {
-        new CronJob(this.cleanupCronSchedule, async () => {
-            try {
-                await removeNotifiedEvents();
-                logger.info('Очистка уведомлений выполнена.');
-            } catch (error) {
-                logger.error('Ошибка в задаче очистки:', error);
-            }
-        }, null, true, 'UTC').start();
+    async cleanupNotifiedEvents() {
+        await removeNotifiedEvents();
+        logger.info('Очистка уведомлений выполнена.');
     }
 
     /**
