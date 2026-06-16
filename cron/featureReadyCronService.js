@@ -8,7 +8,8 @@ const { postMessageInTreed, addReaction } = require('../mattermost/utils');
 const GitlabService = require('../services/gitlabService');
 const JiraService = require('../services/jiraService');
 const JiraStatusType = require('../types/jiraStatusTypes');
-const logger = require('../logger');
+const config = require('../config');
+const logger = require('../logger').child('feature');
 
 const CONFLICT_STATE_CONFIRMATIONS = 2;
 
@@ -16,9 +17,10 @@ class FeatureReadyCronService extends BaseCronService {
     constructor() {
         super('FeatureReadyCron');
         this.gitlab = GitlabService;
-        this.shedule = '* * * * *';
         this.statuses = GitlabService.STATUSES;
         this.reaction = 'heavy_check_mark';
+        // Fallback: каждые 5 минут если webhook отключен, каждые 30 минут если webhook включен
+        this.shedule = config.USE_GITLAB_WEBHOOK ? '*/30 * * * *' : '* * * * *';
     }
 
     // Маппинг ролей на читаемые названия
