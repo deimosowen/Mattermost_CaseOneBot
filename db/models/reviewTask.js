@@ -146,6 +146,14 @@ const deleteTaskReview = async (review_task_id) => {
     });
 };
 
+const deleteReviewTasksByGitlabMergeRequestId = async (gitlab_merge_request_id) => {
+    const result = await db.runAsync(
+        'DELETE FROM review_task WHERE gitlab_merge_request_id = ?',
+        [gitlab_merge_request_id]
+    );
+    return result.changes;
+};
+
 
 module.exports = {
     getReviewTaskByKey,
@@ -158,6 +166,7 @@ module.exports = {
     getTaskNotifications,
     addTaskNotification,
     deleteTaskReview,
+    deleteReviewTasksByGitlabMergeRequestId,
     getReviewTaskByGitlabMergeRequestId,
     getReviewTaskWithNotClosedMRs,
 }
