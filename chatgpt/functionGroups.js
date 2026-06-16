@@ -22,6 +22,7 @@ const GROUP_FUNCTIONS = {
     media: ['createImages'],
     thread: ['getPostThreadMessages'],
     help: [
+        'describeAllCommands',
         'describeDutyCommands',
         'describeCalendarCommands',
         'describeJiraCommands',

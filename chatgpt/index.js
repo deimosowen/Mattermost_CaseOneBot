@@ -37,6 +37,15 @@ async function callFunction(functionCall, additionalParams = {}) {
     return foundFunction.function(finalArgs);
 }
 
+function serializeFunctionCallForInput(functionCall) {
+    return {
+        type: 'function_call',
+        call_id: functionCall.call_id,
+        name: functionCall.name,
+        arguments: functionCall.arguments,
+    };
+}
+
 function buildRequestOptions(model, history, tools) {
     const { instructions, input } = splitHistoryForResponseApi(history);
     const options = {
@@ -96,7 +105,7 @@ async function runWithFunctionCalling(client, requestOptions, additionalParams) 
 
         input = [
             ...input,
-            ...responseOutput,
+            ...functionCalls.map(serializeFunctionCallForInput),
             ...toolOutputs,
         ];
 
@@ -207,4 +216,7 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
 module.exports = {
     sendMessage,
     isApiKeyExist: OpenAIClientFactory.isApiKeyExist(),
+    _private: {
+        serializeFunctionCallForInput,
+    },
 };
