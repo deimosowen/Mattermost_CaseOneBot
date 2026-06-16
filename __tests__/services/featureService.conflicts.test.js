@@ -20,14 +20,19 @@ jest.mock('../../services/gitlabService/conflictResolver', () => ({
 
 jest.mock('../../config', () => ({
     FEATURE_IS_READY_CHANNEL_ID: 'feature-channel',
+    AUTO_RESOLVE_CONFLICTS: false,
 }));
 
-jest.mock('../../logger', () => ({
-    error: jest.fn(),
-    warn: jest.fn(),
-    info: jest.fn(),
-    debug: jest.fn(),
-}));
+jest.mock('../../logger', () => {
+    const mock = {
+        error: jest.fn(),
+        warn: jest.fn(),
+        info: jest.fn(),
+        debug: jest.fn(),
+    };
+    mock.child = jest.fn(() => ({ ...mock }));
+    return mock;
+});
 
 const FeatureService = require('../../services/featureService');
 const {

@@ -12,11 +12,15 @@ jest.mock('../../../services/jiraService/jiraHelper', () => ({
 jest.mock('../../../config', () => ({
     INREVIEW_CHANNEL_IDS: ['test-channel-1'], // фиксированное значение для тестов
 }));
-jest.mock('../../../logger', () => ({
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-}));
+jest.mock('../../../logger', () => {
+    const mock = {
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+    };
+    mock.child = jest.fn(() => ({ ...mock }));
+    return mock;
+});
 
 // Импорт после jest.mock(...)
 const {

@@ -24,12 +24,16 @@ jest.mock('../../services/jiraService', () => ({
     changeTaskStatus: jest.fn(),
 }));
 
-jest.mock('../../logger', () => ({
-    debug: jest.fn(),
-    error: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-}));
+jest.mock('../../logger', () => {
+    const mock = {
+        debug: jest.fn(),
+        error: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+    };
+    mock.child = jest.fn(() => ({ ...mock }));
+    return mock;
+});
 
 const FeatureReadyCronService = require('../../cron/featureReadyCronService');
 const { updateMergeRequestConflictMonitoring } = require('../../db/models/featureReady');

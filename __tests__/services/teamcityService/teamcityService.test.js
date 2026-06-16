@@ -52,6 +52,35 @@ describe('TeamCityService', () => {
         });
     });
 
+    describe('checkConnection', () => {
+        test('проверяет доступность TeamCity через REST server endpoint', async () => {
+            const mockServerInfo = {
+                version: '2024.12',
+                buildNumber: '123456'
+            };
+
+            axios.get.mockReset();
+            axios.get.mockResolvedValueOnce({ data: mockServerInfo });
+
+            const result = await TeamCityService.checkConnection();
+
+            expect(result).toEqual(mockServerInfo);
+            expect(axios.get).toHaveBeenCalledWith(
+                'https://ci.example.com/app/rest/server',
+                expect.objectContaining({
+                    headers: expect.objectContaining({
+                        Authorization: expect.stringMatching(/^Basic /),
+                        Accept: 'application/json'
+                    }),
+                    timeout: 5000,
+                    params: {
+                        fields: 'version,buildNumber'
+                    }
+                })
+            );
+        });
+    });
+
     describe('getLatestBuild', () => {
         test('успешно получает последний билд', async () => {
             const buildConfigId = 'TestBuildConfig';

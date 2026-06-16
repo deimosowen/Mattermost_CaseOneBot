@@ -119,4 +119,17 @@ describe('BaseCronService createCriticalJob', () => {
         expect(cronExecutionTracker.unregisterCriticalJob).toHaveBeenCalledWith('duty_1');
         expect(service.getCriticalRunner('duty_1')).toBeUndefined();
     });
+
+    test('логирует ключ и расписание при ошибке создания cron-задачи', () => {
+        mockCronJob.mockImplementationOnce(() => {
+            throw new Error('Too few fields');
+        });
+
+        const job = service.createJob('scheduled_message_delivery', '*', jest.fn());
+
+        expect(job).toBeNull();
+        expect(logger.error).toHaveBeenCalledWith(
+            '[TestCron] Cron error for scheduled_message_delivery (*): Too few fields'
+        );
+    });
 });

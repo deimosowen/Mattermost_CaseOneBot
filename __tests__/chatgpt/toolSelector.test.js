@@ -41,6 +41,65 @@ describe('toolSelector', () => {
         expect(names).toContain('reopenReviewTask');
     });
 
+    test('feature chat invite request selects invite tools', () => {
+        const selected = selectFunctions(functions, {
+            selectionText: 'добавь в фича-чат https://mchat.pravo.tech/company/channels/c1_ud_procedure_deadlines',
+            hasPost: true,
+        });
+        const names = selected.map((func) => func.name);
+
+        expect(names).toContain('inviteToChannel');
+    });
+
+    test('channel name invite request selects invite tools', () => {
+        const selected = selectFunctions(functions, {
+            selectionText: 'пригласи в канал c1_fr_autofac',
+            hasPost: true,
+        });
+        const names = selected.map((func) => func.name);
+
+        expect(names).toContain('inviteToChannel');
+    });
+
+    test('invite follow-up uses recent channel link from history', () => {
+        const history = [
+            {
+                role: 'user',
+                content: '@bot пишет: добавь в фича-чат https://mchat.pravo.tech/company/channels/c1_ud_procedure_deadlines',
+            },
+        ];
+        const { groups } = selectToolGroups({
+            history,
+            selectionText: 'добавь меня в этот чат',
+            hasPost: true,
+        });
+
+        expect(groups).toContain('invite');
+    });
+
+    test('broad commands question selects full command help', () => {
+        const selected = selectFunctions(functions, {
+            selectionText: 'какие команды ты знаешь',
+            hasPost: true,
+        });
+        const names = selected.map((func) => func.name);
+
+        expect(names).toContain('describeAllCommands');
+    });
+
+    test('full command help mentions commands outside specialized help groups', async () => {
+        const describeAllCommands = functions.find((func) => func.name === 'describeAllCommands');
+
+        const result = await describeAllCommands.function();
+
+        expect(result.data).toContain('!ping');
+        expect(result.data).toContain('!review');
+        expect(result.data).toContain('!review-settings');
+        expect(result.data).toContain('!sendAs');
+        expect(result.data).toContain('!log');
+        expect(result.data).toContain('!r');
+    });
+
     test('thread follow-up uses recent user history', () => {
         const history = [
             { role: 'user', content: '@bot пишет: Привет' },
