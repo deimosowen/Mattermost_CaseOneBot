@@ -1,6 +1,6 @@
 {
   "name": "mattermost_caseonebot",
-  "version": "2.4.1",
+  "version": "2.4.5",
   "description": "",
   "type": "commonjs",
   "main": "index.js",
@@ -39,6 +39,7 @@
     "ioredis": "^5.4.2",
     "isdayoff": "^1.0.1",
     "isomorphic-fetch": "^3.0.0",
+    "log4js": "^6.9.1",
     "moment-timezone": "^0.5.43",
     "node-cron": "^3.0.2",
     "openai": "^6.42.0",
