@@ -4,6 +4,9 @@ const NodeCache = require('node-cache');
 const axios = require('axios');
 const cache = new NodeCache();
 
+const AI_USAGE_FIELD_ID = 'customfield_19260';
+const AI_USAGE_NOT_USED_OPTION_ID = '13420';
+
 const createJiraClient = ({ username, password }) => {
     return new JiraClient({
         protocol: 'https',
@@ -154,6 +157,11 @@ const changeStatus = async (jiraClient, taskId, status) => {
             throw new Error(`Переход к статусу "${status}" не найден для задачи ${taskId}.`);
         }
 
+        await jiraClient.updateIssue(taskId, {
+            fields: {
+                [AI_USAGE_FIELD_ID]: { id: AI_USAGE_NOT_USED_OPTION_ID }
+            }
+        });
         await jiraClient.transitionIssue(taskId, { transition: { id: transition.id } });
     } catch (error) {
         throw error;
