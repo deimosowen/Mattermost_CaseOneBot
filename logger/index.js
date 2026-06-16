@@ -1,37 +1,75 @@
-const winston = require('winston');
-require('winston-daily-rotate-file');
+const log4js = require('log4js');
+const path = require('path');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const logLevel = isProduction ? 'info' : 'debug';
 
-const transport = new (winston.transports.DailyRotateFile)({
-    filename: 'logs/%DATE%-app.log', // Формат имени файла. %DATE% заменяется датой.
-    datePattern: 'YYYY-MM-DD',       // Формат даты в имени файла.
-    zippedArchive: false,            // Архивировать старые логи.
-    maxSize: '20m',                  // Размер одного файла.
-    maxFiles: '14d',                 // Хранить файлы в течение 14 дней.
-    level: logLevel                  // Уровень логирования для файла
-});
+const MODULES = ['calendar', 'conflict', 'feature', 'gitlab', 'review'];
 
-// Консольный транспорт с тем же уровнем
-const consoleTransport = new winston.transports.Console({
-    level: logLevel,
-    format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-    )
-});
+const appenders = {
+    console: {
+        type: 'console',
+        layout: isProduction
+            ? undefined
+            : { type: 'pattern', pattern: '%[[%p]%] %m' },
+    },
+};
 
-const logger = winston.createLogger({
-    level: logLevel,
-    format: winston.format.combine(
-        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss UTC' }),
-        winston.format.printf(info => `${info.timestamp} ${info.level.toUpperCase()}: ${info.message}`)
-    ),
-    transports: [
-        consoleTransport,
-        transport
-    ]
-});
+const categories = {
+    default: { appenders: ['console'], level: logLevel },
+};
+
+// Общий лог — кастомный appender с динамическим путём
+appenders.app = {
+    type: path.join(__dirname, 'dynamicFileAppender'),
+    filename: 'app.log',
+    pattern: '%d{yyyy-MM-dd hh:mm:ss} %p: %m',
+};
+categories.default.appenders.push('app');
+
+// Модульные логи
+for (const mod of MODULES) {
+    const key = `module_${mod}`;
+    appenders[key] = {
+        type: path.join(__dirname, 'dynamicFileAppender'),
+        filename: `${mod}.log`,
+        pattern: '%d{yyyy-MM-dd hh:mm:ss} %p: %m',
+    };
+    categories[`module.${mod}`] = { appenders: [key], level: logLevel };
+}
+
+log4js.configure({ appenders, categories });
+
+const moduleLoggers = {};
+
+/**
+ * Возвращает дочерний логгер с меткой модуля.
+ * Логи пишутся в общий logs/{date}/app.log + отдельный logs/{date}/{component}.log
+ *
+ * Использование:
+ *   const log = require('./logger').child('calendar');
+ *   log.info('Проверка событий');
+ */
+function createChildLogger(component) {
+    if (!moduleLoggers[component]) {
+        const catName = `module.${component}`;
+        moduleLoggers[component] = log4js.getLogger(catName);
+    }
+    const modLogger = moduleLoggers[component];
+    const mainLogger = log4js.getLogger();
+
+    const child = {};
+    for (const level of ['error', 'warn', 'info', 'debug', 'trace', 'fatal']) {
+        child[level] = (msg, ...args) => {
+            const prefixed = `[${component}] ${msg}`;
+            mainLogger[level](prefixed, ...args);
+            modLogger[level](prefixed, ...args);
+        };
+    }
+    return child;
+}
+
+const logger = log4js.getLogger();
+logger.child = createChildLogger;
 
 module.exports = logger;

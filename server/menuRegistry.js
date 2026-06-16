@@ -163,6 +163,15 @@ const adminMenuItems = [
         icon: 'bi-check2-square',
         color: 'info',
         section: 'admin'
+    },
+    {
+        key: 'admin_merge_tracking',
+        url: '/admin/merge-tracking',
+        title: 'Отслеживание MR',
+        description: 'Просмотр и управление merge requests и фичами',
+        icon: 'bi-kanban',
+        color: 'danger',
+        section: 'admin'
     }
 ];
 
@@ -195,6 +204,9 @@ function getMenuKeyForPath(path) {
     }
     if (path.startsWith('/admin/api/system-info') || path.startsWith('/admin/api/latest-log')) {
         return 'admin_panel';
+    }
+    if (path === '/admin/merge-tracking' || path.startsWith('/admin/api/merge-tracking')) {
+        return 'admin_merge_tracking';
     }
 
     if (path === '/duty' || path.startsWith('/duty/')) return 'duty_list';

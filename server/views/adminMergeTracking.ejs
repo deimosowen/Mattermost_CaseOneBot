@@ -1,0 +1,444 @@
+<% layout('layout') -%>
+    <% block('title', 'Отслеживание MR' ); -%>
+
+        <style>
+            .mt-chip {
+                display: inline-flex;
+                align-items: center;
+                font-size: 0.78rem;
+                font-family: monospace;
+                padding: 0.2em 0.6em;
+                border-radius: 0.35rem;
+                background: var(--bs-tertiary-bg);
+                border: 1px solid var(--bs-border-color);
+                margin: 0.15em 0.25em 0.15em 0;
+                transition: all 0.15s;
+            }
+            .mt-chip:hover {
+                background: var(--bs-primary-bg-subtle);
+                border-color: var(--bs-primary-border-subtle);
+                color: var(--bs-primary);
+            }
+            .feature-card {
+                border-radius: 0.5rem;
+                border: 1px solid var(--bs-border-color);
+                overflow: hidden;
+            }
+            .feature-card.has-conflicts {
+                border-color: var(--bs-danger-border-subtle);
+            }
+            .feature-header {
+                padding: 0.6rem 1rem;
+                background: var(--bs-body-bg);
+                border-bottom: 1px solid var(--bs-border-color);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.75rem;
+            }
+            .feature-body {
+                padding: 0.6rem 1rem;
+            }
+            .mr-row {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.3rem 0;
+                border-bottom: 1px solid var(--bs-border-color);
+            }
+            .mr-row:last-child {
+                border-bottom: none;
+            }
+            .mr-row .role {
+                width: 100px;
+                flex-shrink: 0;
+            }
+            .mr-row .mr-link {
+                flex: 1;
+                min-width: 0;
+            }
+            .mr-row .mr-status {
+                width: 100px;
+                flex-shrink: 0;
+                text-align: center;
+            }
+            .mr-row .mr-conflict {
+                width: 80px;
+                flex-shrink: 0;
+                text-align: center;
+            }
+            .mr-row .mr-actions {
+                width: 30px;
+                flex-shrink: 0;
+                text-align: right;
+            }
+            .icon-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                border-radius: 0.375rem;
+                border: 1px solid transparent;
+                background: none;
+                color: var(--bs-secondary-color);
+                cursor: pointer;
+                transition: all 0.15s;
+                font-size: 0.85rem;
+                padding: 0;
+            }
+            .icon-btn:hover {
+                background: var(--bs-tertiary-bg);
+                color: var(--bs-body-color);
+            }
+            .icon-btn.danger:hover {
+                background: var(--bs-danger-bg-subtle);
+                color: var(--bs-danger);
+                border-color: var(--bs-danger-border-subtle);
+            }
+            .icon-btn.success:hover {
+                background: var(--bs-success-bg-subtle);
+                color: var(--bs-success);
+                border-color: var(--bs-success-border-subtle);
+            }
+        </style>
+
+        <div class="container-fluid px-4 py-3">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <h3 class="mb-0"><i class="bi bi-kanban me-2"></i>Отслеживание MR</h3>
+                <div class="d-flex gap-2 align-items-center">
+                    <button class="btn btn-sm btn-outline-secondary" id="refreshData" title="Обновить"><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+            </div>
+
+            <div id="featuresContainer">
+                <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-secondary"></div></div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="deleteFeatureModal" tabindex="-1">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title">Удалить фичу</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body small">
+                        Удалить фичу <strong id="deleteFeatureName"></strong> и все её MR?
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button class="btn btn-sm btn-danger" id="confirmDeleteFeature">Удалить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="deleteMrModal" tabindex="-1">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title">Удалить MR</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body small">
+                        Удалить MR <strong id="deleteMrName"></strong>?
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button class="btn btn-sm btn-danger" id="confirmDeleteMr">Удалить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="addMrModal" tabindex="-1">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title">Добавить MR</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-2">
+                            <label class="form-label small">URL MR</label>
+                            <input type="text" class="form-control form-control-sm" id="addMrUrl" placeholder="https://gitlab.../-/merge_requests/123">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label small">Роль</label>
+                            <select class="form-select form-select-sm" id="addMrRole">
+                                <option value="@c1-back">@c1-back</option>
+                                <option value="@c1-front">@c1-front</option>
+                                <option value="@c1-aqa">@c1-aqa</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="addMrFeatureId">
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button class="btn btn-sm btn-primary" id="confirmAddMr">Добавить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="addFeatureModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title">Добавить фичу</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small">Task ID</label>
+                                <input type="text" class="form-control form-control-sm" id="addFeatureTaskId" placeholder="CASEM-12345">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Название</label>
+                                <input type="text" class="form-control form-control-sm" id="addFeatureTaskName" placeholder="Название фичи">
+                            </div>
+                        </div>
+                        <div class="mb-2 mt-2">
+                            <label class="form-label small">Описание</label>
+                            <textarea class="form-control form-control-sm" id="addFeatureDescription" rows="2"></textarea>
+                        </div>
+                        <div class="row g-2 mt-0">
+                            <div class="col-4">
+                                <label class="form-label small">Back MR</label>
+                                <input type="text" class="form-control form-control-sm" id="addFeatureBackMr" placeholder="https://...">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">Front MR</label>
+                                <input type="text" class="form-control form-control-sm" id="addFeatureFrontMr" placeholder="https://...">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small">AQA MR</label>
+                                <input type="text" class="form-control form-control-sm" id="addFeatureAqaMr" placeholder="https://...">
+                            </div>
+                        </div>
+                        <div class="mb-0 mt-2">
+                            <label class="form-label small">Задачи на влитие (через запятую)</label>
+                            <input type="text" class="form-control form-control-sm" id="addFeatureMergeTasks" placeholder="CASEM-111, CASEM-222">
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button class="btn btn-sm btn-primary" id="confirmAddFeature">Добавить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const GITLAB_BASE = '<%= typeof gitlabBaseUrl !== "undefined" ? gitlabBaseUrl : "" %>';
+            const JIRA_BASE = 'https://jira.parcsis.org/browse';
+
+            function statusLabel(s) {
+                const map = { new: 'Новый', approved: 'Одобрен', rejected: 'Отклонён', commented: 'Комментарии', draft: 'Черновик', merged: 'Слит', closed: 'Закрыт' };
+                return map[(s || '').toLowerCase()] || s || '—';
+            }
+
+            function statusColor(s) {
+                const map = { new: 'info', approved: 'success', rejected: 'danger', commented: 'warning', draft: 'secondary', merged: 'success', closed: 'secondary' };
+                return map[(s || '').toLowerCase()] || 'secondary';
+            }
+
+            function mrUrl(projectName, mrIid) {
+                if (!GITLAB_BASE || !projectName) return '#';
+                return `${GITLAB_BASE}/${projectName}/-/merge_requests/${mrIid}`;
+            }
+
+            function parseMergeTasks(mt) {
+                if (!mt) return [];
+                let arr = [];
+                if (Array.isArray(mt)) {
+                    arr = mt;
+                } else {
+                    try {
+                        const parsed = JSON.parse(mt);
+                        arr = Array.isArray(parsed) ? parsed : [mt];
+                    } catch {
+                        arr = [mt];
+                    }
+                }
+                return arr.flatMap(v => String(v).split(/[,\s;]+/)).filter(Boolean);
+            }
+
+            function renderMergeTasks(tasks) {
+                if (!tasks || tasks.length === 0) return '';
+                return `<div class="d-flex align-items-center flex-wrap mt-1">
+                    <span class="text-muted small me-2">Влитие:</span>
+                    ${tasks.map(t => `<a href="${JIRA_BASE}/${t}" target="_blank" class="mt-chip text-decoration-none">${t}</a>`).join('')}
+                </div>`;
+            }
+
+            function escHtml(s) {
+                return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            }
+
+            async function loadFeatures() {
+                const el = document.getElementById('featuresContainer');
+                try {
+                    const r = await fetch('/admin/api/merge-tracking/features');
+                    const data = await r.json();
+
+                    if (!data.features || data.features.length === 0) {
+                        el.innerHTML = `
+                            <div class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox" style="font-size:2rem;"></i>
+                                <p class="mt-2 mb-0">Нет отслеживаемых фич</p>
+                                <button class="btn btn-sm btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addFeatureModal">
+                                    <i class="bi bi-plus me-1"></i>Добавить
+                                </button>
+                            </div>`;
+                        return;
+                    }
+
+                    let html = `
+                        <div class="d-flex justify-content-end mb-3">
+                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addFeatureModal">
+                                <i class="bi bi-plus-lg me-1"></i>Добавить фичу
+                            </button>
+                        </div>`;
+
+                    for (const f of data.features) {
+                        const hasConflicts = f.mrs.some(m => m.has_conflicts);
+                        const mergeTasks = parseMergeTasks(f.merge_tasks);
+
+                        html += `
+                        <div class="feature-card shadow-sm mb-3 ${hasConflicts ? 'has-conflicts' : ''}">
+                            <div class="feature-header">
+                                <div class="d-flex align-items-center gap-2 min-width-0">
+                                    <a href="${JIRA_BASE}/${f.task_id}" target="_blank" class="fw-semibold text-decoration-none text-truncate">${escHtml(f.task_id)}</a>
+                                    ${f.task_name ? `<span class="text-muted small text-truncate">${escHtml(f.task_name)}</span>` : ''}
+                                    ${hasConflicts ? '<span class="badge text-bg-danger" style="font-size:0.7rem"><i class="bi bi-exclamation-triangle-fill me-1"></i>Конфликты</span>' : ''}
+                                </div>
+                                <div class="d-flex gap-1 flex-shrink-0">
+                                    <button class="icon-btn success" onclick="openAddMr(${f.id})" title="Добавить MR"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="icon-btn danger" onclick="openDeleteFeature(${f.id}, '${escHtml(f.task_id)}')" title="Удалить фичу"><i class="bi bi-trash3"></i></button>
+                                </div>
+                            </div>
+                            <div class="feature-body">`;
+
+                        if (f.description) {
+                            html += `<div class="text-muted small mb-2">${escHtml(f.description)}</div>`;
+                        }
+
+                        if (mergeTasks.length > 0) {
+                            html += renderMergeTasks(mergeTasks);
+                        }
+
+                        if (f.mrs.length > 0) {
+                            html += `<div class="mt-2">`;
+                            for (const m of f.mrs) {
+                                const url = mrUrl(m.project_name, m.mr_iid);
+                                html += `
+                                <div class="mr-row">
+                                    <div class="role"><span class="badge text-bg-secondary" style="font-size:0.75rem">${escHtml(m.role)}</span></div>
+                                    <div class="mr-link"><a href="${url}" target="_blank" class="text-decoration-none small">!${m.mr_iid}</a></div>
+                                    <div class="mr-status"><span class="badge text-bg-${statusColor(m.mr_status)}" style="font-size:0.7rem">${statusLabel(m.mr_status)}</span></div>
+                                    <div class="mr-conflict">${m.has_conflicts ? '<span class="badge text-bg-danger" style="font-size:0.7rem">Конфликт</span>' : ''}</div>
+                                    <div class="mr-actions"><button class="icon-btn danger" onclick="openDeleteMr(${m.feature_merge_request_id}, '${escHtml(m.role)} !${m.mr_iid}')" title="Удалить MR"><i class="bi bi-trash3" style="font-size:0.75rem"></i></button></div>
+                                </div>`;
+                            }
+                            html += `</div>`;
+                        } else {
+                            html += `<div class="text-muted small mt-1">Нет MR</div>`;
+                        }
+
+                        html += `</div></div>`;
+                    }
+
+                    el.innerHTML = html;
+                } catch (e) {
+                    el.innerHTML = `<div class="text-danger small">${e.message}</div>`;
+                }
+            }
+
+            function openDeleteFeature(id, name) {
+                document.getElementById('deleteFeatureName').textContent = name;
+                document.getElementById('confirmDeleteFeature').dataset.id = id;
+                new bootstrap.Modal(document.getElementById('deleteFeatureModal')).show();
+            }
+
+            function openDeleteMr(id, name) {
+                document.getElementById('deleteMrName').textContent = name;
+                document.getElementById('confirmDeleteMr').dataset.id = id;
+                new bootstrap.Modal(document.getElementById('deleteMrModal')).show();
+            }
+
+            function openAddMr(featureId) {
+                document.getElementById('addMrFeatureId').value = featureId;
+                document.getElementById('addMrUrl').value = '';
+                new bootstrap.Modal(document.getElementById('addMrModal')).show();
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                loadFeatures();
+
+                document.getElementById('refreshData')?.addEventListener('click', loadFeatures);
+
+                document.getElementById('confirmDeleteFeature')?.addEventListener('click', async function () {
+                    const id = this.dataset.id;
+                    try {
+                        await fetch(`/admin/api/merge-tracking/features/${id}`, { method: 'DELETE' });
+                        bootstrap.Modal.getInstance(document.getElementById('deleteFeatureModal')).hide();
+                        loadFeatures();
+                    } catch (e) { alert(e.message); }
+                });
+
+                document.getElementById('confirmDeleteMr')?.addEventListener('click', async function () {
+                    const id = this.dataset.id;
+                    try {
+                        await fetch(`/admin/api/merge-tracking/mrs/${id}`, { method: 'DELETE' });
+                        bootstrap.Modal.getInstance(document.getElementById('deleteMrModal')).hide();
+                        loadFeatures();
+                    } catch (e) { alert(e.message); }
+                });
+
+                document.getElementById('confirmAddMr')?.addEventListener('click', async function () {
+                    const featureId = document.getElementById('addMrFeatureId').value;
+                    const url = document.getElementById('addMrUrl').value.trim();
+                    const role = document.getElementById('addMrRole').value;
+                    if (!url) return;
+                    try {
+                        const r = await fetch('/admin/api/merge-tracking/mrs', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ featureId: parseInt(featureId), url, role })
+                        });
+                        const d = await r.json();
+                        if (d.error) { alert(d.error); return; }
+                        bootstrap.Modal.getInstance(document.getElementById('addMrModal')).hide();
+                        loadFeatures();
+                    } catch (e) { alert(e.message); }
+                });
+
+                document.getElementById('confirmAddFeature')?.addEventListener('click', async function () {
+                    const taskId = document.getElementById('addFeatureTaskId').value.trim();
+                    if (!taskId) return;
+                    const payload = {
+                        taskId,
+                        taskName: document.getElementById('addFeatureTaskName').value.trim(),
+                        description: document.getElementById('addFeatureDescription').value.trim(),
+                        backPullRequestUrl: document.getElementById('addFeatureBackMr').value.trim() || null,
+                        frontPullRequestUrl: document.getElementById('addFeatureFrontMr').value.trim() || null,
+                        aqaPullRequestUrl: document.getElementById('addFeatureAqaMr').value.trim() || null,
+                        mergeTasks: document.getElementById('addFeatureMergeTasks').value.trim(),
+                    };
+                    try {
+                        const r = await fetch('/admin/api/merge-tracking/features', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const d = await r.json();
+                        if (d.error) { alert(d.error); return; }
+                        bootstrap.Modal.getInstance(document.getElementById('addFeatureModal')).hide();
+                        loadFeatures();
+                    } catch (e) { alert(e.message); }
+                });
+            });
+        </script>
