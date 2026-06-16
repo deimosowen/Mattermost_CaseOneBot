@@ -24,6 +24,26 @@ class TeamCityService {
         };
     }
 
+    _getBaseUrl() {
+        if (!this.baseUrl) {
+            throw new Error('TeamCity base URL not configured');
+        }
+        return this.baseUrl.replace(/\/+$/, '');
+    }
+
+    async checkConnection() {
+        const url = `${this._getBaseUrl()}/app/rest/server`;
+        const response = await axios.get(url, {
+            headers: this._getAuthHeaders(),
+            timeout: 5000,
+            params: {
+                fields: 'version,buildNumber'
+            }
+        });
+
+        return response.data;
+    }
+
     /**
      * Получить информацию о последнем билде конфигурации
      * @param {string} buildConfigId - ID конфигурации билда (например, CaseProAutotest_Pipeline_DailyRun_NightlyBuilds)

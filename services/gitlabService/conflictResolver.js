@@ -1,5 +1,6 @@
 const GitlabService = require('./index');
-const logger = require('../../logger');
+const config = require('../../config');
+const logger = require('../../logger').child('conflict');
 
 /**
  * Конфигурация для автоматического разрешения конфликтов
@@ -234,11 +235,13 @@ async function tryResolveBackendConflicts(mrData) {
             return { resolved: false, files: [] };
         }
 
-        logger.info(`[ConflictResolver] Обнаружены конфликты в MR ${mrData.url}. Проверяем файлы: ${CONFLICT_CONFIG.allowedFiles.join(', ')}`);
-
         const sourceBranch = mrInfo.source_branch;
         const targetBranch = mrInfo.target_branch;
         const filesToUpdate = []; // Собираем все файлы для обновления
+
+        logger.info(`[ConflictResolver] Анализ MR ${mrData.url} (роль: ${tag}, MR IID: ${mrIid})`);
+        logger.info(`[ConflictResolver] Ветки: source=${sourceBranch} -> target=${targetBranch}`);
+        logger.info(`[ConflictResolver] Проверяем файлы: ${CONFLICT_CONFIG.allowedFiles.join(', ')}`);
 
         // Проверяем все файлы и собираем те, которые нужно обновить
         for (const filePath of CONFLICT_CONFIG.allowedFiles) {
@@ -261,7 +264,7 @@ async function tryResolveBackendConflicts(mrData) {
                 }
 
                 // Извлекаем версии FrontendVersion
-                const versionPattern = new RegExp(`<${CONFLICT_CONFIG.conflictProperty}>([\\s\\S]*?)<\/${CONFLICT_CONFIG.conflictProperty}>`, 'g');
+                const versionPattern = new RegExp(`<${CONFLICT_CONFIG.conflictProperty}>([\\s\\S]*?)<\/${CONFLICT_CONFIG.conflictProperty}>`);
                 const sourceVersionMatch = sourceContent.match(versionPattern);
                 const targetVersionMatch = targetContent.match(versionPattern);
 
@@ -283,9 +286,10 @@ async function tryResolveBackendConflicts(mrData) {
 
                 // Проверяем, что отличия только в FrontendVersion
                 // Убираем FrontendVersion из обоих файлов и сравниваем остальное
+                const versionPatternGlobal = new RegExp(`<${CONFLICT_CONFIG.conflictProperty}>[\\s\\S]*?<\\/${CONFLICT_CONFIG.conflictProperty}>`, 'g');
                 const normalize = (text) => {
                     return text
-                        .replace(versionPattern, '') // Убираем FrontendVersion
+                        .replace(versionPatternGlobal, '') // Убираем FrontendVersion
                         .replace(/\s+/g, '') // Убираем все пробельные символы
                         .trim();
                 };
@@ -305,7 +309,7 @@ async function tryResolveBackendConflicts(mrData) {
 
                 // Берем содержимое из target ветки (все последние изменения) и заменяем FrontendVersion на версию из source
                 let resolvedContent = targetContent.replace(
-                    versionPattern,
+                    versionPatternGlobal,
                     `<${CONFLICT_CONFIG.conflictProperty}>${sourceVersion}</${CONFLICT_CONFIG.conflictProperty}>`
                 );
 
@@ -318,20 +322,6 @@ async function tryResolveBackendConflicts(mrData) {
 
                 // Нормализуем конец файла
                 resolvedContent = resolvedContent.replace(/[\r\n\s]+$/, '') + '\n';
-
-                // Проверяем, отличается ли resolvedContent от текущего файла в source ветке
-                // Нормализуем оба для сравнения (убираем различия в пробелах в конце)
-                const normalizedSource = (sourceContent || '').replace(/[\r\n\s]+$/, '').trim();
-                const normalizedResolved = resolvedContent.replace(/[\r\n\s]+$/, '').trim();
-
-                if (normalizedResolved === normalizedSource) {
-                    // Если содержимое идентично, значит конфликт уже разрешен в source ветке
-                    // (файл в source уже содержит правильную версию FrontendVersion)
-                    // Но GitLab может еще не пересчитать конфликты
-                    // Коммит идентичного содержимого не поможет - GitLab не создаст коммит с изменениями
-                    logger.warn(`[ConflictResolver] ${filePath}: Разрешенное содержимое идентично текущему в source ветке. Конфликт уже разрешен в source, но GitLab может еще не пересчитать статус. Пропускаем файл - коммит идентичного содержимого не поможет.`);
-                    continue;
-                }
 
                 logger.info(`[ConflictResolver] ${filePath}: ✓ Конфликт разрешен: "${targetVersion}" -> "${sourceVersion}". Файл будет обновлен в source ветке.`);
                 filesToUpdate.push({ filePath, content: resolvedContent });
@@ -346,15 +336,29 @@ async function tryResolveBackendConflicts(mrData) {
             return { resolved: false, files: [] };
         }
 
-        logger.info(`[ConflictResolver] Найдено ${filesToUpdate.length} файл(ов) с конфликтами только в ${CONFLICT_CONFIG.conflictProperty}. Приступаем к разрешению конфликтов.`);
-
-        const filePaths = filesToUpdate.map(f => f.filePath).join(', ');
+        const resolvedFiles = filesToUpdate.map(f => f.filePath);
+        const filePaths = resolvedFiles.join(', ');
         const commitMessage = `Auto-resolve ${CONFLICT_CONFIG.conflictProperty} conflicts in ${filePaths}`;
 
-        logger.info(`[ConflictResolver] Создаем коммит для обновления ${filesToUpdate.length} файл(ов): ${filePaths}`);
+        logger.info(`[ConflictResolver] ========================================`);
+        logger.info(`[ConflictResolver] РЕЗУЛЬТАТ АНАЛИЗА для MR ${mrData.url}:`);
+        logger.info(`[ConflictResolver]   Роль: ${tag}`);
+        logger.info(`[ConflictResolver]   Файлы для обновления: ${filePaths}`);
+        logger.info(`[ConflictResolver]   Сообщение коммита: "${commitMessage}"`);
         for (const file of filesToUpdate) {
-            logger.info(`[ConflictResolver] - ${file.filePath} (${file.content.length} символов)`);
+            logger.info(`[ConflictResolver]   - ${file.filePath} (${file.content.length} символов)`);
         }
+
+        if (!config.AUTO_RESOLVE_CONFLICTS) {
+            logger.info(`[ConflictResolver]   Фича-флаг AUTO_RESOLVE_CONFLICTS = false (dry-run режим)`);
+            logger.info(`[ConflictResolver]   Коммит НЕ создан. Включите AUTO_RESOLVE_CONFLICTS=true для реального разрешения.`);
+            logger.info(`[ConflictResolver] ========================================`);
+            return { resolved: false, files: [], dryRun: true, wouldUpdate: resolvedFiles };
+        }
+
+        logger.info(`[ConflictResolver]   Фича-флаг AUTO_RESOLVE_CONFLICTS = true`);
+        logger.info(`[ConflictResolver]   Создаем коммит...`);
+        logger.info(`[ConflictResolver] ========================================`);
 
         const success = await GitlabService.updateFiles(
             projectInfo.project_id,

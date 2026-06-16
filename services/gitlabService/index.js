@@ -8,7 +8,7 @@ const {
     updateMergeRequestStatus, } = require('../../db/models/gitlab');
 const cache = require('../cacheService');
 const config = require('../../config');
-const logger = require('../../logger');
+const logger = require('../../logger').child('gitlab');
 const { parseGitlabMrUrl } = require('./gitlabHelper');
 
 const STATUSES = {

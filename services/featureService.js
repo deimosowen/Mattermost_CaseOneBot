@@ -6,13 +6,12 @@ const {
 const { postMessage, postMessageInTreed, pinPost } = require('../mattermost/utils');
 const { parseGitlabMrUrl } = require('../services/gitlabService/gitlabHelper');
 const { tryResolveBackendConflicts: resolveConflicts } = require('../services/gitlabService/conflictResolver');
-const { FEATURE_IS_READY_CHANNEL_ID } = require('../config');
-const logger = require('../logger');
+const { FEATURE_IS_READY_CHANNEL_ID, AUTO_RESOLVE_CONFLICTS } = require('../config');
+const logger = require('../logger').child('feature');
 
 class FeatureServices {
     constructor() {
         this.channelId = FEATURE_IS_READY_CHANNEL_ID;
-        this.autoResolvedConflicts = false;
     }
 
     async handleFeatureReady(data) {
@@ -33,7 +32,7 @@ class FeatureServices {
 
             const conflictResults = await this._checkMergeConflicts(mergeRequests);
             if (conflictResults.hasConflicts) {
-                if (this.autoResolvedConflicts === true) {
+                if (AUTO_RESOLVE_CONFLICTS) {
                     // Пытаемся автоматически разрешить конфликты для бэка
                     await this._tryResolveBackendConflicts(mergeRequests, post.id);
 
@@ -165,6 +164,8 @@ class FeatureServices {
 
                     // Помечаем MR как автоматически разрешенный
                     mr.autoResolved = true;
+                } else if (result.dryRun && result.wouldUpdate && result.wouldUpdate.length > 0) {
+                    logger.info(`[FeatureService] [DRY-RUN] MR ${mr.tag}: будут обновлены файлы: ${result.wouldUpdate.join(', ')}`);
                 }
             } catch (error) {
                 logger.error(`[FeatureService] Ошибка при попытке разрешения конфликтов для ${mr.tag}: ${error.message}`);
