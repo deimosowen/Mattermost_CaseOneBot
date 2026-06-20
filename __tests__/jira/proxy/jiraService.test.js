@@ -1,3 +1,9 @@
+jest.mock('jira-client', () => jest.fn(), { virtual: true });
+jest.mock('node-cache', () => jest.fn().mockImplementation(() => ({
+    get: jest.fn(),
+    set: jest.fn(),
+})), { virtual: true });
+
 const jiraService = require('../../../jira/proxy/services/jiraService');
 
 describe('jira proxy service', () => {

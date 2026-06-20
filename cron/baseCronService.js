@@ -29,7 +29,7 @@ class BaseCronService {
             logger.info(`[${this.name}] Cron job started: ${key} (${schedule})`);
             return job;
         } catch (error) {
-            logger.error(`[${this.name}] Cron error: ${error.message}`);
+            logger.error(`[${this.name}] Cron error for ${key} (${schedule}): ${error.message}`);
             return null;
         }
     }
