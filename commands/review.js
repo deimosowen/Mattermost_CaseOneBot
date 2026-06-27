@@ -10,6 +10,8 @@ const {
     getReviewTaskByPostId,
     updateReviewTaskStatus,
     updateReviewTaskReviewer,
+    updateReviewTaskMetadata,
+    addTaskNotification,
 } = require('../db/models/reviewTask');
 
 const JiraService = require('../services/jiraService');
@@ -155,8 +157,30 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
                     }
                 }
 
-                const { addTaskNotification } = require('../db/models/reviewTask');
+                const gitlabMergeRequestId = mergeRequestLink
+                    ? await reviewTaskService.processGitlabMergeRequest(mergeRequestLink)
+                    : reviewTask.gitlab_merge_request_id;
+                const updatedMergeRequestUrl = mergeRequestLink || reviewTask.merge_request_url || null;
+
+                await updateReviewTaskMetadata({
+                    task_key: key,
+                    channel_id: reviewTask.channel_id || channelId,
+                    post_id: reviewTask.post_id,
+                    user_id: reviewTask.user_id || user_id,
+                    merge_request_url: updatedMergeRequestUrl,
+                    gitlab_merge_request_id: gitlabMergeRequestId || reviewTask.gitlab_merge_request_id || null,
+                });
+
                 await addTaskNotification(reviewTask.id);
+                await reviewTaskService.notifyReviewThreadReady({
+                    reviewTaskId: reviewTask.id,
+                    taskKey: key,
+                    postId: reviewTask.post_id,
+                    channelId: reviewTask.channel_id || channelId,
+                    userId: reviewTask.user_id || user_id,
+                    mergeRequestUrl: updatedMergeRequestUrl,
+                    gitlabMergeRequestId: gitlabMergeRequestId || reviewTask.gitlab_merge_request_id || null,
+                });
                 continue;
             }
 
@@ -203,7 +227,7 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
                 channelId,
                 postId: post.id,
                 userId: user_id,
-                mergeRequestUrl: mergeRequest || null,
+                mergeRequestUrl: mergeRequestLink || null,
                 reviewer: reviewerResolved,
                 gitlabMergeRequestId,
             });

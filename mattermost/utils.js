@@ -1,6 +1,7 @@
 const moment = require('moment');
 const { client, wsClient, authUser } = require('./client');
 const fileHelper = require('./fileHelper');
+const { API_BASE_URL } = require('../config');
 const logger = require('../logger');
 const { add } = require('winston');
 
@@ -118,6 +119,14 @@ class MattermostService {
         return team;
     }
 
+    async getTeamById(teamId) {
+        try {
+            return await this.client.getTeam(teamId);
+        } catch {
+            return null;
+        }
+    }
+
     async getChannel(teamId = null, channelName) {
         const resolvedTeamId = teamId || (await this._getDefaultTeam()).id;
         return this.client.getChannelByName(resolvedTeamId, channelName);
@@ -176,6 +185,38 @@ class MattermostService {
     // Post operations
     async getPost(postId) {
         return this.client.getPost(postId);
+    }
+
+    async getPostPermalink(postId) {
+        if (!postId) {
+            return null;
+        }
+
+        try {
+            const post = await this.getPost(postId);
+            if (!post?.id) {
+                return null;
+            }
+
+            const channel = post.channel_id ? await this.getChannelById(post.channel_id) : null;
+            const team = channel?.team_id
+                ? await this.getTeamById(channel.team_id)
+                : await this._getDefaultTeam();
+
+            if (!team?.name) {
+                return null;
+            }
+
+            const baseUrl = this._getBaseUrl();
+            if (!baseUrl) {
+                return null;
+            }
+
+            return `${baseUrl}/${team.name}/pl/${post.id}`;
+        } catch (error) {
+            this._handleError('getPostPermalink', error);
+            return null;
+        }
     }
 
     async deletePost(postId) {
@@ -243,6 +284,15 @@ class MattermostService {
     async _getDefaultTeam() {
         const [team] = await this.client.getMyTeams();
         return team;
+    }
+
+    _getBaseUrl() {
+        if (!API_BASE_URL) {
+            return null;
+        }
+
+        const normalized = String(API_BASE_URL || '').replace(/\/$/, '');
+        return normalized.startsWith('http') ? normalized : `https://${normalized}`;
     }
 
     _parseCustomStatus(status) {
@@ -313,8 +363,10 @@ module.exports = {
     deletePost: (...args) => mattermostService.deletePost(...args),
     getPostThread: (...args) => mattermostService.getPostThread(...args),
     getTeam: (...args) => mattermostService.getTeam(...args),
+    getTeamById: (...args) => mattermostService.getTeamById(...args),
     addReaction: (...args) => mattermostService.addReaction(...args),
     pinPost: (...args) => mattermostService.pinPost(...args),
     unpinPost: (...args) => mattermostService.unpinPost(...args),
     getChannelPosts: (...args) => mattermostService.getChannelPosts(...args),
+    getPostPermalink: (...args) => mattermostService.getPostPermalink(...args),
 };

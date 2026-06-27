@@ -1,4 +1,9 @@
-const { GROUP_FUNCTIONS, REQUIRES_POST, FALLBACK_GROUPS } = require('./functionGroups');
+const {
+    GROUP_FUNCTIONS,
+    ALWAYS_ENABLED_FUNCTIONS,
+    REQUIRES_POST,
+    FALLBACK_GROUPS,
+} = require('./functionGroups');
 
 /**
  * Правила: группа + паттерны. Несколько совпадений увеличивают score группы.
@@ -261,7 +266,10 @@ function selectFunctions(allFunctions, options = {}) {
     const hasPost = options.hasPost ?? true;
 
     return allFunctions.filter((func) => {
-        if (!names.has(func.name)) {
+        const isAlwaysEnabled = ALWAYS_ENABLED_FUNCTIONS.has(func.name);
+        const isSelectedByGroup = names.has(func.name);
+
+        if (!isAlwaysEnabled && !isSelectedByGroup) {
             return false;
         }
         if (!hasPost && REQUIRES_POST.has(func.name)) {

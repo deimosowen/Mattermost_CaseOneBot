@@ -179,6 +179,22 @@ async function searchTasks(jql, maxResults, authHeader) {
     }
 }
 
+async function createTask(data, authHeader) {
+    const url = `${JIRA_API_URL}/tasks`;
+    try {
+        const response = await axios.post(url, data, {
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+            }
+        });
+        return response.data;
+    } catch (error) {
+        logger.error('Ошибка при создании задачи стабилизации:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     getSubtasks,
     logTime,
@@ -190,4 +206,5 @@ module.exports = {
     searchTasks,
     getIssueWorklogs,
     getWorklogReport,
+    createTask,
 };

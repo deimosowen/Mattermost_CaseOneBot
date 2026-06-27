@@ -1,11 +1,23 @@
 const { selectToolGroups, selectFunctions } = require('../../chatgpt/toolSelector');
 const { functions } = require('../../chatgpt/functions');
-const { GROUP_FUNCTIONS } = require('../../chatgpt/functionGroups');
+const { GROUP_FUNCTIONS, ALWAYS_ENABLED_FUNCTIONS } = require('../../chatgpt/functionGroups');
 
 describe('toolSelector', () => {
     test('greeting uses only core tools', () => {
         const { groups } = selectToolGroups({ selectionText: 'Привет!' });
         expect(groups).toEqual(['core']);
+    });
+
+    test('always-enabled functions are selected without matched domain groups', () => {
+        const selected = selectFunctions(functions, {
+            selectionText: 'Привет!',
+            hasPost: true,
+        });
+        const names = selected.map((func) => func.name);
+
+        expect(names).toContain('getCurrentDate');
+        expect(names).toContain('setContextData');
+        expect(names).not.toContain('getCurrentDuty');
     });
 
     test('unknown non-greeting text uses fallback groups', () => {
@@ -126,6 +138,14 @@ describe('toolSelector', () => {
         const existingFunctionNames = new Set(functions.map((func) => func.name));
         const missingFunctionNames = Object.values(GROUP_FUNCTIONS)
             .flat()
+            .filter((name) => !existingFunctionNames.has(name));
+
+        expect(missingFunctionNames).toEqual([]);
+    });
+
+    test('always-enabled tools reference existing functions only', () => {
+        const existingFunctionNames = new Set(functions.map((func) => func.name));
+        const missingFunctionNames = [...ALWAYS_ENABLED_FUNCTIONS]
             .filter((name) => !existingFunctionNames.has(name));
 
         expect(missingFunctionNames).toEqual([]);

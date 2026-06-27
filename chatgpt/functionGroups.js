@@ -33,6 +33,15 @@ const GROUP_FUNCTIONS = {
     forwarding: ['describeForwardingCommands'],
 };
 
+/**
+ * Безопасные функции, которые доступны модели всегда.
+ * Сюда стоит добавлять read-only инструменты вроде searchKnowledge.
+ */
+const ALWAYS_ENABLED_FUNCTIONS = new Set([
+    'getCurrentDate',
+    'setContextData',
+]);
+
 /** Функции, для которых нужен Mattermost post (channel_id / post_id). */
 const REQUIRES_POST = new Set([
     'inviteToChannel',
@@ -47,6 +56,7 @@ const FALLBACK_GROUPS = ['help', 'duty', 'calendar'];
 
 module.exports = {
     GROUP_FUNCTIONS,
+    ALWAYS_ENABLED_FUNCTIONS,
     REQUIRES_POST,
     FALLBACK_GROUPS,
 };

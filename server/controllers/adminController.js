@@ -201,6 +201,16 @@ router.delete('/api/review-channels/:id', async (req, res) => {
     }
 });
 
+router.patch('/api/review-channels/:id/settings', async (req, res) => {
+    try {
+        await reviewChannelService.updateReviewChannelConfig(req.params.id, req.body);
+        res.json({ success: true, message: 'Настройки канала обновлены' });
+    } catch (error) {
+        logger.error(`Error updating review channel settings: ${error.message}`);
+        res.status(getStatusCode(error)).json({ error: error.message });
+    }
+});
+
 router.get('/api/system-info', (req, res) => {
     try {
         res.json(systemInfoService.getSystemInfo());

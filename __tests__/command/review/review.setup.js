@@ -4,10 +4,20 @@ jest.mock('../../../db/models/reviewTask');
 jest.mock('../../../db/models/reviewChannels');
 jest.mock('../../../services/reviewChannelAvailabilityService');
 jest.mock('../../../services/jiraService');
+jest.mock('../../../services/gitlabService', () => ({
+    getProjectByName: jest.fn(),
+    addMergeRequest: jest.fn(),
+    STATUSES: {
+        NEW: 'new',
+    },
+}));
 jest.mock('../../../services/jiraService/jiraHelper', () => ({
     isToDoStatus: jest.fn(),
     isInProgressStatus: jest.fn(),
     extractTaskNumber: jest.fn(),
+}));
+jest.mock('../../../services/gitlabService/gitlabHelper', () => ({
+    parseGitlabMrUrl: jest.fn(),
 }));
 jest.mock('../../../config', () => ({
     INREVIEW_CHANNEL_IDS: ['test-channel-1'], // фиксированное значение для тестов
@@ -38,13 +48,16 @@ const {
     addReviewTask,
     updateReviewTaskStatus,
     updateReviewTaskReviewer,
+    updateReviewTaskMetadata,
     addTaskNotification,
 } = require('../../../db/models/reviewTask');
 
 const { getEnabledReviewChannelIdsForUser } = require('../../../services/reviewChannelAvailabilityService');
 
 const JiraService = require('../../../services/jiraService');
+const GitlabService = require('../../../services/gitlabService');
 const { isToDoStatus, isInProgressStatus, extractTaskNumber } = require('../../../services/jiraService/jiraHelper');
+const { parseGitlabMrUrl } = require('../../../services/gitlabService/gitlabHelper');
 const logger = require('../../../logger');
 
 beforeEach(() => {
@@ -72,6 +85,9 @@ beforeEach(() => {
         reviewers: [],
     });
     JiraService.changeTaskStatus.mockResolvedValue(true);
+    parseGitlabMrUrl.mockReturnValue(null);
+    GitlabService.getProjectByName.mockResolvedValue(null);
+    GitlabService.addMergeRequest.mockResolvedValue(null);
 });
 
 module.exports = {
@@ -89,14 +105,17 @@ module.exports = {
     addReviewTask,
     updateReviewTaskStatus,
     updateReviewTaskReviewer,
+    updateReviewTaskMetadata,
     addTaskNotification,
     getEnabledReviewChannelIdsForUser,
 
     // jira
     JiraService,
+    GitlabService,
     isToDoStatus,
     isInProgressStatus,
     extractTaskNumber,
+    parseGitlabMrUrl,
 
     // logger
     logger,

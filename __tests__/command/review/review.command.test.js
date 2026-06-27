@@ -11,12 +11,16 @@ const {
     addTaskNotification,
     updateReviewTaskStatus,
     updateReviewTaskReviewer,
+    updateReviewTaskMetadata,
     JiraService,
+    GitlabService,
     isToDoStatus,
     isInProgressStatus,
     extractTaskNumber,
+    parseGitlabMrUrl,
 } = require('./review.setup');
 
+const domainEventBus = require('../../../services/domainEventBus');
 const reviewCommand = require('../../../commands/review'); // путь под проект
 
 describe('review command', () => {
@@ -26,6 +30,10 @@ describe('review command', () => {
         user_name: 'john.doe',
         channel_id: 'test-channel-1',
     };
+
+    afterEach(() => {
+        domainEventBus.removeAllListeners('review.thread_ready');
+    });
 
     test('если taskKey не указан и связанной записи нет — пишет ошибку в тред', async () => {
         getPost.mockResolvedValue({ root_id: 'root-1' });
@@ -231,5 +239,59 @@ describe('review command', () => {
             reviewer: '@dev',
         });
         expect(postMessage).not.toHaveBeenCalled();
+    });
+
+    test('повторное ревью обновляет MR-метаданные и эмитит событие для существующей задачи', async () => {
+        const listener = jest.fn();
+        const mrUrl = 'https://gitlab.example/caseone/CasePro/-/merge_requests/15616';
+        domainEventBus.on('review.thread_ready', listener);
+        getPost.mockResolvedValue({ id: 'reply-1', root_id: 'root-15616' });
+        getReviewTaskByPostId.mockResolvedValue({
+            id: 779,
+            channel_id: 'old-channel',
+            post_id: 'root-15616',
+            user_id: 'author-1',
+            task_key: 'CASEM-15616',
+            reviewer: '@qa',
+            merge_request_url: null,
+            gitlab_merge_request_id: null,
+        });
+        JiraService.fetchTask.mockResolvedValue({
+            key: 'CASEM-15616',
+            summary: 'Existing with MR',
+            status: 'In Review',
+            pullRequests: [],
+            reviewers: [],
+        });
+        parseGitlabMrUrl.mockReturnValue({ project: 'caseone/CasePro', mrIid: '15616' });
+        GitlabService.getProjectByName.mockResolvedValue({ project_id: 123 });
+        GitlabService.addMergeRequest.mockResolvedValue(456);
+
+        await reviewCommand({
+            post_id: 'reply-1',
+            user_id: 'user-1',
+            user_name: 'john',
+            channel_id: 'test-channel-1',
+            args: [null, mrUrl, null],
+        });
+
+        expect(updateReviewTaskMetadata).toHaveBeenCalledWith({
+            task_key: 'CASEM-15616',
+            channel_id: 'old-channel',
+            post_id: 'root-15616',
+            user_id: 'author-1',
+            merge_request_url: mrUrl,
+            gitlab_merge_request_id: 456,
+        });
+        expect(addTaskNotification).toHaveBeenCalledWith(779);
+        expect(listener).toHaveBeenCalledWith({
+            reviewTaskId: 779,
+            taskKey: 'CASEM-15616',
+            postId: 'root-15616',
+            channelId: 'old-channel',
+            userId: 'author-1',
+            mergeRequestUrl: mrUrl,
+            gitlabMergeRequestId: 456,
+        });
     });
 });

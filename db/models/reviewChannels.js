@@ -15,6 +15,8 @@ const checkTableExists = async () => {
     }
 };
 
+const isMissingFlakyColumnError = (err) => /no such column: flaky_tests_enabled/i.test(err?.message || '');
+
 // Получение всех каналов ревью
 const getAllReviewChannels = async () => {
     try {
@@ -81,6 +83,56 @@ const addReviewChannel = async (channelId) => {
     });
 };
 
+const updateReviewChannelSettings = async (id, settings = {}) => {
+    const updates = [];
+    const params = [];
+
+    if (settings.flaky_tests_enabled !== undefined) {
+        updates.push('flaky_tests_enabled = ?');
+        params.push(settings.flaky_tests_enabled ? 1 : 0);
+    }
+
+    if (!updates.length) {
+        return 0;
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(id);
+
+    try {
+        const result = await db.runAsync(`
+            UPDATE review_channels
+            SET ${updates.join(', ')}
+            WHERE id = ?
+        `, params);
+        return result.changes;
+    } catch (err) {
+        logger.error(`Error updating review channel settings: ${err.message}`);
+        throw err;
+    }
+};
+
+const isFlakyTestCheckEnabledForChannel = async (channelId) => {
+    try {
+        const tableExists = await checkTableExists();
+        if (!tableExists) {
+            return false;
+        }
+
+        const row = await db.get(
+            'SELECT flaky_tests_enabled FROM review_channels WHERE channel_id = ?',
+            [channelId]
+        );
+        return row?.flaky_tests_enabled === 1 || row?.flaky_tests_enabled === true;
+    } catch (err) {
+        if (isMissingFlakyColumnError(err)) {
+            return false;
+        }
+        logger.error(`Error in isFlakyTestCheckEnabledForChannel: ${err.message}`);
+        throw err;
+    }
+};
+
 // Удаление канала ревью по ID записи
 const removeReviewChannel = async (id) => {
     return new Promise((resolve, reject) => {
@@ -131,6 +183,8 @@ module.exports = {
     getAllReviewChannelIds,
     isReviewChannel,
     addReviewChannel,
+    updateReviewChannelSettings,
+    isFlakyTestCheckEnabledForChannel,
     removeReviewChannel,
     removeReviewChannelByChannelId,
     reviewChannelExists

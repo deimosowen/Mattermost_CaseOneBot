@@ -10,6 +10,7 @@ messageEventEmitter.on('nonCommandMessage', (post, eventData) => {
     messageHandlers.handleQuestion(post, eventData);
     messageHandlers.handleTaskInReview(post, eventData);
     messageHandlers.handleDutyTagging(post, eventData);
+    messageHandlers.handleFlakyTriageResponse(post, eventData);
 });
 
 messageEventEmitter.on('postDeleted', (post, eventData) => {

@@ -368,7 +368,7 @@ const searchTasks = async (jiraClient, jql, maxResults = 50) => {
     try {
         const result = await jiraClient.searchJira(jql, {
             maxResults,
-            fields: ['key', 'summary', 'status', 'assignee']
+            fields: ['key', 'summary', 'description', 'status', 'assignee', 'issuetype', 'labels']
         });
 
         if (!result || !result.issues) return [];
@@ -378,7 +378,10 @@ const searchTasks = async (jiraClient, jql, maxResults = 50) => {
             return {
                 key: issue.key,
                 summary: issue.fields.summary,
+                description: issue.fields.description,
                 status: issue.fields.status.name,
+                issueType: issue.fields.issuetype?.name,
+                labels: issue.fields.labels || [],
                 assignee: assignee ? {
                     name: assignee.displayName,
                     email: assignee.emailAddress,
@@ -421,6 +424,20 @@ const searchTasks = async (jiraClient, jql, maxResults = 50) => {
     }
 };
 
+const createTask = async (jiraClient, { fields }) => {
+    if (!fields || typeof fields !== 'object') {
+        throw new Error('fields is required');
+    }
+
+    const issue = await jiraClient.addNewIssue({ fields });
+
+    return {
+        key: issue?.key,
+        id: issue?.id,
+        self: issue?.self,
+    };
+};
+
 module.exports = {
     createJiraClient,
     getTask,
@@ -433,4 +450,5 @@ module.exports = {
     searchTasks,
     getIssueWorklogs,
     getWorklogReport,
+    createTask,
 };

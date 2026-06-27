@@ -7,6 +7,7 @@ const logger = require('./logger');
 const { initializeMattermost } = require('./mattermost');
 const { initializeServer, shutdownServer } = require('./server');
 const RedisService = require('./services/redisService');
+const flakyTest = require('./services/flakyTest');
 const runMigrations = require('./db/migrations');
 
 const CronManager = require('./cron/cronManager');
@@ -95,6 +96,8 @@ async function main() {
     // Redis
     logger.info('Инициализация Redis…');
     RedisService.init();
+
+    flakyTest.register();
 
     // Mattermost
     logger.info('Инициализация Mattermost…');

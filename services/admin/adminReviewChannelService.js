@@ -1,6 +1,7 @@
 const {
     getAllReviewChannels,
     addReviewChannel,
+    updateReviewChannelSettings,
     removeReviewChannel,
     reviewChannelExists,
 } = require('../../db/models/reviewChannels');
@@ -57,8 +58,22 @@ async function deleteReviewChannelConfig(id) {
     return changes;
 }
 
+async function updateReviewChannelConfig(id, data) {
+    const changes = await updateReviewChannelSettings(parseInt(id, 10), {
+        flaky_tests_enabled: data.flaky_tests_enabled,
+    });
+    if (!changes) {
+        const error = new Error('Канал не найден');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    return changes;
+}
+
 module.exports = {
     getReviewChannelsPageData,
     createReviewChannel,
+    updateReviewChannelConfig,
     deleteReviewChannelConfig,
 };

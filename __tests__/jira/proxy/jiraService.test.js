@@ -34,4 +34,30 @@ describe('jira proxy service', () => {
                 .toBeLessThan(jiraClient.transitionIssue.mock.invocationCallOrder[0]);
         });
     });
+
+    describe('createTask', () => {
+        test('passes generic fields to Jira addNewIssue', async () => {
+            const jiraClient = {
+                addNewIssue: jest.fn().mockResolvedValue({
+                    key: 'CASEM-100',
+                    id: '100',
+                    self: 'https://jira.example/rest/api/2/issue/100',
+                }),
+            };
+            const fields = {
+                project: { key: 'CASEM' },
+                issuetype: { id: '3' },
+                summary: 'Test task',
+            };
+
+            const result = await jiraService.createTask(jiraClient, { fields });
+
+            expect(jiraClient.addNewIssue).toHaveBeenCalledWith({ fields });
+            expect(result).toEqual({
+                key: 'CASEM-100',
+                id: '100',
+                self: 'https://jira.example/rest/api/2/issue/100',
+            });
+        });
+    });
 });

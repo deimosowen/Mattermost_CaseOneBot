@@ -471,6 +471,25 @@ describe('TeamCityService', () => {
         });
     });
 
+    describe('extractBuildIdFromUrl', () => {
+        test('extracts build id from TeamCity viewLog URL', () => {
+            const buildId = TeamCityService.extractBuildIdFromUrl('https://ci.example.com/viewLog.html?buildId=4809900&buildTypeId=CasePro');
+
+            expect(buildId).toBe('4809900');
+        });
+
+        test('extracts build id from buildConfiguration URL', () => {
+            const buildId = TeamCityService.extractBuildIdFromUrl('https://ci.example.com/buildConfiguration/CasePro_Pulls_CaseProPullRequestsTests3/4809900');
+
+            expect(buildId).toBe('4809900');
+        });
+
+        test('detects TeamCity build URL for configured host', () => {
+            expect(TeamCityService.isTeamCityBuildUrl('https://ci.example.com/buildConfiguration/CasePro/4809900')).toBe(true);
+            expect(TeamCityService.isTeamCityBuildUrl('https://gitlab.example.com/group/project')).toBe(false);
+        });
+    });
+
     describe('isSuccessStatus', () => {
         test('возвращает true для SUCCESS', () => {
             expect(TeamCityService.isSuccessStatus('SUCCESS')).toBe(true);

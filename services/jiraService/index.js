@@ -1,4 +1,4 @@
-const { getTask, changeStatus, addComment, setReviewers, searchTasks, getSubtasks, getIssueWorklogs, getWorklogReport } = require('../../jira');
+const { getTask, changeStatus, addComment, setReviewers, searchTasks, getSubtasks, getIssueWorklogs, getWorklogReport, createTask } = require('../../jira');
 const { JIRA_BOT_USERNAME, JIRA_BOT_PASSWORD } = require('../../config');
 
 class JiraService {
@@ -40,6 +40,10 @@ class JiraService {
 
     async fetchWorklogReport(data) {
         return await getWorklogReport(data, this.authHeader);
+    }
+
+    async createTask(data) {
+        return await createTask(data, this.authHeader);
     }
 }
 

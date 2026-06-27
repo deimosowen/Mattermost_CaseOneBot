@@ -79,7 +79,7 @@ class TeamCityService {
             const response = await axios.get(url, {
                 headers: this._getAuthHeaders(),
                 params: {
-                    fields: 'id,number,status,state,statusText,startDate,finishDate,href,webUrl,buildType(id,name,projectName),statistics(property(name,value)),testOccurrences(count,failed,passed,ignored,muted)'
+                    fields: 'id,number,status,state,statusText,branchName,startDate,finishDate,href,webUrl,revisions(revision(version,vcsBranchName)),buildType(id,name,projectName),statistics(property(name,value)),testOccurrences(count,failed,passed,ignored,muted)'
                 }
             });
 
@@ -99,10 +99,12 @@ class TeamCityService {
                 status: build.status, // SUCCESS, FAILURE, ERROR, etc.
                 state: build.state, // finished, running, queued
                 statusText: build.statusText,
+                branchName: build.branchName,
                 startDate: build.startDate,
                 finishDate: build.finishDate,
                 href: build.href,
                 webUrl: build.webUrl,
+                revisions: this._normalizeRevisions(build.revisions),
                 buildType: {
                     id: build.buildType?.id,
                     name: build.buildType?.name,
@@ -113,6 +115,80 @@ class TeamCityService {
         } catch (error) {
             logger.error(`[TeamCityService] Ошибка при получении деталей билда ${buildId}: ${error.message}`);
             throw error;
+        }
+    }
+
+    extractBuildIdFromUrl(url) {
+        if (!url) {
+            return null;
+        }
+
+        try {
+            const parsed = new URL(url);
+            const queryBuildId = parsed.searchParams.get('buildId');
+            if (queryBuildId) {
+                return queryBuildId;
+            }
+
+            const match = parsed.pathname.match(/\/buildConfiguration\/[^/]+\/(\d+)(?:\/|$)/);
+            return match ? match[1] : null;
+        } catch {
+            const queryMatch = String(url).match(/[?&]buildId=(\d+)/);
+            if (queryMatch) {
+                return queryMatch[1];
+            }
+            const pathMatch = String(url).match(/\/buildConfiguration\/[^/]+\/(\d+)(?:\/|$)/);
+            return pathMatch ? pathMatch[1] : null;
+        }
+    }
+
+    isTeamCityBuildUrl(url) {
+        if (!url || !this.baseUrl) {
+            return false;
+        }
+
+        try {
+            const buildUrl = new URL(url);
+            const baseUrl = new URL(this._getBaseUrl());
+            return buildUrl.host === baseUrl.host && Boolean(this.extractBuildIdFromUrl(url));
+        } catch {
+            return String(url).includes(this._getBaseUrl()) && Boolean(this.extractBuildIdFromUrl(url));
+        }
+    }
+
+    async getFailedTests(buildId) {
+        try {
+            const response = await axios.get(`${this._getBaseUrl()}/app/rest/testOccurrences`, {
+                headers: this._getAuthHeaders(),
+                params: {
+                    locator: `build:(id:${buildId}),status:FAILURE`,
+                    fields: 'testOccurrence(id,name,status,details,duration,href,muted,currentlyMuted,test(id,name),build(id,number,webUrl,buildType(id)))'
+                }
+            });
+
+            return this._normalizeTestOccurrences(response.data?.testOccurrence);
+        } catch (error) {
+            logger.error(`[TeamCityService] Ошибка при получении упавших тестов для билда ${buildId}: ${error.message}`);
+            return [];
+        }
+    }
+
+    async getTestHistory({ testId, testName, buildConfigId, limit = 20 }) {
+        try {
+            const testLocator = testId ? `test:(id:${testId})` : `test:(name:${testName})`;
+            const buildTypeLocator = buildConfigId ? `,buildType:${buildConfigId}` : '';
+            const response = await axios.get(`${this._getBaseUrl()}/app/rest/testOccurrences`, {
+                headers: this._getAuthHeaders(),
+                params: {
+                    locator: `${testLocator}${buildTypeLocator},count:${limit}`,
+                    fields: 'testOccurrence(id,name,status,details,build(id,number,status,state,branchName,webUrl,finishDate,buildType(id)))'
+                }
+            });
+
+            return this._normalizeTestOccurrences(response.data?.testOccurrence);
+        } catch (error) {
+            logger.warn(`[TeamCityService] Не удалось получить историю теста ${testName || testId}: ${error.message}`);
+            return [];
         }
     }
 
@@ -357,6 +433,45 @@ class TeamCityService {
         }
 
         return null;
+    }
+
+    _normalizeRevisions(revisions) {
+        if (!revisions?.revision) {
+            return [];
+        }
+
+        const list = Array.isArray(revisions.revision) ? revisions.revision : [revisions.revision];
+        return list
+            .map((revision) => revision.version || revision.vcsBranchName || null)
+            .filter(Boolean);
+    }
+
+    _normalizeTestOccurrences(testOccurrences) {
+        if (!testOccurrences) {
+            return [];
+        }
+
+        const list = Array.isArray(testOccurrences) ? testOccurrences : [testOccurrences];
+        return list.map((occurrence) => ({
+            id: occurrence.id,
+            name: occurrence.name || occurrence.test?.name,
+            status: occurrence.status,
+            details: occurrence.details || '',
+            duration: occurrence.duration,
+            href: occurrence.href,
+            muted: occurrence.muted || occurrence.currentlyMuted || false,
+            testId: occurrence.test?.id,
+            build: occurrence.build ? {
+                id: occurrence.build.id,
+                number: occurrence.build.number,
+                status: occurrence.build.status,
+                state: occurrence.build.state,
+                branchName: occurrence.build.branchName,
+                webUrl: occurrence.build.webUrl,
+                finishDate: occurrence.build.finishDate,
+                buildTypeId: occurrence.build.buildType?.id,
+            } : null,
+        })).filter((occurrence) => occurrence.name);
     }
 
     /**

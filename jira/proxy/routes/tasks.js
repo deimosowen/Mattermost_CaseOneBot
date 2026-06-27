@@ -50,6 +50,19 @@ router.post('/worklog-report', async (req, res) => {
     }
 });
 
+router.post('/', async (req, res) => {
+    try {
+        const task = await jiraService.createTask(req.jira, req.body || {});
+        res.json(task);
+    } catch (error) {
+        res.status(500).json({
+            error: error.message || 'Unknown error',
+            errorMessages: error.errorMessages,
+            errors: error.errors
+        });
+    }
+});
+
 router.get('/:taskId', async (req, res) => {
     try {
         const task = await jiraService.getTask(req.jira, req.params.taskId);
