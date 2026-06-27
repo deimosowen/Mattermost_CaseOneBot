@@ -1,279 +1,332 @@
 <% layout('layout') -%>
     <% block('title', 'Админ-панель' ); -%>
 
-        <div class="container my-5">
-            <div class="row">
-                <div class="col-12 col-lg-10 mx-auto">
-                    <div class="card shadow-sm mb-4">
-                        <div class="card-header bg-danger text-white">
-                            <h4 class="mb-0">
-                                <i class="bi bi-shield-check me-2"></i>Админ-панель
-                            </h4>
-                        </div>
-                        <div class="card-body">
-                            <h5 class="mb-3">
-                                <i class="bi bi-person-badge me-2"></i>Информация о пользователе
-                            </h5>
-                            <div class="table-responsive">
-                                <table class="table table-bordered">
-                                    <tbody>
-                                        <tr>
-                                            <th scope="row" style="width: 200px;">Имя</th>
-                                            <td>
-                                                <%= user?.displayName || 'N/A' %>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Email</th>
-                                            <td>
-                                                <%= adminInfo?.email || 'N/A' %>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Mattermost User ID</th>
-                                            <td><code><%= adminInfo?.mattermostUserId || 'N/A' %></code></td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Yandex ID</th>
-                                            <td><code><%= adminInfo?.yandexId || 'N/A' %></code></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+        <style>
+            .admin-stat {
+                border-left: 4px solid;
+                transition: transform 0.15s;
+            }
+            .admin-stat:hover {
+                transform: translateY(-2px);
+            }
+            .admin-stat.green { border-left-color: var(--bs-success); }
+            .admin-stat.red { border-left-color: var(--bs-danger); }
+            .admin-stat.blue { border-left-color: var(--bs-primary); }
+            .admin-stat.yellow { border-left-color: var(--bs-warning); }
+            .health-dot {
+                width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+            }
+            .health-dot.ok { background: var(--bs-success); }
+            .health-dot.err { background: var(--bs-danger); }
+            .health-dot.off { background: var(--bs-secondary); }
+            .admin-card {
+                border: 1px solid var(--bs-border-color);
+                border-radius: 0.75rem;
+                overflow: hidden;
+            }
+            .admin-card-header {
+                padding: 1rem 1.25rem;
+                border-bottom: 1px solid var(--bs-border-color);
+                background: var(--bs-body-bg);
+            }
+            .admin-card-body {
+                padding: 1.25rem;
+            }
+            .log-viewer {
+                background: #1a1b26;
+                color: #a9b1d6;
+                border-radius: 0.5rem;
+                padding: 1rem;
+                max-height: 420px;
+                overflow-y: auto;
+                font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+                font-size: 0.8rem;
+                line-height: 1.6;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }
+            [data-bs-theme="dark"] .log-viewer {
+                background: #0d1117;
+                color: #c9d1d9;
+                border: 1px solid #30363d;
+            }
+            .log-viewer::-webkit-scrollbar { width: 8px; }
+            .log-viewer::-webkit-scrollbar-track { background: transparent; }
+            .log-viewer::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        </style>
 
-                            <h5 class="mb-3 mt-4">
-                                <i class="bi bi-gear me-2"></i>Системная информация
-                            </h5>
-                            <div id="systemInfo" class="card">
-                                <div class="card-body">
-                                    <div class="text-center">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Загрузка...</span>
-                                        </div>
-                                    </div>
+        <div class="container-fluid px-4 py-3">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <h3 class="mb-0"><i class="bi bi-shield-check me-2"></i>Админ-панель</h3>
+                <div class="d-flex gap-2 align-items-center">
+                    <small class="text-muted"><i class="bi bi-clock me-1"></i><span id="currentTime"></span></small>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card admin-card admin-stat green shadow-sm">
+                        <div class="admin-card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="text-muted small mb-1">GitLab</div>
+                                    <div id="health-gitlab" class="fw-bold">—</div>
                                 </div>
+                                <div id="health-gitlab-dot" class="health-dot off mt-1"></div>
                             </div>
-
-                            <div class="mt-4">
-                                <a href="/" class="btn btn-outline-secondary">
-                                    <i class="bi bi-arrow-left me-1"></i>Вернуться на главную
-                                </a>
-                                <button type="button" class="btn btn-primary" id="refreshSystemInfo">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Обновить информацию
-                                </button>
-                            </div>
+                            <div id="health-gitlab-ms" class="text-muted small mt-1"></div>
                         </div>
                     </div>
-
-                    <div class="card shadow-sm mb-4">
-                        <div class="card-header bg-primary text-white">
-                            <h4 class="mb-0">
-                                <i class="bi bi-file-text me-2"></i>Последний лог-файл
-                            </h4>
-                        </div>
-                        <div class="card-body">
-                            <div id="latestLogContainer">
-                                <div class="text-center">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Загрузка...</span>
-                                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card admin-card admin-stat blue shadow-sm">
+                        <div class="admin-card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="text-muted small mb-1">Jira</div>
+                                    <div id="health-jira" class="fw-bold">—</div>
                                 </div>
+                                <div id="health-jira-dot" class="health-dot off mt-1"></div>
                             </div>
+                            <div id="health-jira-ms" class="text-muted small mt-1"></div>
                         </div>
                     </div>
-
-                    <div class="card shadow-sm mb-4">
-                        <div class="card-header bg-danger text-white">
-                            <h4 class="mb-0">
-                                <i class="bi bi-gear me-2"></i>Управление системой
-                            </h4>
+                </div>
+                <div class="col-md-3">
+                    <div class="card admin-card admin-stat yellow shadow-sm">
+                        <div class="admin-card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="text-muted small mb-1">TeamCity</div>
+                                    <div id="health-teamcity" class="fw-bold">—</div>
+                                </div>
+                                <div id="health-teamcity-dot" class="health-dot off mt-1"></div>
+                            </div>
+                            <div id="health-teamcity-ms" class="text-muted small mt-1"></div>
                         </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-12 col-md-6 col-lg-4">
-                                    <a href="/admin/users" class="text-decoration-none">
-                                        <div class="card h-100 border hover-shadow border-danger border-opacity-25">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-center mb-2">
-                                                    <div class="bg-danger bg-opacity-10 rounded p-2 me-3">
-                                                        <i class="bi bi-person-gear text-danger"
-                                                            style="font-size: 1.5rem;"></i>
-                                                    </div>
-                                                    <h5 class="card-title mb-0">Пользователи и группы</h5>
-                                                </div>
-                                                <p class="card-text text-muted small mb-0">Настройка групп и видимости
-                                                    пунктов меню</p>
-                                            </div>
-                                        </div>
-                                    </a>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card admin-card admin-stat red shadow-sm">
+                        <div class="admin-card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="text-muted small mb-1">Mattermost</div>
+                                    <div id="health-mattermost" class="fw-bold">—</div>
                                 </div>
-                                <div class="col-12 col-md-6 col-lg-4">
-                                    <a href="/admin/invite-channels" class="text-decoration-none">
-                                        <div class="card h-100 border hover-shadow border-danger border-opacity-25">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-center mb-2">
-                                                    <div class="bg-danger bg-opacity-10 rounded p-2 me-3">
-                                                        <i class="bi bi-people text-danger"
-                                                            style="font-size: 1.5rem;"></i>
-                                                    </div>
-                                                    <h5 class="card-title mb-0">Каналы для приглашений</h5>
-                                                </div>
-                                                <p class="card-text text-muted small mb-0">Управление основными каналами
-                                                    и префиксами</p>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </div>
-                                <div class="col-12 col-md-6 col-lg-4">
-                                    <a href="/admin/review-channels" class="text-decoration-none">
-                                        <div class="card h-100 border hover-shadow border-primary border-opacity-25">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-center mb-2">
-                                                    <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
-                                                        <i class="bi bi-check2-square text-primary"
-                                                            style="font-size: 1.5rem;"></i>
-                                                    </div>
-                                                    <h5 class="card-title mb-0">Каналы ревью</h5>
-                                                </div>
-                                                <p class="card-text text-muted small mb-0">Управление каналами для формы
-                                                    "Перевод задачи в ревью"</p>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </div>
+                                <div id="health-mattermost-dot" class="health-dot off mt-1"></div>
+                            </div>
+                            <div id="health-mattermost-ms" class="text-muted small mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-lg-4">
+                    <div class="card admin-card shadow-sm h-100">
+                        <div class="admin-card-header d-flex justify-content-between align-items-center py-2">
+                            <span class="fw-semibold"><i class="bi bi-gear me-2"></i>Система</span>
+                            <button class="btn btn-sm btn-outline-secondary" id="refreshSystemInfo"><i class="bi bi-arrow-clockwise"></i></button>
+                        </div>
+                        <div class="admin-card-body p-2" id="systemInfo">
+                            <div class="text-center py-2"><div class="spinner-border spinner-border-sm text-secondary"></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <div class="card admin-card shadow-sm h-100">
+                        <div class="admin-card-header py-2">
+                            <span class="fw-semibold"><i class="bi bi-person-badge me-2"></i>Профиль</span>
+                        </div>
+                        <div class="admin-card-body py-2 px-3">
+                            <div class="d-flex flex-column gap-1 small">
+                                <div><span class="text-muted">Имя:</span> <span class="fw-semibold"><%= user?.displayName || 'N/A' %></span></div>
+                                <div><span class="text-muted">Email:</span> <%= adminInfo?.email || 'N/A' %></div>
+                                <div><span class="text-muted">MM:</span> <code class="user-select-all"><%= adminInfo?.mattermostUserId || 'N/A' %></code></div>
+                                <div><span class="text-muted">Yandex:</span> <code class="user-select-all"><%= adminInfo?.yandexId || 'N/A' %></code></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <div class="card admin-card shadow-sm">
+                <div class="admin-card-header d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold"><i class="bi bi-file-text me-2"></i>Логи</span>
+                    <div class="d-flex gap-2 align-items-center">
+                        <select id="logDateSelect" class="form-select form-select-sm" style="width:auto;min-width:130px"></select>
+                        <select id="logModuleSelect" class="form-select form-select-sm" style="width:auto;min-width:110px"></select>
+                        <button class="btn btn-sm btn-outline-primary" id="refreshLog"><i class="bi bi-arrow-clockwise"></i></button>
+                    </div>
+                </div>
+                <div class="admin-card-body p-0">
+                    <div id="latestLogContainer" class="log-viewer">Загрузка...</div>
+                </div>
+            </div>
         </div>
 
         <script>
-            async function loadSystemInfo() {
-                try {
-                    const response = await fetch('/admin/api/system-info');
-                    const data = await response.json();
+            let currentDate = '';
+            let currentModule = 'app';
 
-                    const systemInfoDiv = document.getElementById('systemInfo');
-                    systemInfoDiv.innerHTML = `
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <strong>Node.js версия:</strong><br>
-                            <code class="user-select-all">${data.nodeVersion}</code>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <strong>Платформа:</strong><br>
-                            <code class="user-select-all">${data.platform}</code>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <strong>Время работы:</strong><br>
-                            <span class="text-muted">${Math.floor(data.uptime / 3600)}ч ${Math.floor((data.uptime % 3600) / 60)}м ${Math.floor(data.uptime % 60)}с</span>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <strong>Память:</strong><br>
-                            <span class="text-muted">
-                                RSS: ${(data.memory.rss / 1024 / 1024).toFixed(2)} MB<br>
-                                Heap Used: ${(data.memory.heapUsed / 1024 / 1024).toFixed(2)} MB<br>
-                                Heap Total: ${(data.memory.heapTotal / 1024 / 1024).toFixed(2)} MB
-                            </span>
-                        </div>
-                        ${data.database && data.database.size !== null ? `
-                        <div class="col-md-6 mb-3">
-                            <strong><i class="bi bi-database me-1"></i>База данных:</strong><br>
-                            <span class="text-muted">${(data.database.size / 1024 / 1024).toFixed(2)} MB</span>
-                        </div>
-                        ` : ''}
-                        <div class="col-12">
-                            <strong>Время запроса:</strong><br>
-                            <code class="user-select-all">${new Date(data.timestamp).toLocaleString('ru-RU')}</code>
-                        </div>
-                    </div>
-                </div>
-            `;
-                } catch (error) {
-                    document.getElementById('systemInfo').innerHTML = `
-                <div class="card-body">
-                    <div class="alert alert-danger" role="alert">
-                        Ошибка при загрузке информации: ${error.message}
-                    </div>
-                </div>
-            `;
+            document.getElementById('currentTime').textContent = new Date().toLocaleString('ru-RU');
+
+            function setHealth(id, status, ms, message) {
+                const dot = document.getElementById(`health-${id}-dot`);
+                const label = document.getElementById(`health-${id}`);
+                const msEl = document.getElementById(`health-${id}-ms`);
+                if (status === 'ok') {
+                    dot.className = 'health-dot ok';
+                    label.textContent = 'Доступен';
+                    label.className = 'fw-bold text-success';
+                    msEl.textContent = `${ms}ms`;
+                } else if (status === 'not_configured') {
+                    dot.className = 'health-dot off';
+                    label.textContent = 'Не настроен';
+                    label.className = 'fw-bold text-muted';
+                    msEl.textContent = '';
+                } else {
+                    dot.className = 'health-dot err';
+                    label.textContent = 'Ошибка';
+                    label.className = 'fw-bold text-danger';
+                    msEl.textContent = message || '';
+                }
+            }
+
+            async function loadHealth() {
+                try {
+                    const r = await fetch('/admin/api/health');
+                    const data = await r.json();
+                    for (const [k, v] of Object.entries(data)) {
+                        setHealth(k, v.status, v.ms, v.message);
+                    }
+                } catch (e) {
+                    ['gitlab', 'jira', 'teamcity', 'mattermost'].forEach(id => setHealth(id, 'error', null, e.message));
+                }
+            }
+
+            async function loadSystemInfo() {
+                const el = document.getElementById('systemInfo');
+                try {
+                    const r = await fetch('/admin/api/system-info');
+                    const d = await r.json();
+                    const mem = (d.memory.rss / 1024 / 1024).toFixed(1);
+                    const hours = Math.floor(d.uptime / 3600);
+                    const mins = Math.floor((d.uptime % 3600) / 60);
+                    const items = [
+                        { icon: 'bi-cpu', label: 'Node', value: `<code>${d.nodeVersion}</code>` },
+                        { icon: 'bi-hdd', label: 'RAM', value: `${mem} MB` },
+                        { icon: 'bi-clock-history', label: 'Аптайм', value: `${hours}ч ${mins}м` },
+                        { icon: 'bi-database', label: 'Платформа', value: `<code>${d.platform}</code>` },
+                    ];
+                    if (d.database?.size) items.push({ icon: 'bi-database-fill', label: 'БД', value: `${(d.database.size / 1024 / 1024).toFixed(1)} MB` });
+                    el.innerHTML = `<div class="d-flex flex-wrap gap-3">${items.map(i => `
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi ${i.icon} text-muted"></i>
+                            <span class="text-muted small">${i.label}</span>
+                            <span class="fw-semibold small">${i.value}</span>
+                        </div>`).join('')}</div>`;
+                } catch (e) {
+                    el.innerHTML = `<div class="text-danger small">${e.message}</div>`;
+                }
+            }
+
+            async function loadLogFiles() {
+                try {
+                    const r = await fetch('/admin/api/log-files');
+                    const d = await r.json();
+                    const sel = document.getElementById('logDateSelect');
+                    sel.innerHTML = '';
+                    (d.dates || []).forEach(dt => {
+                        const o = document.createElement('option');
+                        o.value = dt;
+                        o.textContent = dt;
+                        sel.appendChild(o);
+                    });
+                    if (d.dates?.length && !currentDate) currentDate = d.dates[0];
+                    if (currentDate && d.dates?.includes(currentDate)) sel.value = currentDate;
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            function updateModuleSelect(modules) {
+                const sel = document.getElementById('logModuleSelect');
+                const prev = sel.value || currentModule;
+                sel.innerHTML = '';
+                (modules || []).forEach(m => {
+                    const o = document.createElement('option');
+                    o.value = m;
+                    o.textContent = m;
+                    sel.appendChild(o);
+                });
+                if (modules.includes(prev)) {
+                    sel.value = prev;
+                    currentModule = prev;
+                } else if (modules.length) {
+                    currentModule = modules[0];
+                    sel.value = currentModule;
                 }
             }
 
             async function loadLatestLog() {
+                const el = document.getElementById('latestLogContainer');
                 try {
-                    const response = await fetch('/admin/api/latest-log');
-                    const data = await response.json();
-
-                    const container = document.getElementById('latestLogContainer');
-
-                    if (data.error) {
-                        container.innerHTML = `
-                    <div class="alert alert-warning mb-0" role="alert">
-                        <i class="bi bi-exclamation-triangle me-2"></i>${data.error}
-                    </div>
-                `;
+                    const date = document.getElementById('logDateSelect').value;
+                    const mod = document.getElementById('logModuleSelect').value || 'app';
+                    const p = new URLSearchParams();
+                    if (date) p.set('date', date);
+                    p.set('module', mod);
+                    const r = await fetch(`/admin/api/latest-log?${p}`);
+                    const d = await r.json();
+                    if (d.currentDate) currentDate = d.currentDate;
+                    if (d.currentModule) currentModule = d.currentModule;
+                    if (d.availableDates) {
+                        const sel = document.getElementById('logDateSelect');
+                        sel.innerHTML = '';
+                        d.availableDates.forEach(dt => {
+                            const o = document.createElement('option');
+                            o.value = dt;
+                            o.textContent = dt;
+                            sel.appendChild(o);
+                        });
+                        if (d.availableDates.includes(currentDate)) sel.value = currentDate;
+                    }
+                    if (d.availableModules) updateModuleSelect(d.availableModules);
+                    if (d.error) {
+                        el.innerHTML = `<span class="text-warning">${d.error}</span>`;
                         return;
                     }
-
-                    if (data.logFile && data.logContent) {
-                        const fileSize = (data.logSize / 1024).toFixed(2);
-                        const modifiedDate = new Date(data.logModified).toLocaleString('ru-RU');
-
-                        container.innerHTML = `
-                    <div class="accordion" id="latestLogAccordion">
-                        <div class="accordion-item">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#latestLogContent">
-                                    <div class="d-flex align-items-center w-100">
-                                        <i class="bi bi-file-text me-2"></i>
-                                        <div class="flex-grow-1 text-start">
-                                            <strong>${data.logFile}</strong>
-                                            <small class="text-muted ms-2">${fileSize} KB</small>
-                                        </div>
-                                    </div>
-                                </button>
-                            </h2>
-                            <div id="latestLogContent" class="accordion-collapse collapse" data-bs-parent="#latestLogAccordion">
-                                <div class="accordion-body">
-                                    <div class="text-muted small mb-2">
-                                        <i class="bi bi-info-circle me-1"></i>
-                                        Размер: ${fileSize} KB • 
-                                        Изменен: ${modifiedDate}
-                                        ${data.showingLastLines < data.totalLines ? ` • Показано последних ${data.showingLastLines} из ${data.totalLines} строк` : ` • Всего строк: ${data.totalLines}`}
-                                    </div>
-                                    <div class="log-content" style="background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 0.25rem; max-height: 500px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word;">
-${data.logContent}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                    if (d.logContent) {
+                        const header = `# ${d.logFile} | ${d.logModified} | ${d.showingLastLines}/${d.totalLines} строк\n`;
+                        el.innerHTML = (header + d.logContent)
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/\r\n/g, '\n')
+                            .replace(/\n/g, '<br>');
                     } else {
-                        container.innerHTML = `
-                    <div class="alert alert-info mb-0" role="alert">
-                        <i class="bi bi-info-circle me-2"></i>Лог-файл не найден
-                    </div>
-                `;
+                        el.textContent = 'Лог-файл не найден';
                     }
-                } catch (error) {
-                    document.getElementById('latestLogContainer').innerHTML = `
-                <div class="alert alert-danger mb-0" role="alert">
-                    Ошибка при загрузке лог-файла: ${error.message}
-                </div>
-            `;
+                } catch (e) {
+                    el.innerHTML = `<span class="text-danger">${e.message}</span>`;
                 }
             }
 
             document.addEventListener('DOMContentLoaded', () => {
+                loadHealth();
                 loadSystemInfo();
-                loadLatestLog();
+                loadLogFiles().then(() => loadLatestLog());
 
-                document.getElementById('refreshSystemInfo')?.addEventListener('click', () => {
-                    loadSystemInfo();
+                document.getElementById('refreshSystemInfo')?.addEventListener('click', loadSystemInfo);
+                document.getElementById('refreshLog')?.addEventListener('click', loadLatestLog);
+                document.getElementById('logDateSelect')?.addEventListener('change', e => {
+                    currentDate = e.target.value;
+                    loadLatestLog();
+                });
+                document.getElementById('logModuleSelect')?.addEventListener('change', e => {
+                    currentModule = e.target.value;
                     loadLatestLog();
                 });
             });

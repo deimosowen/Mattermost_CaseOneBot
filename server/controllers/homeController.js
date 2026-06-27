@@ -4,6 +4,10 @@ const { getVisibleMenuItems } = require('../menuRegistry');
 const router = express.Router();
 
 router.get('/', (req, res) => {
+    if (!res.locals.isAuthenticated || !res.locals.user) {
+        return res.render('login');
+    }
+
     const isAdmin = res.locals.user?.isAdmin || false;
     const allowedMenuKeys = res.locals.user?.allowedMenuKeys || [];
     const availablePages = getVisibleMenuItems('main', allowedMenuKeys, { isAdmin });

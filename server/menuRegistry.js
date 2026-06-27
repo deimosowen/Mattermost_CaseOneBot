@@ -54,12 +54,30 @@ const userMenuItems = [
         section: 'main'
     },
     {
+        key: 'message_forwarding',
+        title: 'Пересылка сообщений',
+        description: 'Настройка маршрутов пересылки между каналами',
+        url: '/forward',
+        icon: 'bi-arrow-left-right',
+        color: 'info',
+        section: 'main'
+    },
+    {
         key: 'jira_worklog',
         title: 'Jira Worklog',
         description: 'Учет времени в Jira',
         url: '/jira',
         icon: 'bi-clock',
         color: 'secondary',
+        section: 'main'
+    },
+    {
+        key: 'worklog_reports',
+        title: 'Проверка таймлогов',
+        description: 'Автоматические отчеты по заполнению Jira worklog',
+        url: '/worklogs',
+        icon: 'bi-calendar-check',
+        color: 'warning',
         section: 'main'
     },
     {
@@ -145,6 +163,15 @@ const adminMenuItems = [
         icon: 'bi-check2-square',
         color: 'info',
         section: 'admin'
+    },
+    {
+        key: 'admin_merge_tracking',
+        url: '/admin/merge-tracking',
+        title: 'Отслеживание MR',
+        description: 'Просмотр и управление merge requests и фичами',
+        icon: 'bi-kanban',
+        color: 'danger',
+        section: 'admin'
     }
 ];
 
@@ -178,6 +205,9 @@ function getMenuKeyForPath(path) {
     if (path.startsWith('/admin/api/system-info') || path.startsWith('/admin/api/latest-log')) {
         return 'admin_panel';
     }
+    if (path === '/admin/merge-tracking' || path.startsWith('/admin/api/merge-tracking')) {
+        return 'admin_merge_tracking';
+    }
 
     if (path === '/duty' || path.startsWith('/duty/')) return 'duty_list';
     if (path.startsWith('/calendar/')) return 'calendar_settings';
@@ -185,7 +215,9 @@ function getMenuKeyForPath(path) {
     if (path === '/patch' || path.startsWith('/patch/')) return 'patch_message';
     if (path === '/teamcity' || path.startsWith('/teamcity/')) return 'teamcity';
     if (path === '/invite' || path.startsWith('/invite/')) return 'invite';
+    if (path === '/forward' || path.startsWith('/forward/')) return 'message_forwarding';
     if (path === '/jira' || path.startsWith('/jira/')) return 'jira_worklog';
+    if (path === '/worklogs' || path.startsWith('/worklogs/')) return 'worklog_reports';
     if (path === '/review' || path.startsWith('/review/')) return 'review';
     if (path === '/reminders' || path.startsWith('/reminders/')) return 'reminders';
     if (path === '/commands' || path.startsWith('/commands/')) return 'commands';

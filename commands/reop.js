@@ -10,8 +10,9 @@ module.exports = async ({ post_id, user_name, args }) => {
         const [comment] = args;
 
         const post = await getPost(post_id);
-        const rootPost = await getPost(post.root_id);
-        const reviewTask = await getReviewTaskByPostId(post.root_id);
+        const rootPostId = post.root_id || post.id;
+        const rootPost = rootPostId === post.id ? post : await getPost(rootPostId);
+        const reviewTask = await getReviewTaskByPostId(rootPostId);
         const taskKey = reviewTask?.task_key ?? await extractTaskNumber(rootPost);
         if (!taskKey) {
             await postMessageInTreed(post_id, `Не удалось найти задачу для перевода в статус **${JiraStatusType.TODO}**. Убедитесь, что задача существует.`);

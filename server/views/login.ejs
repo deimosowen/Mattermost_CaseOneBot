@@ -1,0 +1,31 @@
+<% layout('authLayout') -%>
+    <% block('title', 'Вход - CaseOneBot' ); -%>
+
+        <main class="auth-card">
+            <section class="auth-card-head">
+                <div class="auth-logo">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <h1 class="auth-title">CaseOneBot</h1>
+                <p class="auth-subtitle">Вход в рабочие инструменты команды: ревью, дежурства и релизные действия.</p>
+                <div class="auth-scope" aria-label="Разделы приложения">
+                    <span><i class="bi bi-git"></i>Ревью</span>
+                    <span><i class="bi bi-person-check"></i>Дежурства</span>
+                    <span><i class="bi bi-rocket-takeoff"></i>Релизы</span>
+                </div>
+            </section>
+            <section class="auth-card-body">
+                <a href="/auth/yandex" class="btn btn-primary auth-button">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span>Войти через Яндекс</span>
+                </a>
+                <div class="auth-divider">доступ</div>
+                <div class="auth-access">
+                    <i class="bi bi-shield-check"></i>
+                    <div>
+                        <strong>Корпоративная авторизация</strong>
+                        <span>Разделы и права применятся автоматически по вашей группе.</span>
+                    </div>
+                </div>
+            </section>
+        </main>

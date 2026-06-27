@@ -6,8 +6,7 @@ const { markEventAsNotified, checkIfEventWasNotified, markStatusAsSet,
 const CacheService = require('../cacheService');
 const YandexService = require('./index');
 const YandexApiManager = require('./apiManager');
-const { CronJob } = require('cron');
-const logger = require('../../logger');
+const logger = require('../../logger').child('calendar');
 
 class CalendarManager {
     constructor() {
@@ -19,35 +18,12 @@ class CalendarManager {
      * Инициализация задач на уведомления и очистку
      */
     init() {
-        this.startNotificationJob();
-        this.startCleanupJob();
+        logger.warn('CalendarManager.init() is deprecated. Calendar cron jobs are managed by CronManager.');
     }
 
-    /**
-     * Запуск задачи уведомлений
-     */
-    startNotificationJob() {
-        new CronJob(this.notificationCronSchedule, async () => {
-            try {
-                await this.notifyAllUsers();
-            } catch (error) {
-                logger.error('Ошибка в задаче уведомлений:', error);
-            }
-        }, null, true, 'UTC').start();
-    }
-
-    /**
-     * Запуск задачи очистки
-     */
-    startCleanupJob() {
-        new CronJob(this.cleanupCronSchedule, async () => {
-            try {
-                await removeNotifiedEvents();
-                logger.info('Очистка уведомлений выполнена.');
-            } catch (error) {
-                logger.error('Ошибка в задаче очистки:', error);
-            }
-        }, null, true, 'UTC').start();
+    async cleanupNotifiedEvents() {
+        await removeNotifiedEvents();
+        logger.info('Очистка уведомлений выполнена.');
     }
 
     /**
@@ -55,7 +31,20 @@ class CalendarManager {
      */
     async notifyAllUsers() {
         const users = await YandexService.getAllUsersTokens();
-        await Promise.all(users.map(user => this.notifyUser(user)));
+        const enabled = users.filter(u => u.is_notification);
+        const CONCURRENCY = 10;
+        const TIMEOUT_MS = 15000;
+
+        const withTimeout = (promise, ms) => {
+            const timer = setTimeout(() => {}, ms);
+            return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))])
+                .finally(() => clearTimeout(timer));
+        };
+
+        for (let i = 0; i < enabled.length; i += CONCURRENCY) {
+            const batch = enabled.slice(i, i + CONCURRENCY);
+            await Promise.allSettled(batch.map(user => withTimeout(this.notifyUser(user), TIMEOUT_MS)));
+        }
     }
 
     /**
@@ -92,6 +81,8 @@ class CalendarManager {
             const formattedEndTime = now.clone().add(user.notification_interval, 'minutes').format('YYYYMMDDTHHmmss[Z]');
 
             const events = await api.listEvents(formattedStartTime, formattedEndTime);
+
+            if (events.length === 0) return;
 
             for (const event of events) {
                 await this.processEvent(user, event, now, timezone);

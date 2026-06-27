@@ -8,7 +8,7 @@ const {
     updateMergeRequestStatus, } = require('../../db/models/gitlab');
 const cache = require('../cacheService');
 const config = require('../../config');
-const logger = require('../../logger');
+const logger = require('../../logger').child('gitlab');
 const { parseGitlabMrUrl } = require('./gitlabHelper');
 
 const STATUSES = {
@@ -134,9 +134,11 @@ class GitlabService {
                 iid: mr.iid,
                 title: mr.title,
                 author: mr.author?.name,
+                authorUsername: mr.author?.username,
                 webUrl: mr.web_url,
                 state: mr.state,
                 mergeStatus: mr.merge_status,
+                sourceSha: mr.sha || null,
                 draft: mr.draft === true,
                 status,
                 hasComments,
@@ -161,6 +163,7 @@ class GitlabService {
                 id: mr.id,
                 iid: mr.iid,
                 title: mr.title,
+                sourceSha: mr.sha || null,
                 hasConflicts: mr.has_conflicts,
             }
         } catch (error) {
@@ -474,11 +477,67 @@ class GitlabService {
             return mr ? {
                 source_branch: mr.source_branch,
                 target_branch: mr.target_branch,
+                sourceSha: mr.sha || null,
+                webUrl: mr.web_url,
+                author: mr.author?.name,
+                authorUsername: mr.author?.username,
                 has_conflicts: mr.has_conflicts,
             } : null;
         } catch (error) {
             logger.error(`Ошибка при получении информации о MR ${mrIid}: ${error.message}`);
             return null;
+        }
+    }
+
+    async getCommitStatuses(projectId, sha) {
+        if (!sha) {
+            return [];
+        }
+
+        try {
+            const statuses = [];
+            let page = 1;
+
+            while (true) {
+                const response = await axios.get(
+                    `${config.GITLAB_BASE_URL}/api/v4/projects/${encodeURIComponent(projectId)}/repository/commits/${encodeURIComponent(sha)}/statuses`,
+                    {
+                        headers: {
+                            'PRIVATE-TOKEN': config.GITLAB_API_TOKEN,
+                            'Content-Type': 'application/json'
+                        },
+                        params: {
+                            per_page: 100,
+                            page,
+                        }
+                    }
+                );
+
+                const batch = Array.isArray(response.data) ? response.data : [];
+                statuses.push(...batch);
+
+                if (batch.length < 100) {
+                    break;
+                }
+                page += 1;
+            }
+
+            return statuses.map((status) => ({
+                id: status.id,
+                name: status.name || status.context,
+                status: status.status,
+                targetUrl: status.target_url,
+                description: status.description,
+                createdAt: status.created_at,
+                startedAt: status.started_at,
+                finishedAt: status.finished_at,
+            }));
+        } catch (error) {
+            const details = error.response
+                ? `GitLab status ${error.response.status}: ${error.response.data?.message || error.message}`
+                : error.message;
+            logger.error(`Ошибка при получении commit statuses ${sha}: ${details}`);
+            throw new Error(`GitLab commit statuses: ${details}`);
         }
     }
 

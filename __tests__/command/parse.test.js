@@ -28,4 +28,5 @@ describe('parseCommand function', () => {
         const result = parseCommand(command);
         expect(result).toEqual(expectedOutput);
     });
+
 });

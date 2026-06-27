@@ -6,6 +6,12 @@ const {
 const { getChannelById, getChannelMember } = require('../mattermost/utils');
 const logger = require('../logger');
 
+function isSupportedReviewChannel(channel) {
+    if (!channel) return false;
+    if (Number(channel.delete_at || 0)) return false;
+    return channel.type === 'O' || channel.type === 'P';
+}
+
 async function getAvailableReviewChannelsForUser(userId, options = {}) {
     if (!userId) return [];
 
@@ -25,19 +31,23 @@ async function getAvailableReviewChannelsForUser(userId, options = {}) {
                 continue;
             }
 
+            const channel = await getChannelById(channelId);
+            if (!isSupportedReviewChannel(channel)) {
+                const details = channel
+                    ? `type=${channel.type || 'unknown'}, delete_at=${channel.delete_at || 0}, shared=${channel.shared ? 'true' : 'false'}`
+                    : 'not found';
+                logger.warn(`Review channel ${channelId} is not supported for review posting (${details}); skipping for user ${userId}`);
+                continue;
+            }
+
             const isExcluded = excludedChannelIds.has(channelId);
             if (!includeExcluded && isExcluded) {
                 continue;
             }
 
-            let channel = null;
-            if (includeNames) {
-                channel = await getChannelById(channelId);
-            }
-
             availableChannels.push({
                 id: channelId,
-                name: channel ? (channel.display_name || channel.name || channelId) : channelId,
+                name: includeNames ? (channel.display_name || channel.name || channelId) : channelId,
                 isExcluded
             });
         } catch (error) {

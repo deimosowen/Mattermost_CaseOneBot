@@ -1,6 +1,21 @@
 const OpenAI = require('openai');
 const { OPENAI_BASE_URL, OPENAI_API_KEY, OPENAI_API_MODEL } = require('../config');
 
+const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
+
+function normalizeBaseURL(baseURL) {
+    const normalized = (baseURL || '').trim().replace(/\/+$/, '');
+    if (!normalized) {
+        return undefined;
+    }
+
+    if (normalized === 'https://api.openai.com/v2') {
+        throw new Error(`OPENAI_BASE_URL=${normalized} is not supported by the official OpenAI API. Use ${DEFAULT_OPENAI_BASE_URL}, or set the custom provider base URL if this key belongs to a proxy.`);
+    }
+
+    return normalized;
+}
+
 class OpenAIClientFactory {
     static client = null;
     static apiKey = OPENAI_API_KEY;
@@ -8,7 +23,7 @@ class OpenAIClientFactory {
 
     static createClient(baseURL, apiKey) {
         return new OpenAI({
-            baseURL: baseURL,
+            baseURL: normalizeBaseURL(baseURL),
             apiKey: apiKey
         });
     }
@@ -20,7 +35,7 @@ class OpenAIClientFactory {
 
         if (!this.client) {
             this.client = new OpenAI({
-                baseURL: OPENAI_BASE_URL,
+                baseURL: normalizeBaseURL(OPENAI_BASE_URL),
                 apiKey: OPENAI_API_KEY
             });
         }
@@ -38,3 +53,4 @@ class OpenAIClientFactory {
 }
 
 module.exports = OpenAIClientFactory;
+module.exports.normalizeBaseURL = normalizeBaseURL;

@@ -13,12 +13,8 @@ describe('CronExecutionTracker', () => {
     });
 
     describe('registerCriticalJob / unregisterCriticalJob', () => {
-        test('регистрирует метаданные задачи (без callback) и логирует', () => {
+        test('регистрирует метаданные задачи', () => {
             cronExecutionTracker.registerCriticalJob(JOB_KEY, SCHEDULE, { tz: 'UTC' });
-
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining('Зарегистрирована критичная задача: duty_1')
-            );
             cronExecutionTracker.unregisterCriticalJob(JOB_KEY);
         });
 

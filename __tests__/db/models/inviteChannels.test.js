@@ -21,6 +21,14 @@ jest.mock('../../../db/index.js', () => {
                 return { ok: 1 };
             }
 
+            if (sql.includes('SELECT id FROM invite_channels WHERE main_channel_id = ? AND prefix = ? AND id <> ?')) {
+                const [mainChannelId, prefix, id] = params;
+                const row = state.rows.find(item =>
+                    item.main_channel_id === mainChannelId && item.prefix === prefix && item.id !== id
+                );
+                return row ? { id: row.id } : undefined;
+            }
+
             if (sql.includes('SELECT id FROM invite_channels WHERE main_channel_id = ? AND prefix = ?')) {
                 const [mainChannelId, prefix] = params;
                 const row = state.rows.find(item =>
@@ -132,6 +140,7 @@ const {
     removeInviteChannel,
     updateInviteChannel,
     inviteChannelExists,
+    inviteChannelExistsExceptId,
     getPrefixesByMainChannel,
     getInviteChannelsMap
 } = require('../../../db/models/inviteChannels');
@@ -329,6 +338,25 @@ describe('inviteChannels model', () => {
         test('возвращает false для несуществующей конфигурации', async () => {
             const exists = await inviteChannelExists(testMainChannelId, 'non-existent-prefix');
             expect(exists).toBe(false);
+        });
+    });
+
+    describe('inviteChannelExistsExceptId', () => {
+        test('игнорирует текущую запись при проверке дублей', async () => {
+            const id = await addInviteChannel(testMainChannelId, testPrefix1);
+
+            const exists = await inviteChannelExistsExceptId(testMainChannelId, testPrefix1, id);
+
+            expect(exists).toBe(false);
+        });
+
+        test('находит дубль в другой записи', async () => {
+            const id = await addInviteChannel(testMainChannelId, testPrefix1);
+            await addInviteChannel(testMainChannelId, testPrefix2);
+
+            const exists = await inviteChannelExistsExceptId(testMainChannelId, testPrefix2, id);
+
+            expect(exists).toBe(true);
         });
     });
 });

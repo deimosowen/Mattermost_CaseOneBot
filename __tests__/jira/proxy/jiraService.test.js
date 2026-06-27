@@ -1,0 +1,63 @@
+jest.mock('jira-client', () => jest.fn(), { virtual: true });
+jest.mock('node-cache', () => jest.fn().mockImplementation(() => ({
+    get: jest.fn(),
+    set: jest.fn(),
+})), { virtual: true });
+
+const jiraService = require('../../../jira/proxy/services/jiraService');
+
+describe('jira proxy service', () => {
+    describe('changeStatus', () => {
+        test('sets required AI usage field before transitioning issue', async () => {
+            const jiraClient = {
+                listTransitions: jest.fn().mockResolvedValue({
+                    transitions: [
+                        { id: '11', to: { name: 'In Progress' } },
+                        { id: '31', to: { name: 'Done' } },
+                    ],
+                }),
+                updateIssue: jest.fn().mockResolvedValue(undefined),
+                transitionIssue: jest.fn().mockResolvedValue(undefined),
+            };
+
+            await jiraService.changeStatus(jiraClient, 'CASEM-1', 'Done');
+
+            expect(jiraClient.updateIssue).toHaveBeenCalledWith('CASEM-1', {
+                fields: {
+                    customfield_19260: { id: '13420' },
+                },
+            });
+            expect(jiraClient.transitionIssue).toHaveBeenCalledWith('CASEM-1', {
+                transition: { id: '31' },
+            });
+            expect(jiraClient.updateIssue.mock.invocationCallOrder[0])
+                .toBeLessThan(jiraClient.transitionIssue.mock.invocationCallOrder[0]);
+        });
+    });
+
+    describe('createTask', () => {
+        test('passes generic fields to Jira addNewIssue', async () => {
+            const jiraClient = {
+                addNewIssue: jest.fn().mockResolvedValue({
+                    key: 'CASEM-100',
+                    id: '100',
+                    self: 'https://jira.example/rest/api/2/issue/100',
+                }),
+            };
+            const fields = {
+                project: { key: 'CASEM' },
+                issuetype: { id: '3' },
+                summary: 'Test task',
+            };
+
+            const result = await jiraService.createTask(jiraClient, { fields });
+
+            expect(jiraClient.addNewIssue).toHaveBeenCalledWith({ fields });
+            expect(result).toEqual({
+                key: 'CASEM-100',
+                id: '100',
+                self: 'https://jira.example/rest/api/2/issue/100',
+            });
+        });
+    });
+});
