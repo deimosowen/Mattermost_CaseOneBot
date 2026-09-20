@@ -3,7 +3,9 @@
  * core — всегда добавляется селектором.
  */
 const GROUP_FUNCTIONS = {
-    core: ['getCurrentDate', 'setContextData'],
+    core: ['getCurrentDate'],
+    knowledge: ['searchKnowledge'],
+    memory: ['setContextData'],
     duty: [
         'getCurrentDuty',
         'rotateDuty',
@@ -39,7 +41,19 @@ const GROUP_FUNCTIONS = {
  */
 const ALWAYS_ENABLED_FUNCTIONS = new Set([
     'getCurrentDate',
+    'searchKnowledge',
+]);
+
+const ACTION_FUNCTIONS = new Set([
     'setContextData',
+    'rotateDuty',
+    'changeNextDuty',
+    'updateDutyActivityStatus',
+    'inReview',
+    'changeReviewReviewer',
+    'reopenReviewTask',
+    'inviteToChannel',
+    'createImages',
 ]);
 
 /** Функции, для которых нужен Mattermost post (channel_id / post_id). */
@@ -57,6 +71,7 @@ const FALLBACK_GROUPS = ['help', 'duty', 'calendar'];
 module.exports = {
     GROUP_FUNCTIONS,
     ALWAYS_ENABLED_FUNCTIONS,
+    ACTION_FUNCTIONS,
     REQUIRES_POST,
     FALLBACK_GROUPS,
 };

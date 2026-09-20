@@ -20,4 +20,16 @@ describe('toolDefinitions', () => {
             },
         ]);
     });
+
+    test('marks action tools as state-changing in description', () => {
+        const tools = buildTools([
+            {
+                name: 'inviteToChannel',
+                description: 'Пригласить пользователя в канал',
+                parameters: { type: 'object', properties: {} },
+            },
+        ]);
+
+        expect(tools[0].description).toContain('меняет состояние');
+    });
 });

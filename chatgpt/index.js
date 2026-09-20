@@ -140,6 +140,13 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
                 });
             }
 
+            if (resources.question.policy) {
+                dialogHistory.addMessage({
+                    role: 'system',
+                    content: resources.question.policy,
+                });
+            }
+
             const contextParams = await redisService.get(`openai:globalContext`);
             if (contextParams?.context && typeof contextParams.context === 'object') {
                 const contextString = Object.entries(contextParams.context)
@@ -188,8 +195,8 @@ async function sendMessage(content, parentMessageId, post, usePersonality = true
 
         const requestOptions = buildRequestOptions(model, history, tools);
         const additionalParams = post
-            ? { channel_id: post.channel_id, post_id: post.id, user_id: post.user_id }
-            : {};
+            ? { channel_id: post.channel_id, post_id: post.id, user_id: post.user_id, selectionText }
+            : { selectionText };
 
         const { response, fileId } = await runWithFunctionCalling(client, requestOptions, additionalParams);
         const assistantText = response.output_text || '';
@@ -218,5 +225,6 @@ module.exports = {
     isApiKeyExist: OpenAIClientFactory.isApiKeyExist(),
     _private: {
         serializeFunctionCallForInput,
+        callFunction,
     },
 };
