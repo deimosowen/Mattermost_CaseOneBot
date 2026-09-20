@@ -1,0 +1,494 @@
+<% layout('layout') -%>
+<% block('title', 'Пересылка сообщений' ); -%>
+
+<div class="container my-5 forward-page">
+    <div class="row">
+        <div class="col-12 col-xl-11 mx-auto">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="bi bi-arrow-left-right me-2"></i>Пересылка сообщений
+                    </h2>
+                    <div class="text-muted">Маршруты между каналами Mattermost</div>
+                </div>
+                <a href="/" class="btn btn-outline-secondary btn-sm align-self-start align-self-md-center">
+                    <i class="bi bi-arrow-left me-1"></i>На главную
+                </a>
+            </div>
+
+            <% if (error) { %>
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <%= error %>
+                </div>
+            <% } %>
+
+            <div id="forwardAlert" class="alert d-none" role="alert"></div>
+
+            <div class="row g-4 align-items-start">
+                <div class="col-12 col-lg-5">
+                    <div class="card shadow-sm forward-form-card">
+                        <div class="card-header">
+                            <div class="d-flex align-items-center justify-content-between gap-3">
+                                <h5 class="mb-0" id="formTitle">
+                                    <i class="bi bi-plus-circle me-2"></i>Новый маршрут
+                                </h5>
+                                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="cancelEditBtn">
+                                    <i class="bi bi-x-lg me-1"></i>Отменить
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form id="forwardForm">
+                                <input type="hidden" id="mappingId" name="id">
+
+                                <div class="mb-3">
+                                    <label for="sourceChannelId" class="form-label">Исходный канал <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-box-arrow-up-right"></i></span>
+                                        <input type="text" class="form-control" id="sourceChannelId" name="source_channel_id"
+                                            placeholder="source_channel_id" required>
+                                    </div>
+                                    <div class="form-text">Канал, из которого будут забираться новые корневые сообщения</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="targetChannelId" class="form-label">Целевой канал <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-box-arrow-in-down-right"></i></span>
+                                        <input type="text" class="form-control" id="targetChannelId" name="target_channel_id"
+                                            placeholder="target_channel_id" required>
+                                    </div>
+                                    <div class="form-text">Канал, куда бот отправит сформированное сообщение</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="messageTemplate" class="form-label">Шаблон пересылаемого сообщения</label>
+                                    <textarea class="form-control template-input" id="messageTemplate" name="message"
+                                        rows="5" placeholder="{post_link}"></textarea>
+                                    <div class="form-text">Если оставить пустым, будет использован <code>{post_link}</code></div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="threadMessage" class="form-label">Ответ в исходный тред</label>
+                                    <textarea class="form-control template-input" id="threadMessage" name="thread_message"
+                                        rows="3" placeholder="Сообщение принято и отправлено в целевой канал"></textarea>
+                                    <div class="form-text">Опциональное сообщение под оригинальным постом после пересылки</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Режим отправки ответа в тред</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="thread_message_delivery_mode"
+                                            id="threadDeliveryImmediate" value="immediate" checked>
+                                        <label class="btn btn-outline-primary" for="threadDeliveryImmediate">
+                                            <i class="bi bi-lightning-charge me-1"></i>Сразу
+                                        </label>
+                                        <input type="radio" class="btn-check" name="thread_message_delivery_mode"
+                                            id="threadDeliveryRules" value="rules">
+                                        <label class="btn btn-outline-primary" for="threadDeliveryRules">
+                                            <i class="bi bi-calendar2-check me-1"></i>По рабочему окну
+                                        </label>
+                                    </div>
+                                    <div class="form-text">Рабочее окно задаётся в ENV и учитывает рабочие дни</div>
+                                </div>
+
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary" id="saveMappingBtn">
+                                        <i class="bi bi-save me-1"></i>Сохранить маршрут
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mt-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="bi bi-braces me-2"></i>Переменные шаблона
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="template-token-list">
+                                <button type="button" class="btn btn-sm btn-outline-primary token-btn" data-token="{post_link}">
+                                    {post_link}
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary token-btn" data-token="{current_duty}">
+                                    {current_duty}
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary token-btn" data-token="{message}">
+                                    {message}
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary token-btn" data-token="{sender_name}">
+                                    {sender_name}
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary token-btn" data-token="{channel_name}">
+                                    {channel_name}
+                                </button>
+                            </div>
+                            <div class="small text-muted mt-3">
+                                Бот игнорирует треды, системные сообщения и сообщения от ботов. Переменные берутся из поста Mattermost и данных события.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-7">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-diagram-3 me-2"></i>Активные маршруты
+                                </h5>
+                                <span class="badge bg-primary align-self-start align-self-sm-center">
+                                    <%= mappings.length %> маршрут(ов)
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <% if (!mappings || mappings.length === 0) { %>
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                    </div>
+                                    <h5>Маршрутов пока нет</h5>
+                                    <p class="text-muted mb-0">Создайте первый маршрут пересылки между каналами.</p>
+                                </div>
+                            <% } else { %>
+                                <div class="forward-list">
+                                    <% mappings.forEach((mapping) => { %>
+                                        <article class="forward-route">
+                                            <div class="route-main">
+                                                <div class="route-path">
+                                                    <div class="route-channel">
+                                                        <span class="route-label">Из</span>
+                                                        <strong><%= mapping.source_channel_name %></strong>
+                                                        <small><%= mapping.source_channel_id %></small>
+                                                    </div>
+                                                    <div class="route-arrow">
+                                                        <i class="bi bi-arrow-right"></i>
+                                                    </div>
+                                                    <div class="route-channel">
+                                                        <span class="route-label">В</span>
+                                                        <strong><%= mapping.target_channel_name %></strong>
+                                                        <small><%= mapping.target_channel_id %></small>
+                                                    </div>
+                                                </div>
+
+                                                <div class="route-meta">
+                                                    <span class="badge text-bg-light border">
+                                                        <i class="bi bi-send-check me-1"></i><%= mapping.forwarded_count %> переслано
+                                                    </span>
+                                                    <% if (mapping.last_forwarded_at) { %>
+                                                        <span class="badge text-bg-light border">
+                                                            <i class="bi bi-clock-history me-1"></i><%= mapping.last_forwarded_at %>
+                                                        </span>
+                                                    <% } %>
+                                                    <span class="badge <%= mapping.thread_message_delivery_mode === 'rules' ? 'text-bg-warning' : 'text-bg-light border' %>">
+                                                        <i class="bi <%= mapping.thread_message_delivery_mode === 'rules' ? 'bi-calendar2-check' : 'bi-lightning-charge' %> me-1"></i>
+                                                        <%= mapping.thread_message_delivery_mode === 'rules' ? 'По рабочему окну' : 'Сразу' %>
+                                                    </span>
+                                                </div>
+
+                                                <div class="route-template">
+                                                    <div>
+                                                        <span class="template-caption">Шаблон</span>
+                                                        <code><%= mapping.message || '{post_link}' %></code>
+                                                    </div>
+                                                    <div>
+                                                        <span class="template-caption">Ответ в тред</span>
+                                                        <% if (mapping.thread_message) { %>
+                                                            <code><%= mapping.thread_message %></code>
+                                                        <% } else { %>
+                                                            <span class="text-muted">Не отправляется</span>
+                                                        <% } %>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="route-actions">
+                                                <button type="button" class="btn btn-outline-primary btn-sm edit-btn"
+                                                    data-id="<%= mapping.id %>" title="Редактировать">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger btn-sm delete-btn"
+                                                    data-id="<%= mapping.id %>" title="Удалить">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </article>
+                                    <% }) %>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const mappings = <%- mappingsJson %>;
+
+    function showAlert(type, message) {
+        const alert = document.getElementById('forwardAlert');
+        alert.className = `alert alert-${type}`;
+        alert.innerHTML = `<i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2"></i>${message}`;
+        alert.classList.remove('d-none');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function getFormPayload() {
+        return {
+            source_channel_id: document.getElementById('sourceChannelId').value.trim(),
+            target_channel_id: document.getElementById('targetChannelId').value.trim(),
+            message: document.getElementById('messageTemplate').value.trim(),
+            thread_message: document.getElementById('threadMessage').value.trim(),
+            thread_message_delivery_mode: document.querySelector('input[name="thread_message_delivery_mode"]:checked')?.value || 'immediate'
+        };
+    }
+
+    function resetForm() {
+        document.getElementById('forwardForm').reset();
+        document.getElementById('mappingId').value = '';
+        document.getElementById('threadDeliveryImmediate').checked = true;
+        document.getElementById('formTitle').innerHTML = '<i class="bi bi-plus-circle me-2"></i>Новый маршрут';
+        document.getElementById('cancelEditBtn').classList.add('d-none');
+        document.getElementById('saveMappingBtn').innerHTML = '<i class="bi bi-save me-1"></i>Сохранить маршрут';
+    }
+
+    function startEdit(mappingId) {
+        const mapping = mappings.find((item) => Number(item.id) === Number(mappingId));
+        if (!mapping) return;
+
+        document.getElementById('mappingId').value = mapping.id;
+        document.getElementById('sourceChannelId').value = mapping.source_channel_id || '';
+        document.getElementById('targetChannelId').value = mapping.target_channel_id || '';
+        document.getElementById('messageTemplate').value = mapping.message || '';
+        document.getElementById('threadMessage').value = mapping.thread_message || '';
+        document.getElementById(
+            mapping.thread_message_delivery_mode === 'rules' ? 'threadDeliveryRules' : 'threadDeliveryImmediate'
+        ).checked = true;
+        document.getElementById('formTitle').innerHTML = '<i class="bi bi-pencil-square me-2"></i>Редактирование маршрута';
+        document.getElementById('cancelEditBtn').classList.remove('d-none');
+        document.getElementById('saveMappingBtn').innerHTML = '<i class="bi bi-save me-1"></i>Обновить маршрут';
+        document.getElementById('sourceChannelId').focus();
+    }
+
+    async function submitMapping(event) {
+        event.preventDefault();
+        const id = document.getElementById('mappingId').value;
+        const saveBtn = document.getElementById('saveMappingBtn');
+        const payload = getFormPayload();
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/forward/api/mappings/${encodeURIComponent(id)}` : '/forward/api/mappings';
+
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Сохранение...';
+
+        try {
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok || data.error) {
+                throw new Error(data.error || 'Не удалось сохранить маршрут');
+            }
+            showAlert('success', data.message || 'Маршрут сохранен');
+            setTimeout(() => window.location.reload(), 500);
+        } catch (error) {
+            showAlert('danger', error.message);
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = id
+                ? '<i class="bi bi-save me-1"></i>Обновить маршрут'
+                : '<i class="bi bi-save me-1"></i>Сохранить маршрут';
+        }
+    }
+
+    async function deleteMapping(mappingId) {
+        if (!confirm('Удалить этот маршрут пересылки?')) return;
+
+        try {
+            const response = await fetch(`/forward/api/mappings/${encodeURIComponent(mappingId)}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+            if (!response.ok || data.error) {
+                throw new Error(data.error || 'Не удалось удалить маршрут');
+            }
+            showAlert('success', data.message || 'Маршрут удален');
+            setTimeout(() => window.location.reload(), 500);
+        } catch (error) {
+            showAlert('danger', error.message);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('forwardForm').addEventListener('submit', submitMapping);
+        document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
+
+        document.querySelectorAll('.edit-btn').forEach((button) => {
+            button.addEventListener('click', () => startEdit(button.dataset.id));
+        });
+        document.querySelectorAll('.delete-btn').forEach((button) => {
+            button.addEventListener('click', () => deleteMapping(button.dataset.id));
+        });
+        document.querySelectorAll('.token-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                const textarea = document.getElementById('messageTemplate');
+                textarea.focus();
+                const start = textarea.selectionStart || textarea.value.length;
+                const end = textarea.selectionEnd || textarea.value.length;
+                textarea.value = textarea.value.slice(0, start) + button.dataset.token + textarea.value.slice(end);
+                textarea.selectionStart = textarea.selectionEnd = start + button.dataset.token.length;
+            });
+        });
+    });
+</script>
+
+<style>
+    .forward-page .card {
+        border-radius: 8px;
+    }
+
+    .template-input {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 0.9rem;
+        resize: vertical;
+    }
+
+    .template-token-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .token-btn {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .empty-state {
+        padding: 3rem 1.5rem;
+        text-align: center;
+    }
+
+    .empty-icon {
+        align-items: center;
+        background: var(--bs-primary-bg-subtle);
+        border-radius: 8px;
+        color: var(--bs-primary);
+        display: inline-flex;
+        font-size: 2rem;
+        height: 64px;
+        justify-content: center;
+        margin-bottom: 1rem;
+        width: 64px;
+    }
+
+    .forward-list {
+        display: grid;
+    }
+
+    .forward-route {
+        align-items: stretch;
+        border-bottom: 1px solid var(--bs-border-color);
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding: 1rem;
+    }
+
+    .forward-route:last-child {
+        border-bottom: 0;
+    }
+
+    .route-path {
+        align-items: center;
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    }
+
+    .route-channel {
+        background: var(--bs-tertiary-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        min-width: 0;
+        padding: 0.75rem;
+    }
+
+    .route-label,
+    .template-caption {
+        color: var(--bs-secondary-color);
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+    }
+
+    .route-channel strong,
+    .route-channel small {
+        display: block;
+        overflow-wrap: anywhere;
+    }
+
+    .route-channel small {
+        color: var(--bs-secondary-color);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        margin-top: 0.25rem;
+    }
+
+    .route-arrow {
+        color: var(--bs-primary);
+        font-size: 1.25rem;
+    }
+
+    .route-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .route-template {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 0.85rem;
+    }
+
+    .route-template code {
+        display: inline-block;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+    }
+
+    .route-actions {
+        align-items: flex-start;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .forward-route {
+            grid-template-columns: 1fr;
+        }
+
+        .route-path {
+            grid-template-columns: 1fr;
+        }
+
+        .route-arrow {
+            text-align: center;
+            transform: rotate(90deg);
+        }
+
+        .route-actions {
+            justify-content: flex-end;
+        }
+    }
+</style>

@@ -4,12 +4,14 @@ const reviewDistributionService = require('./reviewDistributionService');
 const { getUserByEmail, getUserByUsername } = require('../mattermost/utils');
 const { parseGitlabMrUrl } = require('./gitlabService/gitlabHelper');
 const { isToDoStatus, isInProgressStatus } = require('./jiraService/jiraHelper');
+const domainEventBus = require('./domainEventBus');
 const JiraStatusType = require('../types/jiraStatusTypes');
 const {
     getReviewTaskByKey,
     addReviewTask,
     updateReviewTaskStatus,
     updateReviewTaskReviewer,
+    updateReviewTaskMetadata,
     addTaskNotification,
 } = require('../db/models/reviewTask');
 const logger = require('../logger');
@@ -25,6 +27,42 @@ const REVIEWER_NAME_TO_MENTION = {
 
 /** Утилиты */
 const hasValue = (v) => v != null && v !== '';
+
+async function notifyReviewThreadReady({
+    reviewTaskId,
+    taskKey,
+    postId,
+    channelId,
+    userId,
+    mergeRequestUrl,
+    gitlabMergeRequestId,
+}) {
+    await domainEventBus.emitAsync('review.thread_ready', {
+        reviewTaskId,
+        taskKey,
+        postId,
+        channelId,
+        userId,
+        mergeRequestUrl,
+        gitlabMergeRequestId,
+    });
+}
+
+async function notifyReviewThreadReadyFromTask(reviewTask) {
+    if (!reviewTask) {
+        return;
+    }
+
+    await notifyReviewThreadReady({
+        reviewTaskId: reviewTask.id,
+        taskKey: reviewTask.task_key,
+        postId: reviewTask.post_id,
+        channelId: reviewTask.channel_id,
+        userId: reviewTask.user_id,
+        mergeRequestUrl: reviewTask.merge_request_url,
+        gitlabMergeRequestId: reviewTask.gitlab_merge_request_id,
+    });
+}
 
 /**
  * Резолвинг упоминания ревьювера из email и имени
@@ -253,7 +291,24 @@ async function createOrUpdateReviewTask({
         if (reviewer) {
             await updateReviewTaskReviewer({ task_key: taskKey, reviewer });
         }
+        await updateReviewTaskMetadata({
+            task_key: taskKey,
+            channel_id: channelId || reviewTask.channel_id,
+            post_id: postId || reviewTask.post_id,
+            user_id: userId || reviewTask.user_id,
+            merge_request_url: mergeRequestUrl || reviewTask.merge_request_url || null,
+            gitlab_merge_request_id: gitlabMergeRequestId || reviewTask.gitlab_merge_request_id || null,
+        });
         await addTaskNotification(reviewTask.id);
+        await notifyReviewThreadReady({
+            reviewTaskId: reviewTask.id,
+            taskKey,
+            postId: postId || reviewTask.post_id,
+            channelId: channelId || reviewTask.channel_id,
+            userId: userId || reviewTask.user_id,
+            mergeRequestUrl: mergeRequestUrl || reviewTask.merge_request_url || null,
+            gitlabMergeRequestId: gitlabMergeRequestId || reviewTask.gitlab_merge_request_id || null,
+        });
         return reviewTask.id;
     } else {
         // Создаем новую запись
@@ -267,6 +322,15 @@ async function createOrUpdateReviewTask({
             gitlab_merge_request_id: gitlabMergeRequestId || null,
         });
         await addTaskNotification(reviewTaskId);
+        await notifyReviewThreadReady({
+            reviewTaskId,
+            taskKey,
+            postId,
+            channelId,
+            userId,
+            mergeRequestUrl: mergeRequestUrl || null,
+            gitlabMergeRequestId: gitlabMergeRequestId || null,
+        });
         return reviewTaskId;
     }
 }
@@ -324,9 +388,10 @@ module.exports = {
     moveTaskToInReview,
     processGitlabMergeRequest,
     createOrUpdateReviewTask,
+    notifyReviewThreadReady,
+    notifyReviewThreadReadyFromTask,
     assignReviewerAutomatically,
     buildRepeatedReviewMessage,
     GENERIC_REVIEWER_EMAIL,
     REVIEWER_NAME_TO_MENTION,
 };
-

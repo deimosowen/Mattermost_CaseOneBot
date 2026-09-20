@@ -33,7 +33,6 @@ class CronExecutionTracker {
             schedule,
             tz: options.tz || 'UTC',
         });
-        logger.info(`[CronExecutionTracker] Зарегистрирована критичная задача: ${key}`);
     }
 
     /**

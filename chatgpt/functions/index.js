@@ -16,6 +16,8 @@ files.forEach(file => {
             function: funcModule.function,
             parameters: funcModule.parameters || { type: 'object', properties: {} },
             returns: funcModule.returns || {},
+            readOnly: funcModule.readOnly === true,
+            requiresConfirmation: funcModule.requiresConfirmation === true,
         });
     }
 });

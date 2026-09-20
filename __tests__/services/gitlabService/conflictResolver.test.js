@@ -193,93 +193,103 @@ describe('ConflictResolver', () => {
             expect(result).toEqual({ resolved: false, files: [] });
         });
 
-        test('пропускает файл если конфликт не только в FrontendVersion', async () => {
-            const fileContent = `
+        test('пропускает файл если есть другие отличия кроме FrontendVersion', async () => {
+            const sourceContent = `
   <PropertyGroup>
-<<<<<<< Sites/CaseMap.Core/CaseMap.Core.csproj
     <BackendVersion>1.0.0</BackendVersion>
+    <FrontendPackage>CasePro.Frontend</FrontendPackage>
     <FrontendVersion>80.0.0-F9848V12012</FrontendVersion>
-=======
-    <BackendVersion>2.0.0</BackendVersion>
-    <FrontendVersion>80.0.1041-develop</FrontendVersion>
->>>>>>> Sites/CaseMap.Core/CaseMap.Core.csproj
   </PropertyGroup>
             `;
 
-            GitlabService.getFileContent.mockResolvedValueOnce(fileContent);
+            const targetContent = `
+  <PropertyGroup>
+    <BackendVersion>2.0.0</BackendVersion>
+    <FrontendPackage>CasePro.Frontend</FrontendPackage>
+    <FrontendVersion>80.0.1041-develop</FrontendVersion>
+  </PropertyGroup>
+            `;
+
+            GitlabService.getFileContent
+                .mockResolvedValueOnce(sourceContent)
+                .mockResolvedValueOnce(targetContent);
 
             const result = await tryResolveBackendConflicts(mrData);
 
             expect(result).toEqual({ resolved: false, files: [] });
-            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('не только в FrontendVersion'));
-            expect(GitlabService.updateFile).not.toHaveBeenCalled();
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Отличия не только в FrontendVersion'));
+            expect(GitlabService.updateFiles).not.toHaveBeenCalled();
         });
 
-        test('успешно разрешает конфликт в разрешенном файле', async () => {
-            const fileContent = `
+        test('успешно разрешает конфликт когда отличия только в FrontendVersion', async () => {
+            const sourceContent = `
   <PropertyGroup>
     <BackendVersion>#(empty)</BackendVersion>
     <FrontendPackage>CasePro.Frontend</FrontendPackage>
-<<<<<<< Sites/CaseMap.Core/CaseMap.Core.csproj
     <FrontendVersion>80.0.0-F9848V12012</FrontendVersion>
-=======
+  </PropertyGroup>
+            `;
+
+            const targetContent = `
+  <PropertyGroup>
+    <BackendVersion>#(empty)</BackendVersion>
+    <FrontendPackage>CasePro.Frontend</FrontendPackage>
     <FrontendVersion>80.0.1041-develop</FrontendVersion>
->>>>>>> Sites/CaseMap.Core/CaseMap.Core.csproj
   </PropertyGroup>
             `;
 
-            const resolvedContent = `
-  <PropertyGroup>
-    <BackendVersion>#(empty)</BackendVersion>
-    <FrontendPackage>CasePro.Frontend</FrontendPackage>
-    <FrontendVersion>80.0.0-F9848V12012</FrontendVersion>
-  </PropertyGroup>
-            `;
-
-            GitlabService.getFileContent.mockResolvedValueOnce(fileContent);
-            GitlabService.updateFile.mockResolvedValueOnce(true);
+            GitlabService.getFileContent
+                .mockResolvedValueOnce(sourceContent)
+                .mockResolvedValueOnce(targetContent);
 
             const result = await tryResolveBackendConflicts(mrData);
 
             expect(result.resolved).toBe(true);
             expect(result.files).toContain('Sites/CaseMap.Core/CaseMap.Core.csproj');
-            expect(GitlabService.updateFile).toHaveBeenCalledWith(
+            expect(GitlabService.updateFiles).toHaveBeenCalledWith(
                 1,
-                'Sites/CaseMap.Core/CaseMap.Core.csproj',
                 'feature-branch',
-                expect.stringContaining('<FrontendVersion>80.0.0-F9848V12012</FrontendVersion>'),
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        filePath: 'Sites/CaseMap.Core/CaseMap.Core.csproj',
+                        content: expect.stringContaining('<FrontendVersion>80.0.0-F9848V12012</FrontendVersion>')
+                    })
+                ]),
                 expect.stringContaining('Auto-resolve FrontendVersion conflict')
             );
-            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Автоматически разрешен конфликт'));
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Конфликт разрешен'));
         });
 
         test('обрабатывает несколько разрешенных файлов', async () => {
-            const fileContent1 = `
+            const sourceContent1 = `
   <PropertyGroup>
-<<<<<<< Sites/CaseMap.Core/CaseMap.Core.csproj
     <FrontendVersion>80.0.0-F9848V12012</FrontendVersion>
-=======
-    <FrontendVersion>80.0.1041-develop</FrontendVersion>
->>>>>>> Sites/CaseMap.Core/CaseMap.Core.csproj
   </PropertyGroup>
             `;
 
-            const fileContent2 = `
+            const targetContent1 = `
   <PropertyGroup>
-<<<<<<< Sites/CaseMapStart.Core/CaseMapStart.Core.csproj
+    <FrontendVersion>80.0.1041-develop</FrontendVersion>
+  </PropertyGroup>
+            `;
+
+            const sourceContent2 = `
+  <PropertyGroup>
     <FrontendVersion>81.0.0-F9848V12013</FrontendVersion>
-=======
+  </PropertyGroup>
+            `;
+
+            const targetContent2 = `
+  <PropertyGroup>
     <FrontendVersion>81.0.1042-develop</FrontendVersion>
->>>>>>> Sites/CaseMapStart.Core/CaseMapStart.Core.csproj
   </PropertyGroup>
             `;
 
             GitlabService.getFileContent
-                .mockResolvedValueOnce(fileContent1)
-                .mockResolvedValueOnce(fileContent2);
-            GitlabService.updateFile
-                .mockResolvedValueOnce(true)
-                .mockResolvedValueOnce(true);
+                .mockResolvedValueOnce(sourceContent1)
+                .mockResolvedValueOnce(targetContent1)
+                .mockResolvedValueOnce(sourceContent2)
+                .mockResolvedValueOnce(targetContent2);
 
             const result = await tryResolveBackendConflicts(mrData);
 
@@ -287,48 +297,54 @@ describe('ConflictResolver', () => {
             expect(result.files).toHaveLength(2);
             expect(result.files).toContain('Sites/CaseMap.Core/CaseMap.Core.csproj');
             expect(result.files).toContain('Sites/CaseMapStart.Core/CaseMapStart.Core.csproj');
-            expect(GitlabService.updateFile).toHaveBeenCalledTimes(2);
+            expect(GitlabService.updateFiles).toHaveBeenCalledTimes(1);
         });
 
-        test('обновляет файл даже если версии одинаковые (убираются маркеры конфликта)', async () => {
-            // Файл с конфликтом, где версии одинаковые
-            // После разрешения файл изменится (уберутся маркеры конфликта), что корректно
-            const fileContent = `
+        test('не разрешает конфликт если содержимое файлов идентично', async () => {
+            const sourceContent = `
   <PropertyGroup>
     <BackendVersion>#(empty)</BackendVersion>
     <FrontendPackage>CasePro.Frontend</FrontendPackage>
-<<<<<<< Sites/CaseMap.Core/CaseMap.Core.csproj
     <FrontendVersion>80.0.0-F9848V12012</FrontendVersion>
-=======
-    <FrontendVersion>80.0.0-F9848V12012</FrontendVersion>
->>>>>>> Sites/CaseMap.Core/CaseMap.Core.csproj
   </PropertyGroup>
             `;
 
-            GitlabService.getFileContent.mockResolvedValueOnce(fileContent);
-            GitlabService.updateFile.mockResolvedValueOnce(true);
+            const targetContent = `
+  <PropertyGroup>
+    <BackendVersion>#(empty)</BackendVersion>
+    <FrontendPackage>CasePro.Frontend</FrontendPackage>
+    <FrontendVersion>80.0.0-F9848V12012</FrontendVersion>
+  </PropertyGroup>
+            `;
+
+            GitlabService.getFileContent
+                .mockResolvedValueOnce(sourceContent)
+                .mockResolvedValueOnce(targetContent);
 
             const result = await tryResolveBackendConflicts(mrData);
 
-            // Файл изменится (убрались маркеры конфликта), поэтому он будет обновлен
-            expect(result.resolved).toBe(true);
-            expect(result.files).toContain('Sites/CaseMap.Core/CaseMap.Core.csproj');
-            expect(GitlabService.updateFile).toHaveBeenCalled();
+            expect(result).toEqual({ resolved: false, files: [] });
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Содержимое идентично'));
+            expect(GitlabService.updateFiles).not.toHaveBeenCalled();
         });
 
         test('обрабатывает ошибку при обновлении файла', async () => {
-            const fileContent = `
+            const sourceContent = `
   <PropertyGroup>
-<<<<<<< Sites/CaseMap.Core/CaseMap.Core.csproj
     <FrontendVersion>80.0.0-F9848V12012</FrontendVersion>
-=======
-    <FrontendVersion>80.0.1041-develop</FrontendVersion>
->>>>>>> Sites/CaseMap.Core/CaseMap.Core.csproj
   </PropertyGroup>
             `;
 
-            GitlabService.getFileContent.mockResolvedValueOnce(fileContent);
-            GitlabService.updateFile.mockResolvedValueOnce(false);
+            const targetContent = `
+  <PropertyGroup>
+    <FrontendVersion>80.0.1041-develop</FrontendVersion>
+  </PropertyGroup>
+            `;
+
+            GitlabService.getFileContent
+                .mockResolvedValueOnce(sourceContent)
+                .mockResolvedValueOnce(targetContent);
+            GitlabService.updateFiles.mockResolvedValueOnce(false);
 
             const result = await tryResolveBackendConflicts(mrData);
 

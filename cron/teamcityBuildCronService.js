@@ -2,6 +2,7 @@ const BaseCronService = require('./baseCronService');
 const { getAllNotifications, updateLastChecked, updatePostId } = require('../db/models/teamcityBuildNotifications');
 const TeamCityService = require('../services/teamcityService');
 const { postMessage } = require('../mattermost/utils');
+const domainEventBus = require('../services/domainEventBus');
 const moment = require('moment-timezone');
 const logger = require('../logger');
 
@@ -65,6 +66,11 @@ class TeamCityBuildCronService extends BaseCronService {
                 return;
             }
 
+            await domainEventBus.emitAsync('teamcity.build_finished', {
+                notification,
+                build: latestBuild,
+            });
+
             // Проверяем, нужно ли отправлять уведомление в зависимости от настроек
             const shouldNotify = this._shouldNotify(latestBuild.status, notify_on);
             if (!shouldNotify) {
@@ -75,12 +81,16 @@ class TeamCityBuildCronService extends BaseCronService {
             }
 
             // Отправляем уведомление
-            await this._sendNotification(notification, latestBuild);
+            const isNotificationSent = await this._sendNotification(notification, latestBuild);
 
             // Обновляем информацию о последней проверке
             await updateLastChecked(id, latestBuild.id);
 
-            logger.debug(`[TeamCityBuildCron] Отправлено уведомление о билде ${latestBuild.id} в канал ${channel_id}`);
+            if (isNotificationSent) {
+                logger.debug(`[TeamCityBuildCron] Отправлено уведомление о билде ${latestBuild.id} в канал ${channel_id}`);
+            } else {
+                logger.warn(`[TeamCityBuildCron] Уведомление о билде ${latestBuild.id} не отправлено в канал ${channel_id}`);
+            }
         } catch (error) {
             logger.error(`[TeamCityBuildCron] Ошибка при проверке статуса билда для ${build_config_id}: ${error.message}`);
         }
@@ -109,6 +119,7 @@ class TeamCityBuildCronService extends BaseCronService {
      * Отправить уведомление в Mattermost
      * @param {Object} notification - Настройка уведомления
      * @param {Object} build - Информация о билде
+     * @returns {Promise<boolean>} true, если Mattermost создал пост
      */
     async _sendNotification(notification, build) {
         const { id, channel_id, build_config_name } = notification;
@@ -120,9 +131,14 @@ class TeamCityBuildCronService extends BaseCronService {
                 // Сохраняем post_id для возможности дальнейшей работы с тредом
                 await updatePostId(id, post.id);
                 logger.debug(`[TeamCityBuildCron] Сохранен post_id ${post.id} для настройки ${id}`);
+                return true;
             }
+
+            logger.warn(`[TeamCityBuildCron] Mattermost не вернул post_id при отправке в канал ${channel_id}`);
+            return false;
         } catch (error) {
             logger.error(`[TeamCityBuildCron] Ошибка при отправке сообщения в канал ${channel_id}: ${error.message}`);
+            return false;
         }
     }
 

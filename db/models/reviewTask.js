@@ -101,6 +101,46 @@ const updateReviewTaskReviewer = async (task) => {
     });
 }
 
+const updateReviewTaskMetadata = async (task) => {
+    const updates = [];
+    const params = [];
+
+    if (task.channel_id !== undefined) {
+        updates.push('channel_id = ?');
+        params.push(task.channel_id);
+    }
+    if (task.post_id !== undefined) {
+        updates.push('post_id = ?');
+        params.push(task.post_id);
+    }
+    if (task.user_id !== undefined) {
+        updates.push('user_id = ?');
+        params.push(task.user_id);
+    }
+    if (task.merge_request_url !== undefined) {
+        updates.push('merge_request_url = ?');
+        params.push(task.merge_request_url);
+    }
+    if (task.gitlab_merge_request_id !== undefined) {
+        updates.push('gitlab_merge_request_id = ?');
+        params.push(task.gitlab_merge_request_id);
+    }
+
+    if (!updates.length) {
+        return 0;
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(task.task_key);
+
+    const result = await db.runAsync(`
+        UPDATE review_task
+        SET ${updates.join(', ')}
+        WHERE task_key = ?
+    `, params);
+    return result.changes;
+}
+
 const getTaskNotifications = async (review_task_id) => {
     try {
         const rows = await db.all(`SELECT * FROM review_task_notification WHERE review_task_id = ? ORDER BY created_at DESC`, [review_task_id]);
@@ -146,6 +186,14 @@ const deleteTaskReview = async (review_task_id) => {
     });
 };
 
+const deleteReviewTasksByGitlabMergeRequestId = async (gitlab_merge_request_id) => {
+    const result = await db.runAsync(
+        'DELETE FROM review_task WHERE gitlab_merge_request_id = ?',
+        [gitlab_merge_request_id]
+    );
+    return result.changes;
+};
+
 
 module.exports = {
     getReviewTaskByKey,
@@ -155,9 +203,11 @@ module.exports = {
     addReviewTask,
     updateReviewTaskStatus,
     updateReviewTaskReviewer,
+    updateReviewTaskMetadata,
     getTaskNotifications,
     addTaskNotification,
     deleteTaskReview,
+    deleteReviewTasksByGitlabMergeRequestId,
     getReviewTaskByGitlabMergeRequestId,
     getReviewTaskWithNotClosedMRs,
 }

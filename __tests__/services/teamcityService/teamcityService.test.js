@@ -52,6 +52,35 @@ describe('TeamCityService', () => {
         });
     });
 
+    describe('checkConnection', () => {
+        test('проверяет доступность TeamCity через REST server endpoint', async () => {
+            const mockServerInfo = {
+                version: '2024.12',
+                buildNumber: '123456'
+            };
+
+            axios.get.mockReset();
+            axios.get.mockResolvedValueOnce({ data: mockServerInfo });
+
+            const result = await TeamCityService.checkConnection();
+
+            expect(result).toEqual(mockServerInfo);
+            expect(axios.get).toHaveBeenCalledWith(
+                'https://ci.example.com/app/rest/server',
+                expect.objectContaining({
+                    headers: expect.objectContaining({
+                        Authorization: expect.stringMatching(/^Basic /),
+                        Accept: 'application/json'
+                    }),
+                    timeout: 5000,
+                    params: {
+                        fields: 'version,buildNumber'
+                    }
+                })
+            );
+        });
+    });
+
     describe('getLatestBuild', () => {
         test('успешно получает последний билд', async () => {
             const buildConfigId = 'TestBuildConfig';
@@ -439,6 +468,25 @@ describe('TeamCityService', () => {
             expect(logger.error).toHaveBeenCalledWith(
                 expect.stringContaining(`Ошибка при получении конфигурации билда ${buildConfigId}`)
             );
+        });
+    });
+
+    describe('extractBuildIdFromUrl', () => {
+        test('extracts build id from TeamCity viewLog URL', () => {
+            const buildId = TeamCityService.extractBuildIdFromUrl('https://ci.example.com/viewLog.html?buildId=4809900&buildTypeId=CasePro');
+
+            expect(buildId).toBe('4809900');
+        });
+
+        test('extracts build id from buildConfiguration URL', () => {
+            const buildId = TeamCityService.extractBuildIdFromUrl('https://ci.example.com/buildConfiguration/CasePro_Pulls_CaseProPullRequestsTests3/4809900');
+
+            expect(buildId).toBe('4809900');
+        });
+
+        test('detects TeamCity build URL for configured host', () => {
+            expect(TeamCityService.isTeamCityBuildUrl('https://ci.example.com/buildConfiguration/CasePro/4809900')).toBe(true);
+            expect(TeamCityService.isTeamCityBuildUrl('https://gitlab.example.com/group/project')).toBe(false);
         });
     });
 

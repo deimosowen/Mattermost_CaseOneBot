@@ -73,6 +73,7 @@ function parseReviewSettingsCommand(message) {
 const commandParsers = {
     '!meet': parseMeetCommand,
     '!reop': parseSpaceFirstSeparatedCommand,
+    '!flaky-check': parseSpaceFirstSeparatedCommand,
     '!review': parseReviewCommand,
     '!review-settings': parseReviewSettingsCommand
 };

@@ -47,7 +47,9 @@ module.exports = async (post, eventData) => {
         const message = prapareMessage(question, user);
         const fileIds = post.file_ids ?? [];
         const imageBase64 = fileIds.length > 0 ? await downloadFile(fileIds[0]) : null;
-        const res = await sendMessage(message, chatId, post, usePersonality, imageBase64);
+        const res = await sendMessage(message, chatId, post, usePersonality, imageBase64, {
+            selectionText: question,
+        });
 
         logger.info(message);
 

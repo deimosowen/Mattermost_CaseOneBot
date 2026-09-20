@@ -101,6 +101,11 @@ OPENAI_API_TEMPERATURE=your_openai_api_temperature
 OPENAI_API_TOP_P=your_openai_api_top_p
 OPENAI_SESSION_TOKEN=your_openai_session_token
 OPENAI_DALLE_API_KEY=your_dalle_api_key
+CONFLUENCE_BASE_URL=your_confluence_base_url
+CONFLUENCE_USERNAME=your_confluence_username
+CONFLUENCE_API_TOKEN=your_confluence_api_token
+CONFLUENCE_SPACE_KEYS=SPACE1,SPACE2
+KNOWLEDGE_SEARCH_LIMIT=5
 HOST=your_host
 PORT=your_port
 JIRA_API_URL=your_jira_api_url
@@ -141,6 +146,11 @@ NODE_ENV=production
 - `OPENAI_API_TOP_P`: Nucleus sampling parameter for OpenAI.
 - `OPENAI_SESSION_TOKEN`: Session token for ChatGPT API.
 - `OPENAI_DALLE_API_KEY`: API key for DALL-E image generation.
+- `CONFLUENCE_BASE_URL`: Confluence base URL with context path, for example `https://company.atlassian.net/wiki`.
+- `CONFLUENCE_USERNAME`: Confluence user for Basic auth. If omitted, `CONFLUENCE_API_TOKEN` is used as a Bearer token.
+- `CONFLUENCE_API_TOKEN`: API token or Bearer token for Confluence search.
+- `CONFLUENCE_SPACE_KEYS`: Comma-separated Confluence spaces to search. If empty, all accessible spaces are searched.
+- `KNOWLEDGE_SEARCH_LIMIT`: Maximum number of knowledge search results.
 - `HOST`: Hostname for the bot server.
 - `PORT`: Port number for the bot server.
 - `JIRA_API_URL`: URL of the Jira proxy service.

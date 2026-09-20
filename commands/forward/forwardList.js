@@ -13,7 +13,7 @@ module.exports = async ({ channel_id }) => {
     let message = resources.forward.forwardListHeader;
 
     forwards.forEach((forward, i) => {
-        message += `- ID: \`${forward.id}\`, Исходный канал: \`${forward.source_channel_id}\`, Целевой канал: \`${forward.target_channel_id}\`, ${forward.message ? `Доп. сообщение: \`${forward.message}\`` : 'Без доп. сообщения'}, Тред-сообщение: \`${forward.thread_message || 'Отсутствует'}\`\n`;
+        message += `- ID: \`${forward.id}\`, Исходный канал: \`${forward.source_channel_id}\`, Целевой канал: \`${forward.target_channel_id}\`, ${forward.message ? `Доп. сообщение: \`${forward.message}\`` : 'Без доп. сообщения'}, Тред-сообщение: \`${forward.thread_message || 'Отсутствует'}\`, Режим треда: \`${forward.thread_message_delivery_mode || 'immediate'}\`\n`;
     });
 
     postMessage(channel_id, message);

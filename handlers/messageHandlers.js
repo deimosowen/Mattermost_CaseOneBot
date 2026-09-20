@@ -3,6 +3,7 @@ const handleMessageForwarding = require('./handleMessageForwarding');
 const onDelete = require('./onDelete');
 const handleTaskInReview = require('./handleTaskInReview');
 const handleDutyTagging = require('./handleDutyTagging');
+const handleFlakyTriageResponse = require('./handleFlakyTriageResponse');
 
 module.exports = {
     handleMessageForwarding,
@@ -10,4 +11,5 @@ module.exports = {
     onDelete,
     handleTaskInReview,
     handleDutyTagging,
+    handleFlakyTriageResponse,
 };

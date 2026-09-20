@@ -5,6 +5,8 @@ const ical = require('ical');
 const axios = require('axios');
 const logger = require('../../logger');
 
+const CALDAV_BASE_URL = 'https://caldav.yandex.ru';
+
 class YandexApi {
     constructor(username, password) {
         if (!username || !password) {
@@ -44,7 +46,7 @@ class YandexApi {
      */
     async fetchEventDirectly(eventUrl) {
         try {
-            const response = await axios.get(`https://caldav.yandex.ru${eventUrl}`, {
+            const response = await axios.get(YandexApi.normalizeEventUrl(eventUrl), {
                 auth: {
                     username: this.username,
                     password: this.password,
@@ -65,9 +67,16 @@ class YandexApi {
                 throw new Error('Событие не содержит данных.');
             }
         } catch (error) {
-            logger.error(`Ошибка загрузки события по URL ${eventUrl}:`, error);
             throw new Error(`Не удалось загрузить событие по URL ${eventUrl}.`);
         }
+    }
+
+    static normalizeEventUrl(eventUrl) {
+        if (!eventUrl) {
+            throw new Error('URL события не указан.');
+        }
+
+        return new URL(eventUrl, CALDAV_BASE_URL).toString();
     }
 
     _handleSingleEvent(event) {

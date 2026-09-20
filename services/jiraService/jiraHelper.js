@@ -16,7 +16,7 @@ function extractTaskNumber(post) {
     const message = post.message;
     const reviewRegex = /^(?:\*\*)?IN REVIEW(?:\*\*)?/i;
     if (reviewRegex.test(message)) {
-        const taskNumberRegex = /(CASEM-\d+)/i;
+        const taskNumberRegex = /\b(CASEM-\d+|REN-\d+)\b/i;
         const taskNumberMatch = message.match(taskNumberRegex);
 
         if (taskNumberMatch) {

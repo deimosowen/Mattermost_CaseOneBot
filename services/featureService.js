@@ -1,15 +1,17 @@
 const GitlabService = require('./gitlabService');
-const { addFeatureReady } = require('../db/models/featureReady');
+const {
+    addFeatureReady,
+    updateFeatureMergeRequestConflictState,
+} = require('../db/models/featureReady');
 const { postMessage, postMessageInTreed, pinPost } = require('../mattermost/utils');
 const { parseGitlabMrUrl } = require('../services/gitlabService/gitlabHelper');
 const { tryResolveBackendConflicts: resolveConflicts } = require('../services/gitlabService/conflictResolver');
-const { FEATURE_IS_READY_CHANNEL_ID } = require('../config');
-const logger = require('../logger');
+const { FEATURE_IS_READY_CHANNEL_ID, AUTO_RESOLVE_CONFLICTS } = require('../config');
+const logger = require('../logger').child('feature');
 
 class FeatureServices {
     constructor() {
         this.channelId = FEATURE_IS_READY_CHANNEL_ID;
-        this.autoResolvedConflicts = false;
     }
 
     async handleFeatureReady(data) {
@@ -26,11 +28,11 @@ class FeatureServices {
                 { tag: '@c1-aqa', url: data.aqaPullRequestUrl, data: parseGitlabMrUrl(data.aqaPullRequestUrl) }
             ].filter(p => p.url);
 
-            await this._saveToDatabase(data, mergeRequests, post.id);
+            const featureId = await this._saveToDatabase(data, mergeRequests, post.id);
 
             const conflictResults = await this._checkMergeConflicts(mergeRequests);
             if (conflictResults.hasConflicts) {
-                if (this.autoResolvedConflicts === true) {
+                if (AUTO_RESOLVE_CONFLICTS) {
                     // Пытаемся автоматически разрешить конфликты для бэка
                     await this._tryResolveBackendConflicts(mergeRequests, post.id);
 
@@ -41,6 +43,7 @@ class FeatureServices {
                 const conflictMessage = this._buildConflictAlert(conflictResults);
                 if (conflictMessage) {
                     await postMessageInTreed(post.id, conflictMessage);
+                    await this._markAnnouncedConflicts(featureId, conflictResults);
                 }
             }
 
@@ -57,7 +60,18 @@ class FeatureServices {
     }
 
     async _saveToDatabase(data, mergeRequests, postId) {
-        await addFeatureReady(data, mergeRequests, postId);
+        return addFeatureReady(data, mergeRequests, postId);
+    }
+
+    async _markAnnouncedConflicts(featureId, conflictResults) {
+        if (!featureId) {
+            return;
+        }
+
+        const conflicted = conflictResults.details.filter(d => d.hasConflicts);
+        for (const conflict of conflicted) {
+            await updateFeatureMergeRequestConflictState(featureId, conflict.tag, true, true, conflict.sourceSha);
+        }
     }
 
     async _checkMergeConflicts(mergeRequests) {
@@ -75,6 +89,7 @@ class FeatureServices {
                     tag: mr.tag,
                     url: mr.url,
                     title: mrInfo.title,
+                    sourceSha: mrInfo.sourceSha || null,
                     hasConflicts
                 });
 
@@ -149,6 +164,8 @@ class FeatureServices {
 
                     // Помечаем MR как автоматически разрешенный
                     mr.autoResolved = true;
+                } else if (result.dryRun && result.wouldUpdate && result.wouldUpdate.length > 0) {
+                    logger.info(`[FeatureService] [DRY-RUN] MR ${mr.tag}: будут обновлены файлы: ${result.wouldUpdate.join(', ')}`);
                 }
             } catch (error) {
                 logger.error(`[FeatureService] Ошибка при попытке разрешения конфликтов для ${mr.tag}: ${error.message}`);

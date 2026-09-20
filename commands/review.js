@@ -10,6 +10,8 @@ const {
     getReviewTaskByPostId,
     updateReviewTaskStatus,
     updateReviewTaskReviewer,
+    updateReviewTaskMetadata,
+    addTaskNotification,
 } = require('../db/models/reviewTask');
 
 const JiraService = require('../services/jiraService');
@@ -17,6 +19,7 @@ const reviewDistributionService = require('../services/reviewDistributionService
 const reviewTaskService = require('../services/reviewTaskService');
 const JiraStatusType = require('../types/jiraStatusTypes');
 const { getEnabledReviewChannelIdsForUser } = require('../services/reviewChannelAvailabilityService');
+const { extractTaskNumber } = require('../services/jiraService/jiraHelper');
 const logger = require('../logger');
 const CONFLUENCE_LINK_ONLY_CHANNEL_ID = '5n7ic16hqfn8ibfgek48bohesh';
 
@@ -70,7 +73,17 @@ const hasValue = (v) => v != null && v !== '';
 /** Найти запись reviewTask по треду */
 async function findReviewTaskByThread(post_id) {
     const post = await getPost(post_id);
-    return getReviewTaskByPostId(post.root_id);
+    const rootPostId = post.root_id || post.id;
+    const reviewTask = await getReviewTaskByPostId(rootPostId);
+
+    if (reviewTask) {
+        return reviewTask;
+    }
+
+    const rootPost = rootPostId === post.id ? post : await getPost(rootPostId);
+    const taskKey = extractTaskNumber(rootPost);
+
+    return taskKey ? getReviewTaskByKey(taskKey) : null;
 }
 
 /** (Опционально) установка ревьюверов в Jira */
@@ -144,8 +157,30 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
                     }
                 }
 
-                const { addTaskNotification } = require('../db/models/reviewTask');
+                const gitlabMergeRequestId = mergeRequestLink
+                    ? await reviewTaskService.processGitlabMergeRequest(mergeRequestLink)
+                    : reviewTask.gitlab_merge_request_id;
+                const updatedMergeRequestUrl = mergeRequestLink || reviewTask.merge_request_url || null;
+
+                await updateReviewTaskMetadata({
+                    task_key: key,
+                    channel_id: reviewTask.channel_id || channelId,
+                    post_id: reviewTask.post_id,
+                    user_id: reviewTask.user_id || user_id,
+                    merge_request_url: updatedMergeRequestUrl,
+                    gitlab_merge_request_id: gitlabMergeRequestId || reviewTask.gitlab_merge_request_id || null,
+                });
+
                 await addTaskNotification(reviewTask.id);
+                await reviewTaskService.notifyReviewThreadReady({
+                    reviewTaskId: reviewTask.id,
+                    taskKey: key,
+                    postId: reviewTask.post_id,
+                    channelId: reviewTask.channel_id || channelId,
+                    userId: reviewTask.user_id || user_id,
+                    mergeRequestUrl: updatedMergeRequestUrl,
+                    gitlabMergeRequestId: gitlabMergeRequestId || reviewTask.gitlab_merge_request_id || null,
+                });
                 continue;
             }
 
@@ -178,6 +213,10 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
             }
 
             const post = await postMessage(channelId, messageToPost);
+            if (!post?.id) {
+                logger.error(`[Review] Не удалось отправить сообщение в канал ${channelId} для задачи ${key}`);
+                continue;
+            }
 
             // Обрабатываем GitLab merge request
             const gitlabMergeRequestId = await reviewTaskService.processGitlabMergeRequest(mergeRequestLink);
@@ -188,7 +227,7 @@ module.exports = async ({ post_id, user_id, user_name, args }) => {
                 channelId,
                 postId: post.id,
                 userId: user_id,
-                mergeRequestUrl: mergeRequest || null,
+                mergeRequestUrl: mergeRequestLink || null,
                 reviewer: reviewerResolved,
                 gitlabMergeRequestId,
             });

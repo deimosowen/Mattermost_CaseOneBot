@@ -6,9 +6,8 @@ const logger = require('./logger');
 
 const { initializeMattermost } = require('./mattermost');
 const { initializeServer, shutdownServer } = require('./server');
-const CalendarManager = require('./services/yandexService/calendar');
-const ReviewManager = require('./services/reviewService');
 const RedisService = require('./services/redisService');
+const flakyTest = require('./services/flakyTest');
 const runMigrations = require('./db/migrations');
 
 const CronManager = require('./cron/cronManager');
@@ -98,6 +97,8 @@ async function main() {
     logger.info('Инициализация Redis…');
     RedisService.init();
 
+    flakyTest.register();
+
     // Mattermost
     logger.info('Инициализация Mattermost…');
     initializeMattermost();
@@ -105,17 +106,13 @@ async function main() {
 
     // Cron-задачи из БД
     logger.info('Загрузка cron-задач…');
-    maybeAwait(CronManager.startAll());
+    await maybeAwait(CronManager.startAll());
     logger.info('Cron-задачи загружены.');
 
     // HTTP/WS-сервер
     logger.info('Инициализация сервера…');
     await maybeAwait(initializeServer());
     logger.info('Сервер инициализирован.');
-
-    // Сервисы домена
-    CalendarManager.init();
-    ReviewManager.init();
 
     logger.info('Бот успешно запущен.');
 }

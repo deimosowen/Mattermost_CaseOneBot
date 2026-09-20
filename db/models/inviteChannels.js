@@ -133,6 +133,25 @@ const inviteChannelExists = async (mainChannelId, prefix) => {
     }
 };
 
+const inviteChannelExistsExceptId = async (mainChannelId, prefix, id) => {
+    try {
+        const tableExists = await checkTableExists();
+        if (!tableExists) {
+            return false;
+        }
+        const row = await db.get(
+            'SELECT id FROM invite_channels WHERE main_channel_id = ? AND prefix = ? AND id <> ?',
+            [mainChannelId, prefix, id]
+        );
+        return !!row;
+    } catch (err) {
+        if (err.message && err.message.includes('no such table')) {
+            return false;
+        }
+        throw err;
+    }
+};
+
 // Получение всех префиксов для основного канала (только массив префиксов)
 const getPrefixesByMainChannel = async (mainChannelId) => {
     try {
@@ -174,6 +193,7 @@ module.exports = {
     removeInviteChannelsByMainChannel,
     updateInviteChannel,
     inviteChannelExists,
+    inviteChannelExistsExceptId,
     getPrefixesByMainChannel,
     getInviteChannelsMap
 };

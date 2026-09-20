@@ -24,6 +24,7 @@ const review = require('./review');
 const reviewSettings = require('./review/reviewSettings');
 const removeMessage = require('./removeMessage');
 const log = require('./log');
+const flakyCheck = require('./flakyCheck');
 
 const commands = {
     '!r': removeMessage,
@@ -52,7 +53,8 @@ const commands = {
     '!reop': reop,
     '!review': review,
     '!review-settings': reviewSettings,
-    '!log': log
+    '!log': log,
+    '!flaky-check': flakyCheck
 };
 
 module.exports = commands;

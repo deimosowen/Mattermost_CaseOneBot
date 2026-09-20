@@ -10,6 +10,7 @@ const oauthController = require('./controllers/oauthController');
 const calendarController = require('./controllers/calendarController');
 const dutyController = require('./controllers/dutyController');
 const inviteController = require('./controllers/inviteController');
+const forwardController = require('./controllers/forwardController');
 const jiraController = require('./controllers/jiraController');
 const featureController = require('./controllers/featureController');
 const patchController = require('./controllers/patchController');
@@ -20,6 +21,7 @@ const adminController = require('./controllers/adminController');
 const reminderController = require('./controllers/reminderController');
 const commandsController = require('./controllers/commandsController');
 const profileController = require('./controllers/profileController');
+const worklogReportController = require('./controllers/worklogReportController');
 
 const passport = require('./middleware/passport');
 const requireAuth = require('./middleware/auth');
@@ -108,14 +110,35 @@ function buildApp() {
         '^/api/public/.*', // если будут публичные API
     ];
 
+    const isPublicPath = (path) => {
+        const exactOrWildcard = publicPaths.some(publicPath => {
+            if (path === publicPath) return true;
+            if (publicPath.endsWith('*') && path.startsWith(publicPath.slice(0, -1))) return true;
+            return false;
+        });
+
+        if (exactOrWildcard) {
+            return true;
+        }
+
+        return publicPatterns.some(pattern => new RegExp(pattern).test(path));
+    };
+
     app.use(requireAuth(publicPaths, publicPatterns));
-    app.use(menuAccessMiddleware);
+    app.use((req, res, next) => {
+        if (isPublicPath(req.path)) {
+            return next();
+        }
+
+        return menuAccessMiddleware(req, res, next);
+    });
 
     // Защищенные маршруты
     app.use('/', homeController);
     app.use('/calendar', calendarController);
     app.use('/duty', dutyController);
     app.use('/invite', inviteController);
+    app.use('/forward', forwardController);
     app.use('/jira', jiraController);
     app.use('/feature', featureController);
     app.use('/patch', patchController);
@@ -126,6 +149,7 @@ function buildApp() {
     app.use('/reminders', reminderController);
     app.use('/commands', commandsController);
     app.use('/profile', profileController);
+    app.use('/worklogs', worklogReportController);
 
     return app;
 }

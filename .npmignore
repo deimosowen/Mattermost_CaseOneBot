@@ -1,0 +1,37 @@
+# Tests
+__tests__/
+tests/
+*.test.js
+*.test_.js
+*.spec.js
+
+# Config
+.env
+.env.*
+.credentials
+credentials.json
+credentials_prod.json
+.cursor/
+.github/
+.git/
+
+# Build
+dist/
+logs/
+*.db
+
+# Dev files
+gulpfile.js
+jest.config.js
+.eslintrc*
+.prettierrc*
+
+# Lock files
+package-lock.json
+yarn.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

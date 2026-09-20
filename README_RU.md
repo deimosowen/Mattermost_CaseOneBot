@@ -91,6 +91,11 @@ OPENAI_API_TEMPERATURE=your_openai_api_temperature
 OPENAI_API_TOP_P=your_openai_api_top_p
 OPENAI_SESSION_TOKEN=your_openai_session_token
 OPENAI_DALLE_API_KEY=your_dalle_api_key
+CONFLUENCE_BASE_URL=your_confluence_base_url
+CONFLUENCE_USERNAME=your_confluence_username
+CONFLUENCE_API_TOKEN=your_confluence_api_token
+CONFLUENCE_SPACE_KEYS=SPACE1,SPACE2
+KNOWLEDGE_SEARCH_LIMIT=5
 HOST=your_host
 PORT=your_port
 JIRA_API_URL=your_jira_api_url
@@ -131,6 +136,11 @@ NODE_ENV=production
 - `OPENAI_API_TOP_P`: параметр top_p.
 - `OPENAI_SESSION_TOKEN`: токен сессии ChatGPT.
 - `OPENAI_DALLE_API_KEY`: ключ DALL-E.
+- `CONFLUENCE_BASE_URL`: базовый URL Confluence с context path, например `https://company.atlassian.net/wiki`.
+- `CONFLUENCE_USERNAME`: пользователь Confluence для Basic auth. Если не указан, `CONFLUENCE_API_TOKEN` используется как Bearer token.
+- `CONFLUENCE_API_TOKEN`: API token или Bearer token для поиска по Confluence.
+- `CONFLUENCE_SPACE_KEYS`: список Confluence spaces для поиска через запятую. Если пусто, поиск идет по доступным spaces.
+- `KNOWLEDGE_SEARCH_LIMIT`: максимальное количество результатов поиска по базе знаний.
 - `HOST`: хост сервера бота.
 - `PORT`: порт сервера бота.
 - `JIRA_API_URL`: URL прокси для Jira.

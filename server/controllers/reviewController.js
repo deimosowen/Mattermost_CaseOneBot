@@ -12,6 +12,34 @@ const JiraStatusType = require('../../types/jiraStatusTypes');
 const logger = require('../../logger');
 
 const router = express.Router();
+const USER_TASK_SEARCH_TOTAL_TIMEOUT_MS = 12000;
+const USER_TASK_SEARCH_QUERY_TIMEOUT_MS = 5000;
+
+function getRemainingMs(deadline) {
+    return Math.max(0, deadline - Date.now());
+}
+
+async function searchTasksByJqlWithBudget(jql, maxResults, deadline) {
+    const remainingMs = getRemainingMs(deadline);
+    if (remainingMs <= 0) {
+        throw new Error('Истекло время ожидания ответа Jira');
+    }
+
+    const timeoutMs = Math.min(USER_TASK_SEARCH_QUERY_TIMEOUT_MS, remainingMs);
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Истекло время ожидания ответа Jira')), timeoutMs);
+    });
+
+    try {
+        return await Promise.race([
+            JiraService.searchTasksByJql(jql, maxResults),
+            timeoutPromise
+        ]);
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
 
 // Главная страница настроек ревью
 router.get('/settings', async (req, res) => {
@@ -296,6 +324,8 @@ router.get('/api/user-tasks', async (req, res) => {
     try {
         const user_id = req.user?.mattermostUserId;
         const { search } = req.query;
+        const searchDeadline = Date.now() + USER_TASK_SEARCH_TOTAL_TIMEOUT_MS;
+        let searchTimedOut = false;
 
         if (!user_id) {
             return res.status(401).json({ error: 'Пользователь не авторизован' });
@@ -332,7 +362,7 @@ router.get('/api/user-tasks', async (req, res) => {
             try {
                 logger.debug(`Searching for exact task key: ${searchTerm} without filters`);
                 const exactTaskJql = `key = "${searchTerm}"`;
-                const exactTasks = await JiraService.searchTasksByJql(exactTaskJql, 1);
+                const exactTasks = await searchTasksByJqlWithBudget(exactTaskJql, 1, searchDeadline);
 
                 if (Array.isArray(exactTasks) && exactTasks.length > 0) {
                     // Задача найдена, возвращаем её без фильтров
@@ -347,6 +377,7 @@ router.get('/api/user-tasks', async (req, res) => {
                     return res.json({ tasks: formattedTasks });
                 }
             } catch (error) {
+                searchTimedOut = searchTimedOut || error.message.includes('Истекло время ожидания');
                 logger.debug(`Could not find exact task ${searchTerm}, will try with filters: ${error.message}`);
             }
         }
@@ -382,7 +413,7 @@ router.get('/api/user-tasks', async (req, res) => {
         for (const jqlQuery of jqlVariants) {
             try {
                 logger.debug(`Trying JQL: ${jqlQuery}`);
-                tasks = await JiraService.searchTasksByJql(jqlQuery, 50);
+                tasks = await searchTasksByJqlWithBudget(jqlQuery, 50, searchDeadline);
 
                 if (Array.isArray(tasks) && tasks.length > 0) {
                     logger.debug(`Success with JQL, found ${tasks.length} tasks`);
@@ -390,21 +421,25 @@ router.get('/api/user-tasks', async (req, res) => {
                 }
             } catch (error) {
                 lastError = error;
+                searchTimedOut = searchTimedOut || error.message.includes('Истекло время ожидания');
                 logger.debug(`JQL query failed: ${jqlQuery}, error: ${error.message}`);
+                if (getRemainingMs(searchDeadline) <= 0) {
+                    break;
+                }
                 continue;
             }
         }
 
         // Если не нашли задачи по assignee, пробуем альтернативный подход:
         // Получаем все задачи в статусе In Progress и фильтруем на стороне сервера
-        if ((!Array.isArray(tasks) || tasks.length === 0) && (userEmail || username)) {
+        if ((!Array.isArray(tasks) || tasks.length === 0) && (userEmail || username) && getRemainingMs(searchDeadline) > 0) {
             logger.debug('Trying alternative approach: get all In Progress tasks and filter by assignee');
             try {
                 const allTasksJql = searchTerm
                     ? `status = "In Progress" AND (key ~ "${searchTerm}" OR summary ~ "${searchTerm}") ORDER BY updated DESC`
                     : `status = "In Progress" ORDER BY updated DESC`;
 
-                const allTasks = await JiraService.searchTasksByJql(allTasksJql, 100);
+                const allTasks = await searchTasksByJqlWithBudget(allTasksJql, 100, searchDeadline);
 
                 if (Array.isArray(allTasks) && allTasks.length > 0) {
                     // Фильтруем задачи по assignee
@@ -422,6 +457,7 @@ router.get('/api/user-tasks', async (req, res) => {
                     logger.debug(`Filtered ${tasks.length} tasks from ${allTasks.length} total tasks`);
                 }
             } catch (error) {
+                searchTimedOut = searchTimedOut || error.message.includes('Истекло время ожидания');
                 logger.warn(`Alternative search also failed: ${error.message}`);
             }
         }
@@ -433,7 +469,10 @@ router.get('/api/user-tasks', async (req, res) => {
         // Проверяем, что tasks - это массив
         if (!Array.isArray(tasks)) {
             logger.warn(`Unexpected tasks format: ${typeof tasks}`);
-            return res.json({ tasks: [] });
+            return res.json({
+                tasks: [],
+                warning: searchTimedOut ? 'Jira отвечает слишком долго. Можно ввести ключ задачи вручную.' : null
+            });
         }
 
         // Форматируем результат для Tom Select
@@ -445,7 +484,10 @@ router.get('/api/user-tasks', async (req, res) => {
             status: task.status
         }));
 
-        res.json({ tasks: formattedTasks });
+        res.json({
+            tasks: formattedTasks,
+            warning: searchTimedOut ? 'Jira отвечает слишком долго. Показаны только успевшие загрузиться данные.' : null
+        });
     } catch (error) {
         logger.error(`Error getting user tasks: ${error.message}\nStack trace:\n${error.stack}`);
         res.status(500).json({ error: error.message || 'Ошибка при получении задач' });

@@ -1,6 +1,5 @@
 const moment = require('moment');
 const dayOffService = require('../services/dayOffService');
-const { CronJob } = require('cron');
 
 const {
     getReviewTasksByStatus,
@@ -59,26 +58,12 @@ class ReviewManager {
         this.dailyNotificationHourUtc = DAILY_NOTIFICATION_HOUR_UTC;
         /** Ежечасный крон: авто-актуализация и «догон» уведомлений, если 05:00 пропущено. */
         this.checkTaskStatusCronSchedule = CHECK_TASK_STATUS_CRON;
-    }
-
-    /** Инициализация задач */
-    init() {
-        this.startCheckTaskStatusJob();
         moment.relativeTimeThreshold('h', 24 * 7);
     }
 
-    /** Запуск задачи проверки статусов */
-    startCheckTaskStatusJob() {
-        new CronJob(
-            this.checkTaskStatusCronSchedule,
-            () =>
-                this.checkTasksStatus().catch((error) =>
-                    logger.error('Ошибка в задаче проверки статуса задач:', error)
-                ),
-            null,
-            true,
-            'UTC'
-        ).start();
+    /** @deprecated Cron-задачи ReviewManager запускаются через CronManager. */
+    init() {
+        logger.warn('ReviewManager.init() is deprecated. Review cron jobs are managed by CronManager.');
     }
 
     /**

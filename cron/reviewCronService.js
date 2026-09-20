@@ -3,16 +3,18 @@ const { getReviewTaskWithNotClosedMRs } = require('../db/models/reviewTask');
 const { postMessageInTreed, addReaction } = require('../mattermost/utils');
 const GitlabService = require('../services/gitlabService');
 const reviewDistributionService = require('../services/reviewDistributionService');
-const logger = require('../logger');
+const config = require('../config');
+const logger = require('../logger').child('review');
 
 class ReviewCronService extends BaseCronService {
     constructor() {
         super('ReviewCron');
         this.gitlab = GitlabService;
-        this.shedule = '* * * * *';
         this.statuses = GitlabService.STATUSES;
         this.reaction = 'heavy_check_mark';
         this.autoAssignment = false;
+        // Fallback: каждые 30 минут если webhook включен, каждую минуту если отключен
+        this.shedule = config.USE_GITLAB_WEBHOOK ? '*/30 * * * *' : '* * * * *';
     }
 
     async loadJobsFromDb() {
